@@ -75,12 +75,10 @@ export function Header() {
         <div className="h-6 w-px bg-border/50 mx-1" />
 
         <DropdownMenu>
-          <DropdownMenuTrigger asChild>
-            <Button variant="ghost" className="relative h-9 w-9 rounded-full ml-1 border hover:bg-muted focus-visible:ring-1 focus-visible:ring-primary/50">
-              <Avatar className="h-9 w-9 border-2 border-primary/20">
-                <AvatarFallback className="bg-primary/10 text-primary font-bold">{getInitials(profile?.full_name || 'User')}</AvatarFallback>
-              </Avatar>
-            </Button>
+          <DropdownMenuTrigger className="relative flex h-9 w-9 items-center justify-center rounded-full ml-1 border hover:bg-muted focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-primary/50">
+            <Avatar className="h-9 w-9 border-2 border-primary/20">
+              <AvatarFallback className="bg-primary/10 text-primary font-bold">{getInitials(profile?.full_name || 'User')}</AvatarFallback>
+            </Avatar>
           </DropdownMenuTrigger>
           <DropdownMenuContent className="w-56" align="end">
             <DropdownMenuLabel className="font-normal">
