@@ -4,12 +4,10 @@ import { Toaster } from 'sonner';
 import Login from './pages/Login';
 import Dashboard from './pages/Dashboard';
 import MasterData from './pages/MasterData';
-import Attendance from './pages/Attendance';
-import Courses from './pages/Courses';
+import Users from './pages/Users';
+import Batches from './pages/Batches';
+import BatchDetails from './pages/Batches/BatchDetails';
 import Students from './pages/Students';
-import Assignments from './pages/Assignments';
-import Exams from './pages/Exams';
-import Assessments from './pages/Assessments';
 import { AppLayout } from './components/layout/AppLayout';
 
 const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
@@ -36,12 +34,10 @@ function App() {
           <Route path="/" element={<ProtectedRoute><AppLayout /></ProtectedRoute>}>
             <Route index element={<Dashboard />} />
             <Route path="master" element={<MasterData />} />
-            <Route path="courses" element={<Courses />} />
+            <Route path="/users" element={<Users />} />
             <Route path="/students" element={<Students />} />
-            <Route path="/assessments" element={<Assessments />} />
-            <Route path="/attendance" element={<Attendance />} />
-            <Route path="assignments" element={<Assignments />} />
-            <Route path="exams" element={<Exams />} />
+            <Route path="/batches" element={<Batches />} />
+            <Route path="/batches/:id" element={<BatchDetails />} />
           </Route>
           
           <Route path="*" element={<Navigate to="/" />} />

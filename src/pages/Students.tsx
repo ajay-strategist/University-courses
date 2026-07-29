@@ -75,8 +75,8 @@ export default function Students() {
     <div className="space-y-6 animate-in fade-in duration-500">
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <div>
-          <h2 className="text-3xl font-bold tracking-tight">Students</h2>
-          <p className="text-muted-foreground">Manage student enrollments, profiles, and academic records.</p>
+          <h2 className="text-3xl font-bold tracking-tight">Master Students Data</h2>
+          <p className="text-muted-foreground">Master directory of all registered students.</p>
         </div>
         <div className="flex gap-2">
           <Button variant="outline" className="shadow-sm">

@@ -23,12 +23,9 @@ export function Sidebar() {
   const navItems = [
     { name: 'Dashboard', path: '/', icon: LayoutDashboard, roles: ['super_admin', 'trainer', 'student_coordinator'] },
     { name: 'Master Data', path: '/master', icon: Settings, roles: ['super_admin'] },
-    { name: 'Courses', path: '/courses', icon: BookOpen, roles: ['super_admin', 'trainer'] },
-    { name: 'Students', path: '/students', icon: Users, roles: ['super_admin', 'student_coordinator'] },
-    { name: 'Attendance', path: '/attendance', icon: CalendarCheck, roles: ['super_admin', 'student_coordinator'] },
-    { name: 'Assessments (Fast Entry)', path: '/assessments', icon: PenTool, roles: ['super_admin', 'trainer', 'student_coordinator'] },
-    { name: 'Assignments', path: '/assignments', icon: ClipboardList, roles: ['trainer', 'student_coordinator'] },
-    { name: 'Exams', path: '/exams', icon: GraduationCap, roles: ['trainer', 'student_coordinator'] },
+    { name: 'Users', path: '/users', icon: ShieldAlert, roles: ['super_admin'] },
+    { name: 'Students Data', path: '/students', icon: Users, roles: ['super_admin', 'student_coordinator'] },
+    { name: 'Batches', path: '/batches', icon: BookOpen, roles: ['super_admin', 'trainer', 'student_coordinator'] },
   ];
 
   const allowedNavItems = navItems.filter(item => 

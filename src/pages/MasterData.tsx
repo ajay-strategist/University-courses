@@ -18,6 +18,7 @@ export default function MasterData() {
   const [programs, setPrograms] = useState<any[]>([]);
   const [academicYears, setAcademicYears] = useState<any[]>([]);
   const [batches, setBatches] = useState<any[]>([]);
+  const [coordinators, setCoordinators] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
   // Form states
@@ -28,7 +29,7 @@ export default function MasterData() {
   const [newYear, setNewYear] = useState({ name: '', start_date: '', end_date: '' });
 
   const [isBatchModalOpen, setIsBatchModalOpen] = useState(false);
-  const [newBatch, setNewBatch] = useState({ name: '', program_id: '', academic_year_id: '' });
+  const [newBatch, setNewBatch] = useState({ name: '', program_id: '', academic_year_id: '', coordinator_id: '' });
 
   useEffect(() => {
     fetchMasterData();
@@ -37,18 +38,21 @@ export default function MasterData() {
   async function fetchMasterData() {
     setIsLoading(true);
     try {
-      const [programsRes, yearsRes, batchesRes] = await Promise.all([
-        supabase.from('uct_programs').select('*').order('created_at', { ascending: false }),
-        supabase.from('uct_academic_years').select('*').order('start_date', { ascending: false }),
+      const [programsRes, yearsRes, coordinatorsRes, batchesRes] = await Promise.all([
+        supabase.from('uct_programs').select('*').order('name'),
+        supabase.from('uct_academic_years').select('*').order('name'),
+        supabase.from('uct_profiles').select('*').eq('role', 'student_coordinator').order('full_name'),
         supabase.from('uct_batches').select('*, program:uct_programs(name), year:uct_academic_years(name)').order('created_at', { ascending: false })
       ]);
 
       if (programsRes.error) throw programsRes.error;
       if (yearsRes.error) throw yearsRes.error;
+      if (coordinatorsRes.error) throw coordinatorsRes.error;
       if (batchesRes.error) throw batchesRes.error;
 
       setPrograms(programsRes.data || []);
       setAcademicYears(yearsRes.data || []);
+      setCoordinators(coordinatorsRes.data || []);
       setBatches(batchesRes.data || []);
     } catch (error: any) {
       toast.error('Failed to load master data', { description: error.message });
@@ -88,11 +92,15 @@ export default function MasterData() {
   async function handleAddBatch(e: React.FormEvent) {
     e.preventDefault();
     try {
-      const { data, error } = await supabase.from('uct_batches').insert([newBatch]).select('*, program:uct_programs(name), year:uct_academic_years(name)');
+      const payload: any = { ...newBatch };
+      if (!payload.coordinator_id || payload.coordinator_id === 'unassigned') {
+        payload.coordinator_id = null;
+      }
+      const { data, error } = await supabase.from('uct_batches').insert([payload]).select('*, program:uct_programs(name), year:uct_academic_years(name)');
       if (error) throw error;
       setBatches([data[0], ...batches]);
       setIsBatchModalOpen(false);
-      setNewBatch({ name: '', program_id: '', academic_year_id: '' });
+      setNewBatch({ name: '', program_id: '', academic_year_id: '', coordinator_id: '' });
       toast.success('Batch added successfully');
     } catch (error: any) {
       toast.error('Error adding batch', { description: error.message });
@@ -289,6 +297,16 @@ export default function MasterData() {
                           <SelectTrigger><SelectValue placeholder="Select Academic Year" /></SelectTrigger>
                           <SelectContent>
                             {academicYears.map(y => <SelectItem key={y.id} value={y.id}>{y.name}</SelectItem>)}
+                          </SelectContent>
+                        </Select>
+                      </div>
+                      <div className="grid gap-2">
+                        <Label>Coordinator (Optional)</Label>
+                        <Select value={newBatch.coordinator_id} onValueChange={(val) => setNewBatch({...newBatch, coordinator_id: val || ''})}>
+                          <SelectTrigger><SelectValue placeholder="Select Coordinator" /></SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="unassigned" className="text-muted-foreground italic">None</SelectItem>
+                            {coordinators.map(c => <SelectItem key={c.id} value={c.id}>{c.full_name || c.email}</SelectItem>)}
                           </SelectContent>
                         </Select>
                       </div>
