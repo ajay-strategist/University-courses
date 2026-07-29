@@ -49,11 +49,13 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
 
         if (error) {
           console.error('Error fetching profile:', error);
+          alert(`Database Error fetching profile: ${error.message} (Code: ${error.code}). Please check your RLS policies in Supabase!`);
           return null;
         }
         return data as AuthProfile;
-      } catch (err) {
+      } catch (err: any) {
         console.error('Unexpected error fetching profile:', err);
+        alert(`Unexpected Error: ${err.message}`);
         return null;
       }
     }
