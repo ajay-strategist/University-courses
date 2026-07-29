@@ -83,10 +83,8 @@ export default function Students() {
             Import CSV
           </Button>
           <Dialog open={isAddOpen} onOpenChange={setIsAddOpen}>
-            <DialogTrigger asChild>
-              <Button className="rounded-full shadow-sm">
-                <Plus className="mr-2 h-4 w-4" /> Add Student
-              </Button>
+            <DialogTrigger className="inline-flex items-center justify-center whitespace-nowrap text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 bg-primary text-primary-foreground hover:bg-primary/90 h-9 px-4 py-2 rounded-full shadow-sm">
+              <Plus className="mr-2 h-4 w-4" /> Add Student
             </DialogTrigger>
             <DialogContent>
               <form onSubmit={handleAddStudent}>
@@ -116,7 +114,7 @@ export default function Students() {
                     </div>
                     <div className="grid gap-2">
                       <Label>Batch Assignment</Label>
-                      <Select value={newStudent.batch_id} onValueChange={(val) => setNewStudent({...newStudent, batch_id: val})} required>
+                      <Select value={newStudent.batch_id} onValueChange={(val) => setNewStudent({...newStudent, batch_id: val || ''})} required>
                         <SelectTrigger><SelectValue placeholder="Select Batch" /></SelectTrigger>
                         <SelectContent>
                           {batches.map(b => (

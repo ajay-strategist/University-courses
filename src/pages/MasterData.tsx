@@ -122,8 +122,8 @@ export default function MasterData() {
                 <CardDescription>Manage academic programs (e.g., B.Tech CS, MBA).</CardDescription>
               </div>
               <Dialog open={isProgramModalOpen} onOpenChange={setIsProgramModalOpen}>
-                <DialogTrigger asChild>
-                  <Button><Plus className="mr-2 h-4 w-4" /> Add Program</Button>
+                <DialogTrigger className="inline-flex items-center justify-center whitespace-nowrap rounded-md text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 bg-primary text-primary-foreground shadow hover:bg-primary/90 h-9 px-4 py-2">
+                  <Plus className="mr-2 h-4 w-4" /> Add Program
                 </DialogTrigger>
                 <DialogContent>
                   <form onSubmit={handleAddProgram}>
@@ -187,8 +187,8 @@ export default function MasterData() {
                 <CardDescription>Manage academic timelines (e.g., 2024-2025).</CardDescription>
               </div>
               <Dialog open={isYearModalOpen} onOpenChange={setIsYearModalOpen}>
-                <DialogTrigger asChild>
-                  <Button><Plus className="mr-2 h-4 w-4" /> Add Year</Button>
+                <DialogTrigger className="inline-flex items-center justify-center whitespace-nowrap rounded-md text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 bg-primary text-primary-foreground shadow hover:bg-primary/90 h-9 px-4 py-2">
+                  <Plus className="mr-2 h-4 w-4" /> Add Year
                 </DialogTrigger>
                 <DialogContent>
                   <form onSubmit={handleAddYear}>
@@ -260,8 +260,8 @@ export default function MasterData() {
                 <CardDescription>Manage student batches mapping to programs and years.</CardDescription>
               </div>
               <Dialog open={isBatchModalOpen} onOpenChange={setIsBatchModalOpen}>
-                <DialogTrigger asChild>
-                  <Button><Plus className="mr-2 h-4 w-4" /> Add Batch</Button>
+                <DialogTrigger className="inline-flex items-center justify-center whitespace-nowrap rounded-md text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 bg-primary text-primary-foreground shadow hover:bg-primary/90 h-9 px-4 py-2">
+                  <Plus className="mr-2 h-4 w-4" /> Add Batch
                 </DialogTrigger>
                 <DialogContent>
                   <form onSubmit={handleAddBatch}>
@@ -276,7 +276,7 @@ export default function MasterData() {
                       </div>
                       <div className="grid gap-2">
                         <Label>Program</Label>
-                        <Select value={newBatch.program_id} onValueChange={(val) => setNewBatch({...newBatch, program_id: val})} required>
+                        <Select value={newBatch.program_id} onValueChange={(val) => setNewBatch({...newBatch, program_id: val || ''})} required>
                           <SelectTrigger><SelectValue placeholder="Select Program" /></SelectTrigger>
                           <SelectContent>
                             {programs.map(p => <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>)}
@@ -285,7 +285,7 @@ export default function MasterData() {
                       </div>
                       <div className="grid gap-2">
                         <Label>Academic Year</Label>
-                        <Select value={newBatch.academic_year_id} onValueChange={(val) => setNewBatch({...newBatch, academic_year_id: val})} required>
+                        <Select value={newBatch.academic_year_id} onValueChange={(val) => setNewBatch({...newBatch, academic_year_id: val || ''})} required>
                           <SelectTrigger><SelectValue placeholder="Select Academic Year" /></SelectTrigger>
                           <SelectContent>
                             {academicYears.map(y => <SelectItem key={y.id} value={y.id}>{y.name}</SelectItem>)}

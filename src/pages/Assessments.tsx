@@ -174,7 +174,7 @@ export default function Assessments() {
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             <div className="space-y-2">
               <Label>1. Select Course</Label>
-              <Select value={selectedCourse} onValueChange={setSelectedCourse}>
+              <Select value={selectedCourse} onValueChange={(val) => val && setSelectedCourse(val)}>
                 <SelectTrigger className="bg-background"><SelectValue placeholder="Select Course..." /></SelectTrigger>
                 <SelectContent>
                   {courses.map(c => <SelectItem key={c.id} value={c.id}>{c.name} ({c.code})</SelectItem>)}
@@ -185,7 +185,7 @@ export default function Assessments() {
             <div className="space-y-2">
               <Label>2. Select Assessment</Label>
               <div className="flex gap-2">
-                <Select value={selectedAssignment} onValueChange={setSelectedAssignment} disabled={!selectedCourse}>
+                <Select value={selectedAssignment} onValueChange={(val) => val && setSelectedAssignment(val)} disabled={!selectedCourse}>
                   <SelectTrigger className="bg-background flex-1"><SelectValue placeholder="Select Assessment..." /></SelectTrigger>
                   <SelectContent>
                     {assignments.length === 0 && <SelectItem value="none" disabled>No assessments found</SelectItem>}
@@ -194,8 +194,8 @@ export default function Assessments() {
                 </Select>
                 
                 <Dialog open={isAddAssignmentOpen} onOpenChange={setIsAddAssignmentOpen}>
-                  <DialogTrigger asChild>
-                    <Button variant="outline" size="icon" disabled={!selectedCourse}><Plus className="h-4 w-4" /></Button>
+                  <DialogTrigger disabled={!selectedCourse} className="inline-flex items-center justify-center whitespace-nowrap rounded-md text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 border border-input bg-background shadow-sm hover:bg-accent hover:text-accent-foreground h-9 w-9">
+                    <Plus className="h-4 w-4" />
                   </DialogTrigger>
                   <DialogContent>
                     <form onSubmit={handleAddAssignment}>
