@@ -9,6 +9,7 @@ import Courses from './pages/Courses';
 import Students from './pages/Students';
 import Assignments from './pages/Assignments';
 import Exams from './pages/Exams';
+import Assessments from './pages/Assessments';
 import { AppLayout } from './components/layout/AppLayout';
 
 const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
@@ -36,8 +37,9 @@ function App() {
             <Route index element={<Dashboard />} />
             <Route path="master" element={<MasterData />} />
             <Route path="courses" element={<Courses />} />
-            <Route path="students" element={<Students />} />
-            <Route path="attendance" element={<Attendance />} />
+            <Route path="/students" element={<Students />} />
+            <Route path="/assessments" element={<Assessments />} />
+            <Route path="/attendance" element={<Attendance />} />
             <Route path="assignments" element={<Assignments />} />
             <Route path="exams" element={<Exams />} />
           </Route>

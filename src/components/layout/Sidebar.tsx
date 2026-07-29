@@ -10,7 +10,8 @@ import {
   LogOut,
   Settings,
   ChevronRight,
-  ShieldAlert
+  ShieldAlert,
+  PenTool
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
@@ -25,6 +26,7 @@ export function Sidebar() {
     { name: 'Courses', path: '/courses', icon: BookOpen, roles: ['super_admin', 'trainer'] },
     { name: 'Students', path: '/students', icon: Users, roles: ['super_admin', 'student_coordinator'] },
     { name: 'Attendance', path: '/attendance', icon: CalendarCheck, roles: ['super_admin', 'student_coordinator'] },
+    { name: 'Assessments (Fast Entry)', path: '/assessments', icon: PenTool, roles: ['super_admin', 'trainer', 'student_coordinator'] },
     { name: 'Assignments', path: '/assignments', icon: ClipboardList, roles: ['trainer', 'student_coordinator'] },
     { name: 'Exams', path: '/exams', icon: GraduationCap, roles: ['trainer', 'student_coordinator'] },
   ];
