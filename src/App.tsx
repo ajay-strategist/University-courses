@@ -5,6 +5,10 @@ import Login from './pages/Login';
 import Dashboard from './pages/Dashboard';
 import MasterData from './pages/MasterData';
 import Attendance from './pages/Attendance';
+import Courses from './pages/Courses';
+import Students from './pages/Students';
+import Assignments from './pages/Assignments';
+import Exams from './pages/Exams';
 import { AppLayout } from './components/layout/AppLayout';
 
 const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
@@ -31,11 +35,11 @@ function App() {
           <Route path="/" element={<ProtectedRoute><AppLayout /></ProtectedRoute>}>
             <Route index element={<Dashboard />} />
             <Route path="master" element={<MasterData />} />
-            <Route path="courses" element={<div><h1 className="text-3xl font-bold tracking-tight">Courses</h1></div>} />
-            <Route path="students" element={<div><h1 className="text-3xl font-bold tracking-tight">Students</h1></div>} />
+            <Route path="courses" element={<Courses />} />
+            <Route path="students" element={<Students />} />
             <Route path="attendance" element={<Attendance />} />
-            <Route path="assignments" element={<div><h1 className="text-3xl font-bold tracking-tight">Assignments</h1></div>} />
-            <Route path="exams" element={<div><h1 className="text-3xl font-bold tracking-tight">Exams</h1></div>} />
+            <Route path="assignments" element={<Assignments />} />
+            <Route path="exams" element={<Exams />} />
           </Route>
           
           <Route path="*" element={<Navigate to="/" />} />
