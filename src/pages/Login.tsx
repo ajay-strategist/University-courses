@@ -116,7 +116,7 @@ export default function Login() {
                   <Input 
                     id="email" 
                     type="email" 
-                    placeholder="name@university.edu" 
+                    placeholder="mail@thestrategist.co.in" 
                     autoComplete="email"
                     className="h-11 transition-all duration-200 focus:ring-2 focus:ring-primary/20 bg-background"
                     {...register('email')} 
