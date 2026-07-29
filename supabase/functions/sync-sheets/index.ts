@@ -13,7 +13,7 @@ serve(async (req) => {
   }
 
   try {
-    const { action, payload } = await req.json();
+    const { action, payload: _payload } = await req.json();
 
     // Verify authentication via the Authorization header
     const authHeader = req.headers.get('Authorization');
@@ -26,7 +26,7 @@ serve(async (req) => {
     const supabaseAnonKey = Deno.env.get('SUPABASE_ANON_KEY') ?? '';
     
     // In production, we'd use the provided JWT to act on behalf of the user
-    const supabase = createClient(supabaseUrl, supabaseAnonKey, {
+    const _supabase = createClient(supabaseUrl, supabaseAnonKey, {
       global: { headers: { Authorization: authHeader } }
     });
 

@@ -12,7 +12,7 @@ serve(async (req) => {
   }
 
   try {
-    const { to, subject, body } = await req.json();
+    const { to, subject: _subject, body: _body } = await req.json();
 
     // Verify auth
     const authHeader = req.headers.get('Authorization');
@@ -21,7 +21,7 @@ serve(async (req) => {
     }
 
     const supabaseUrl = Deno.env.get('SUPABASE_URL') ?? '';
-    const supabaseAnonKey = Deno.env.get('SUPABASE_ANON_KEY') ?? '';
+    const _supabaseAnonKey = Deno.env.get('SUPABASE_ANON_KEY') ?? '';
     
     // We use Service Role to bypass RLS since we need to read mail settings as the system
     // (Assuming Edge Functions have access to SERVICE_ROLE_KEY)

@@ -1,6 +1,6 @@
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, LineChart, Line, Area, AreaChart } from 'recharts';
-import { Users, GraduationCap, Building2, TrendingUp, BookOpen } from 'lucide-react';
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Area, AreaChart } from 'recharts';
+import { Users, Building2, TrendingUp, BookOpen } from 'lucide-react';
 
 const data = [
   { name: 'Jan', students: 400, courses: 24, revenue: 2400 },
