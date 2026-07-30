@@ -29,11 +29,9 @@ export default function ImportCenter() {
       filename = `${selectedBatch?.code || 'Batch'}_Students_Template.xlsx`;
     } else if (importType === 'marks') {
       rows = batchStudents.map(stu => ({
-        'Register No': stu.register_no,
-        'Student Name': stu.name,
-        'Class': stu.class,
+        'Register Number': stu.register_no,
+        'Name': stu.name,
         'Mark': '',
-        'Max Mark (Ref)': 50
       }));
       filename = `${selectedBatch?.code || 'Batch'}_Marks_Template.xlsx`;
     } else if (importType === 'attendance') {
@@ -85,13 +83,14 @@ export default function ImportCenter() {
               validRows.push({ register_no: String(regNo), name: String(name), class: r.class || 'Div A', phone: String(r.phone || '') });
             }
           } else if (importType === 'marks') {
-            const regNo = r['Register No'] || r.register_no;
+            const regNo = r['Register Number'] || r['Register No'] || r.register_no;
+            const name = r['Name'] || r['Student Name'] || r.name;
             const mark = Number(r['Mark'] !== undefined ? r['Mark'] : r.mark);
-            const stu = batchStudents.find(s => s.register_no === String(regNo));
+            const stu = batchStudents.find(s => s.register_no.toLowerCase() === String(regNo || '').toLowerCase());
             if (!stu) {
-              errorRows.push({ row: idx + 1, data: r, error: 'Register No not found in batch roster' });
-            } else if (isNaN(mark) || mark < 0 || mark > 100) {
-              errorRows.push({ row: idx + 1, data: r, error: 'Invalid mark value (must be 0-100)' });
+              errorRows.push({ row: idx + 1, data: r, error: 'Register Number not found in batch roster' });
+            } else if (isNaN(mark) || mark < 0) {
+              errorRows.push({ row: idx + 1, data: r, error: 'Invalid mark value (must be >= 0)' });
             } else {
               validRows.push({ student_id: stu.id, register_no: stu.register_no, name: stu.name, mark });
             }

@@ -279,18 +279,16 @@ export default function BatchDetails() {
       return;
     }
     const excelData = students.map(stu => ({
-      'Register No': stu.register_no,
-      'Student Name': stu.name,
-      'Class': stu.class,
+      'Register Number': stu.register_no,
+      'Name': stu.name,
       'Mark': '',
-      'Max Mark (Reference)': currentAssessment.max_mark
     }));
 
     const ws = XLSX.utils.json_to_sheet(excelData);
     const wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, ws, 'Marks Roster');
     XLSX.writeFile(wb, `${batch.code}_${activeCourse?.code || 'Tool'}_${currentAssessment.name.replace(/\s+/g, '_')}_Template.xlsx`);
-    toast.success('Pre-filled Excel template downloaded!');
+    toast.success('Downloaded 3-column Excel template (Register Number, Name, Mark)!');
   };
 
   const handleUploadMarksFile = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -308,22 +306,22 @@ export default function BatchDetails() {
         const errorRows: any[] = [];
 
         rows.forEach((r) => {
-          const regNo = String(r['Register No'] || r.register_no || r['Reg No'] || '').trim();
-          const name = String(r['Student Name'] || r.name || '').trim();
+          const regNo = String(r['Register Number'] || r['Register No'] || r.register_no || r['Reg No'] || '').trim();
+          const name = String(r['Name'] || r['Student Name'] || r.name || '').trim();
           const markVal = Number(r['Mark'] !== undefined ? r['Mark'] : r.mark);
 
           const student = students.find(s => s.register_no.toLowerCase() === regNo.toLowerCase());
 
           if (!student) {
-            errorRows.push({ register_no: regNo, name, mark: markVal, error: 'Register No not found in batch roster' });
+            errorRows.push({ register_no: regNo || 'N/A', name: name || 'Unknown', mark: markVal, error: 'Register Number not found in batch roster' });
           } else if (isNaN(markVal) || markVal < 0) {
-            errorRows.push({ register_no: regNo, name: student.name, mark: markVal, error: 'Invalid mark value (must be >= 0)' });
+            errorRows.push({ register_no: student.register_no, name: student.name, mark: markVal, error: 'Invalid mark value (must be >= 0)' });
           } else if (markVal > currentAssessment.max_mark) {
             errorRows.push({ 
-              register_no: regNo, 
+              register_no: student.register_no, 
               name: student.name, 
               mark: markVal, 
-              error: `Mark exceeds assessment max mark of ${currentAssessment.max_mark}` 
+              error: `Mark (${markVal}) exceeds assessment max mark limit of ${currentAssessment.max_mark}` 
             });
           } else {
             validRows.push({ student_id: student.id, register_no: student.register_no, name: student.name, mark: markVal });
