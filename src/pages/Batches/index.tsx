@@ -78,62 +78,93 @@ export default function BatchesGrid() {
             <div
               key={batch.id}
               onClick={() => navigate(`/batches/${batch.id}`)}
-              className="card-meridian relative overflow-hidden p-6 cursor-pointer hover:shadow-lg transition-all group border-l-[5px] border-l-accent"
+              className="card-meridian relative overflow-hidden cursor-pointer hover:shadow-xl transition-all group border-l-[5px] border-l-accent flex flex-col justify-between"
             >
-              {/* Top Row: Batch Code & Status */}
-              <div className="flex items-start justify-between mb-4">
-                <div>
-                  <h3 className="font-heading text-xl font-bold text-foreground group-hover:text-primary transition-colors tracking-tight">
-                    {batch.code}
-                  </h3>
-                  <div className="flex items-center gap-2 mt-1 text-xs text-muted-foreground">
-                    <Building2 className="h-3.5 w-3.5 text-muted-foreground" />
-                    <span>{batch.college?.name || 'Partner College'}</span>
-                  </div>
+              {/* College Campus Banner Image */}
+              <div className="relative h-28 w-full overflow-hidden bg-muted">
+                {batch.college?.image_url ? (
+                  <img 
+                    src={batch.college.image_url} 
+                    alt={`${batch.college.name} Campus`} 
+                    className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+                  />
+                ) : (
+                  <div className="w-full h-full bg-gradient-to-r from-primary/30 to-accent/30" />
+                )}
+                <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/30 to-transparent" />
+                
+                {/* College Logo Floating Badge */}
+                <div className="absolute top-3 left-3 flex items-center gap-2">
+                  {batch.college?.logo_url ? (
+                    <img 
+                      src={batch.college.logo_url} 
+                      alt={batch.college.name} 
+                      className="h-8 w-8 rounded-lg object-cover bg-background border border-white/40 shadow-md"
+                    />
+                  ) : (
+                    <div className="h-8 w-8 rounded-lg bg-background text-primary font-bold font-mono text-xs flex items-center justify-center border border-white/40 shadow-md">
+                      {batch.college?.code}
+                    </div>
+                  )}
+                  <span className="text-xs font-semibold text-white drop-shadow-sm truncate max-w-[170px]">
+                    {batch.college?.name}
+                  </span>
                 </div>
-                <span className="text-xs font-mono font-bold px-2.5 py-1 rounded-full bg-primary-tint text-primary border border-primary/20">
+
+                {/* Semester Pill */}
+                <span className="absolute top-3 right-3 text-xs font-mono font-bold px-2.5 py-0.5 rounded-full bg-background/90 text-primary border border-primary/20 backdrop-blur-sm shadow-xs">
                   Sem {batch.current_semester}
                 </span>
-              </div>
 
-              {/* Progress Chips */}
-              <div className="grid grid-cols-2 gap-3 mb-5 p-3 rounded-xl bg-sunken border border-border/60">
-                <div>
-                  <div className="text-[11px] font-mono text-muted-foreground uppercase">Avg Attendance</div>
-                  <div className="text-lg font-bold font-mono text-success mt-0.5">{attendancePct}%</div>
-                </div>
-                <div>
-                  <div className="text-[11px] font-mono text-muted-foreground uppercase">Syllabus Coverage</div>
-                  <div className="text-lg font-bold font-mono text-primary mt-0.5">{coveragePct}%</div>
+                {/* Batch Code overlay at bottom of banner */}
+                <div className="absolute bottom-2 left-3">
+                  <h3 className="font-heading text-lg font-bold text-white group-hover:text-accent transition-colors tracking-tight drop-shadow-md">
+                    {batch.code}
+                  </h3>
                 </div>
               </div>
 
-              {/* Coordinator Metadata */}
-              <div className="space-y-1.5 text-xs text-muted-foreground border-t border-border pt-4">
-                <div className="flex justify-between items-center">
-                  <span>Students:</span>
-                  <span className="font-mono font-bold text-foreground flex items-center gap-1">
-                    <Users className="h-3.5 w-3.5 text-accent" /> {batch.student_count || 0}
-                  </span>
+              {/* Card Body */}
+              <div className="p-5 space-y-4">
+                {/* Progress Chips */}
+                <div className="grid grid-cols-2 gap-3 p-3 rounded-xl bg-sunken border border-border/60">
+                  <div>
+                    <div className="text-[11px] font-mono text-muted-foreground uppercase">Avg Attendance</div>
+                    <div className="text-base font-bold font-mono text-success mt-0.5">{attendancePct}%</div>
+                  </div>
+                  <div>
+                    <div className="text-[11px] font-mono text-muted-foreground uppercase">Syllabus Coverage</div>
+                    <div className="text-base font-bold font-mono text-primary mt-0.5">{coveragePct}%</div>
+                  </div>
                 </div>
-                <div className="flex justify-between items-center">
-                  <span>College Coord:</span>
-                  <span className="font-medium text-foreground truncate max-w-[150px]">
-                    {batch.college_coordinator?.full_name || 'Unassigned'}
-                  </span>
-                </div>
-                <div className="flex justify-between items-center">
-                  <span>Student Coord:</span>
-                  <span className="font-medium text-foreground truncate max-w-[150px]">
-                    {batch.student_coordinator?.full_name || 'Unassigned'}
-                  </span>
-                </div>
-              </div>
 
-              {/* Bottom Action Footer */}
-              <div className="mt-4 pt-3 flex items-center justify-between text-xs text-primary font-semibold group-hover:translate-x-1 transition-transform">
-                <span>Enter Workspace</span>
-                <ChevronRight className="h-4 w-4" />
+                {/* Coordinator Metadata */}
+                <div className="space-y-1.5 text-xs text-muted-foreground border-t border-border pt-3">
+                  <div className="flex justify-between items-center">
+                    <span>Students:</span>
+                    <span className="font-mono font-bold text-foreground flex items-center gap-1">
+                      <Users className="h-3.5 w-3.5 text-accent" /> {batch.student_count || 0}
+                    </span>
+                  </div>
+                  <div className="flex justify-between items-center">
+                    <span>College Coord:</span>
+                    <span className="font-medium text-foreground truncate max-w-[150px]">
+                      {batch.college_coordinator?.full_name || 'Unassigned'}
+                    </span>
+                  </div>
+                  <div className="flex justify-between items-center">
+                    <span>Student Coord:</span>
+                    <span className="font-medium text-foreground truncate max-w-[150px]">
+                      {batch.student_coordinator?.full_name || 'Unassigned'}
+                    </span>
+                  </div>
+                </div>
+
+                {/* Bottom Action Footer */}
+                <div className="pt-2 flex items-center justify-between text-xs text-primary font-semibold group-hover:translate-x-1 transition-transform">
+                  <span>Enter Workspace</span>
+                  <ChevronRight className="h-4 w-4" />
+                </div>
               </div>
             </div>
           );

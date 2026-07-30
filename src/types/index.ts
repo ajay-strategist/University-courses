@@ -40,6 +40,8 @@ export interface College {
   contact_person?: string;
   contact_email?: string;
   contact_phone?: string;
+  logo_url?: string;
+  image_url?: string;
   created_at?: string;
 }
 

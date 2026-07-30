@@ -15,8 +15,28 @@ export const INITIAL_PROFILES: Profile[] = [
 ];
 
 export const INITIAL_COLLEGES: College[] = [
-  { id: 'col-1', code: 'MIM', name: 'Metropolitan Institute of Management', location: 'North Campus', contact_person: 'Dr. Aris Thorne', contact_email: 'coordinator.mim@university.edu', contact_phone: '+1 555-0156' },
-  { id: 'col-2', code: 'SCT', name: 'State College of Technology', location: 'South Campus', contact_person: 'Prof. Sarah Jenkins', contact_email: 'coordinator.sct@university.edu', contact_phone: '+1 555-0147' },
+  { 
+    id: 'col-1', 
+    code: 'MIM', 
+    name: 'Metropolitan Institute of Management', 
+    location: 'North Campus', 
+    contact_person: 'Dr. Aris Thorne', 
+    contact_email: 'coordinator.mim@university.edu', 
+    contact_phone: '+1 555-0156',
+    logo_url: 'https://images.unsplash.com/photo-1599305445671-ac291c95aaa9?w=150&auto=format&fit=crop&q=80',
+    image_url: 'https://images.unsplash.com/photo-1562774053-701939374585?w=600&auto=format&fit=crop&q=80'
+  },
+  { 
+    id: 'col-2', 
+    code: 'SCT', 
+    name: 'State College of Technology', 
+    location: 'South Campus', 
+    contact_person: 'Prof. Sarah Jenkins', 
+    contact_email: 'coordinator.sct@university.edu', 
+    contact_phone: '+1 555-0147',
+    logo_url: 'https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?w=150&auto=format&fit=crop&q=80',
+    image_url: 'https://images.unsplash.com/photo-1541829070764-84a7d30dd3f3?w=600&auto=format&fit=crop&q=80'
+  },
 ];
 
 export const INITIAL_PROGRAMS: Program[] = [

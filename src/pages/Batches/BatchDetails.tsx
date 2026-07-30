@@ -375,41 +375,65 @@ export default function BatchDetails() {
 
   return (
     <div className="space-y-6">
-      {/* Top Breadcrumb & Title */}
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-        <div className="flex items-center gap-3">
-          <Button variant="outline" size="icon" className="rounded-xl" onClick={() => navigate('/batches')}>
-            <ArrowLeft className="h-4 w-4" />
-          </Button>
-          <div>
-            <div className="flex items-center gap-2">
-              <h1 className="text-2xl font-bold font-heading text-foreground tracking-tight">{batch.code}</h1>
-              <span className="font-mono text-xs px-2.5 py-0.5 rounded-full bg-accent/15 text-accent font-bold">
-                Sem {batch.current_semester}
-              </span>
-            </div>
-            <p className="text-xs text-muted-foreground mt-0.5">
-              {batch.college?.name} · {batch.program?.name} ({batch.academic_year})
-            </p>
-          </div>
-        </div>
-
-        {/* Course Filter Dropdown */}
-        {batchCourses.length > 0 && (
-          <div className="flex items-center gap-2">
-            <span className="text-xs font-mono text-muted-foreground uppercase font-medium">Active Tool Course:</span>
-            <select
-              value={selectedBatchCourseId}
-              onChange={(e) => setSelectedBatchCourseId(e.target.value)}
-              className="bg-card border border-border rounded-xl px-3 py-1.5 text-sm font-semibold text-primary focus:outline-none focus:ring-1 focus:ring-primary"
-            >
-              {batchCourses.map((bc) => {
-                const c = store.courses.find(crs => crs.id === bc.course_id);
-                return <option key={bc.id} value={bc.id}>{c?.name} ({c?.code})</option>;
-              })}
-            </select>
+      {/* Top Header Card with College Campus Image Banner & College Logo */}
+      <div className="card-meridian relative overflow-hidden p-6 border-l-[5px] border-l-accent">
+        {/* Background Overlay Campus Image */}
+        {batch.college?.image_url && (
+          <div className="absolute right-0 top-0 bottom-0 w-1/3 opacity-15 pointer-events-none overflow-hidden">
+            <img src={batch.college.image_url} alt={`${batch.college.name} Campus`} className="w-full h-full object-cover" />
+            <div className="absolute inset-0 bg-gradient-to-r from-card via-card/80 to-transparent" />
           </div>
         )}
+
+        <div className="relative z-10 flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+          <div className="flex items-center gap-4">
+            <Button variant="outline" size="icon" className="rounded-xl shrink-0" onClick={() => navigate('/batches')}>
+              <ArrowLeft className="h-4 w-4" />
+            </Button>
+
+            {/* College Logo */}
+            {batch.college?.logo_url ? (
+              <img 
+                src={batch.college.logo_url} 
+                alt={batch.college.name} 
+                className="h-12 w-12 rounded-xl object-cover border border-border bg-background shadow-xs shrink-0"
+              />
+            ) : (
+              <div className="h-12 w-12 rounded-xl bg-primary/10 border border-primary/20 flex items-center justify-center font-bold font-mono text-sm text-primary shrink-0">
+                {batch.college?.code}
+              </div>
+            )}
+
+            <div>
+              <div className="flex items-center gap-2">
+                <h1 className="text-2xl font-bold font-heading text-foreground tracking-tight">{batch.code}</h1>
+                <span className="font-mono text-xs px-2.5 py-0.5 rounded-full bg-accent/15 text-accent font-bold">
+                  Sem {batch.current_semester}
+                </span>
+              </div>
+              <p className="text-xs text-muted-foreground mt-0.5">
+                <span className="font-semibold text-foreground">{batch.college?.name}</span> · {batch.program?.name} ({batch.academic_year})
+              </p>
+            </div>
+          </div>
+
+          {/* Course Filter Dropdown */}
+          {batchCourses.length > 0 && (
+            <div className="flex items-center gap-2 bg-sunken p-2 rounded-xl border border-border/80">
+              <span className="text-xs font-mono text-muted-foreground uppercase font-medium px-1">Active Tool Course:</span>
+              <select
+                value={selectedBatchCourseId}
+                onChange={(e) => setSelectedBatchCourseId(e.target.value)}
+                className="bg-background border border-border rounded-lg px-3 py-1.5 text-sm font-semibold text-primary focus:outline-none"
+              >
+                {batchCourses.map((bc) => {
+                  const c = store.courses.find(crs => crs.id === bc.course_id);
+                  return <option key={bc.id} value={bc.id}>{c?.name} ({c?.code})</option>;
+                })}
+              </select>
+            </div>
+          )}
+        </div>
       </div>
 
       {/* 7 Workspace Tabs */}

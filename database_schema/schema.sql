@@ -60,6 +60,8 @@ CREATE TABLE IF NOT EXISTS public.colleges (
     contact_person TEXT,
     contact_email TEXT,
     contact_phone TEXT,
+    logo_url TEXT,
+    image_url TEXT,
     created_at TIMESTAMPTZ DEFAULT NOW(),
     updated_at TIMESTAMPTZ DEFAULT NOW()
 );
@@ -372,7 +374,9 @@ SELECT
     c.name AS college_name,
     c.location,
     c.contact_person,
-    c.contact_email
+    c.contact_email,
+    c.logo_url,
+    c.image_url
 FROM public.colleges c;
 
 -- vw_dim_batch

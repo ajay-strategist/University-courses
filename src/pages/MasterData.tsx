@@ -28,7 +28,13 @@ export default function MasterData() {
   const [showSyllabusTopicModal, setShowSyllabusTopicModal] = useState(false);
 
   // Form Inputs
-  const [collegeForm, setCollegeForm] = useState<Partial<College>>({ code: '', name: '', location: '', contact_person: '', contact_email: '' });
+  const [collegeForm, setCollegeForm] = useState<Partial<College>>({ 
+    code: '', 
+    name: '', 
+    location: '', 
+    logo_url: '', 
+    image_url: '' 
+  });
   const [courseForm, setCourseForm] = useState<Partial<Course>>({ code: '', name: '' });
   const [programForm, setProgramForm] = useState<Partial<Program>>({ code: '', name: '' });
   const [assessmentForm, setAssessmentForm] = useState<Partial<AssessmentType>>({ name: '', default_max_mark: 100 });
@@ -45,13 +51,13 @@ export default function MasterData() {
       code: collegeForm.code.toUpperCase(),
       name: collegeForm.name,
       location: collegeForm.location || '',
-      contact_person: collegeForm.contact_person || '',
-      contact_email: collegeForm.contact_email || '',
+      logo_url: collegeForm.logo_url || 'https://images.unsplash.com/photo-1599305445671-ac291c95aaa9?w=150&auto=format&fit=crop&q=80',
+      image_url: collegeForm.image_url || 'https://images.unsplash.com/photo-1562774053-701939374585?w=600&auto=format&fit=crop&q=80',
     };
     store.colleges.push(newCol);
     setColleges([...store.colleges]);
     setShowCollegeModal(false);
-    setCollegeForm({ code: '', name: '', location: '', contact_person: '', contact_email: '' });
+    setCollegeForm({ code: '', name: '', location: '', logo_url: '', image_url: '' });
     toast.success(`College ${newCol.code} added`);
   };
 
@@ -229,22 +235,35 @@ export default function MasterData() {
             <table className="w-full text-left text-sm">
               <thead className="bg-muted/50 border-b border-border text-muted-foreground font-mono text-xs uppercase">
                 <tr>
+                  <th className="p-4">Logo</th>
                   <th className="p-4">Code</th>
                   <th className="p-4">College Name</th>
                   <th className="p-4">Location</th>
-                  <th className="p-4">Contact Coordinator</th>
+                  <th className="p-4">Campus Image</th>
                   <th className="p-4 text-right">Actions</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-border">
                 {colleges.map((col) => (
                   <tr key={col.id} className="hover:bg-muted/30 transition-colors">
+                    <td className="p-4">
+                      {col.logo_url ? (
+                        <img src={col.logo_url} alt={col.name} className="h-9 w-9 rounded-lg object-cover border border-border bg-background shadow-xs" />
+                      ) : (
+                        <div className="h-9 w-9 rounded-lg bg-primary/10 border border-primary/20 flex items-center justify-center font-bold font-mono text-xs text-primary">
+                          {col.code}
+                        </div>
+                      )}
+                    </td>
                     <td className="p-4 font-mono font-bold text-accent">{col.code}</td>
                     <td className="p-4 font-medium text-foreground">{col.name}</td>
                     <td className="p-4 text-muted-foreground">{col.location || '—'}</td>
                     <td className="p-4">
-                      <div className="font-medium text-foreground">{col.contact_person || 'Unassigned'}</div>
-                      <div className="text-xs text-muted-foreground">{col.contact_email}</div>
+                      {col.image_url ? (
+                        <img src={col.image_url} alt={`${col.name} Campus`} className="h-10 w-20 rounded-lg object-cover border border-border shadow-xs" />
+                      ) : (
+                        <span className="text-xs text-muted-foreground font-mono">No image</span>
+                      )}
                     </td>
                     <td className="p-4 text-right">
                       <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive hover:bg-destructive/10" onClick={() => {
@@ -432,19 +451,19 @@ export default function MasterData() {
               </div>
               <div>
                 <label className="text-xs font-mono font-medium text-muted-foreground">Full College Name</label>
-                <Input value={collegeForm.name} onChange={(e) => setCollegeForm({ ...collegeForm, name: e.target.value })} placeholder="Metropolitan Institute of Management" className="mt-1" />
+                <Input value={collegeForm.name} onChange={(e) => setCollegeForm({ ...collegeForm, name: e.target.value })} placeholder="Marian College" className="mt-1" />
               </div>
               <div>
                 <label className="text-xs font-mono font-medium text-muted-foreground">Location / Campus</label>
-                <Input value={collegeForm.location} onChange={(e) => setCollegeForm({ ...collegeForm, location: e.target.value })} placeholder="North Campus" className="mt-1" />
+                <Input value={collegeForm.location} onChange={(e) => setCollegeForm({ ...collegeForm, location: e.target.value })} placeholder="Kuttikkanam" className="mt-1" />
               </div>
               <div>
-                <label className="text-xs font-mono font-medium text-muted-foreground">Contact Coordinator Name</label>
-                <Input value={collegeForm.contact_person} onChange={(e) => setCollegeForm({ ...collegeForm, contact_person: e.target.value })} placeholder="Dr. Aris Thorne" className="mt-1" />
+                <label className="text-xs font-mono font-medium text-muted-foreground">College Logo URL</label>
+                <Input value={collegeForm.logo_url} onChange={(e) => setCollegeForm({ ...collegeForm, logo_url: e.target.value })} placeholder="https://example.com/logo.png" className="mt-1 font-mono" />
               </div>
               <div>
-                <label className="text-xs font-mono font-medium text-muted-foreground">Contact Email (for absentee alerts)</label>
-                <Input value={collegeForm.contact_email} onChange={(e) => setCollegeForm({ ...collegeForm, contact_email: e.target.value })} placeholder="coordinator.mim@university.edu" className="mt-1" />
+                <label className="text-xs font-mono font-medium text-muted-foreground">College Campus Image URL</label>
+                <Input value={collegeForm.image_url} onChange={(e) => setCollegeForm({ ...collegeForm, image_url: e.target.value })} placeholder="https://example.com/campus.jpg" className="mt-1 font-mono" />
               </div>
             </div>
             <div className="flex justify-end gap-2 pt-2">
