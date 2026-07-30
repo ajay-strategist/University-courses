@@ -57,23 +57,29 @@ export default function Dashboard() {
         <div className="card-meridian p-6 space-y-4">
           <h2 className="font-heading font-bold text-lg text-foreground">Recent Batches Overview</h2>
           <div className="space-y-3">
-            {allBatches.slice(0, 3).map((b) => (
-              <div
-                key={b.id}
-                onClick={() => navigate(`/batches/${b.id}`)}
-                className="flex items-center justify-between p-3.5 rounded-xl bg-sunken hover:bg-muted/60 transition-colors cursor-pointer border border-border/60"
-              >
-                <div>
-                  <div className="font-heading font-bold text-foreground">{b.code}</div>
-                  <div className="text-xs text-muted-foreground">{b.college?.name}</div>
-                </div>
-                <div className="flex items-center gap-3 text-xs font-mono font-bold">
-                  <span className="text-primary">{b.avg_coverage_pct}% Cov</span>
-                  <span className="text-success">{b.avg_attendance_pct}% Att</span>
-                  <ArrowRight className="h-4 w-4 text-muted-foreground" />
-                </div>
+            {allBatches.length === 0 ? (
+              <div className="text-center py-6 text-xs text-muted-foreground font-mono bg-sunken rounded-xl p-4 border border-border/60">
+                No active batches created yet. Navigate to Batches to create your first batch!
               </div>
-            ))}
+            ) : (
+              allBatches.slice(0, 3).map((b) => (
+                <div
+                  key={b.id}
+                  onClick={() => navigate(`/batches/${b.id}`)}
+                  className="flex items-center justify-between p-3.5 rounded-xl bg-sunken hover:bg-muted/60 transition-colors cursor-pointer border border-border/60"
+                >
+                  <div>
+                    <div className="font-heading font-bold text-foreground">{b.code}</div>
+                    <div className="text-xs text-muted-foreground">{b.college?.name}</div>
+                  </div>
+                  <div className="flex items-center gap-3 text-xs font-mono font-bold">
+                    <span className="text-primary">{b.avg_coverage_pct}% Cov</span>
+                    <span className="text-success">{b.avg_attendance_pct}% Att</span>
+                    <ArrowRight className="h-4 w-4 text-muted-foreground" />
+                  </div>
+                </div>
+              ))
+            )}
           </div>
         </div>
 

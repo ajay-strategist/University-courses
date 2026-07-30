@@ -581,11 +581,6 @@ INSERT INTO public.uct_assessment_types (name, default_max_mark) VALUES
 ('Internal Series', 40.0)
 ON CONFLICT DO NOTHING;
 
-INSERT INTO public.uct_colleges (code, name, location) VALUES
-('MIM', 'Metropolitan Institute of Management', 'North Campus'),
-('SCT', 'State College of Technology', 'South Campus')
-ON CONFLICT (code) DO NOTHING;
-
 INSERT INTO public.uct_programs (code, name) VALUES
 ('BBA', 'Bachelor of Business Administration'),
 ('BCOM', 'Bachelor of Commerce'),
