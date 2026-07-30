@@ -106,12 +106,10 @@ export default function BatchDetails() {
   const [showEditStudentModal, setShowEditStudentModal] = useState(false);
   const [studentEditForm, setStudentEditForm] = useState({ register_no: '', name: '', class: '', phone: '' });
 
-  const handleDeleteBatch = () => {
+  const handleDeleteBatch = async () => {
     if (!batch) return;
     if (confirm(`Are you sure you want to delete batch "${batch.code}"? This will permanently delete all students, courses, attendance, and assessment records associated with this batch.`)) {
-      store.batches = store.batches.filter(b => b.id !== id);
-      store.batchCourses = store.batchCourses.filter(bc => bc.batch_id !== id);
-      store.students = store.students.filter(s => s.batch_id !== id);
+      await store.deleteBatch(batch.id);
       toast.success(`Batch ${batch.code} deleted successfully`);
       navigate('/batches');
     }
@@ -252,11 +250,31 @@ export default function BatchDetails() {
         const sheet = wb.Sheets[wb.SheetNames[0]];
         const rows = XLSX.utils.sheet_to_json<any>(sheet);
         let added = 0;
+
+        const getRowVal = (row: any, searchKeys: string[], defaultVal = '') => {
+          const keys = Object.keys(row);
+          // Try exact match first (case-insensitive)
+          for (const sk of searchKeys) {
+            const foundKey = keys.find(k => k.trim().toLowerCase() === sk.trim().toLowerCase());
+            if (foundKey && row[foundKey] !== undefined && row[foundKey] !== null) {
+              return row[foundKey];
+            }
+          }
+          // Try fuzzy substring match second (case-insensitive)
+          for (const sk of searchKeys) {
+            const foundKey = keys.find(k => k.toLowerCase().includes(sk.toLowerCase()));
+            if (foundKey && row[foundKey] !== undefined && row[foundKey] !== null) {
+              return row[foundKey];
+            }
+          }
+          return defaultVal;
+        };
+
         for (const r of rows) {
-          const regNo = r.register_no || r['Register No'] || r.reg_no || r['Reg No'];
-          const name = r.name || r['Student Name'] || r.Name || r['Name'];
-          const phone = r.phone || r['Phone'] || r['Phone Number'] || r['Mobile'] || r['Contact'] || '';
-          const classVal = r.class || r['Class'] || r['Division'] || r['Div'] || 'Div A';
+          const regNo = getRowVal(r, ['register no', 'register', 'reg', 'roll']);
+          const name = getRowVal(r, ['student name', 'name', 'student']);
+          const phone = getRowVal(r, ['phone number', 'phone', 'mobile', 'contact'], '');
+          const classVal = getRowVal(r, ['class (division)', 'class', 'division', 'div'], 'Div A');
 
           if (regNo && name) {
             await store.saveStudent({
