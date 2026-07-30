@@ -563,26 +563,3 @@ JOIN public.uct_courses crs ON crs.id = bc.course_id
 LEFT JOIN public.uct_profiles tr ON tr.id = bc.trainer_id
 LEFT JOIN public.uct_batch_course_syllabus bcs ON bcs.batch_course_id = bc.id
 GROUP BY bc.id, c.code, b.code, crs.name, tr.full_name, bc.planned_hours;
-
--- -------------------------------------------------------------------------------------
--- 11. SEED DEFAULT MASTER DATA
--- -------------------------------------------------------------------------------------
-INSERT INTO public.uct_courses (code, name) VALUES
-('XL', 'Excel'),
-('PBI', 'Power BI'),
-('R', 'R'),
-('PY', 'Python'),
-('SQL', 'SQL')
-ON CONFLICT (code) DO UPDATE SET name = EXCLUDED.name;
-
-INSERT INTO public.uct_assessment_types (name, default_max_mark) VALUES
-('Assignment', 50.0),
-('Exam', 100.0),
-('Internal Series', 40.0)
-ON CONFLICT DO NOTHING;
-
-INSERT INTO public.uct_programs (code, name) VALUES
-('BBA', 'Bachelor of Business Administration'),
-('BCOM', 'Bachelor of Commerce'),
-('BCA', 'Bachelor of Computer Applications')
-ON CONFLICT (code) DO NOTHING;

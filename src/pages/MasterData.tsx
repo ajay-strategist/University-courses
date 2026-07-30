@@ -91,6 +91,9 @@ export default function MasterData() {
     };
     store.courses.push(newCourse);
     setCourses([...store.courses]);
+    if (!selectedCourseId) {
+      setSelectedCourseId(newCourse.id);
+    }
     setShowCourseModal(false);
     setCourseForm({ code: '', name: '' });
     toast.success(`Course ${newCourse.name} created`);
@@ -280,61 +283,69 @@ export default function MasterData() {
                 </tr>
               </thead>
               <tbody className="divide-y divide-border">
-                {colleges.map((col) => (
-                  <tr key={col.id} className="hover:bg-muted/30 transition-colors">
-                    <td className="p-4">
-                      {col.logo_url ? (
-                        <img src={col.logo_url} alt={col.name} className="h-9 w-9 rounded-lg object-cover border border-border bg-background shadow-xs" />
-                      ) : (
-                        <div className="h-9 w-9 rounded-lg bg-primary/10 border border-primary/20 flex items-center justify-center font-bold font-mono text-xs text-primary">
-                          {col.code}
-                        </div>
-                      )}
-                    </td>
-                    <td className="p-4 font-mono font-bold text-accent">{col.code}</td>
-                    <td className="p-4 font-medium text-foreground">{col.name}</td>
-                    <td className="p-4 text-muted-foreground">{col.location || '—'}</td>
-                    <td className="p-4">
-                      {col.image_url ? (
-                        <img src={col.image_url} alt={`${col.name} Campus`} className="h-10 w-20 rounded-lg object-cover border border-border shadow-xs" />
-                      ) : (
-                        <span className="text-xs text-muted-foreground font-mono">No image</span>
-                      )}
-                    </td>
-                    <td className="p-4 text-right space-x-1">
-                      <Button 
-                        variant="ghost" 
-                        size="icon" 
-                        className="h-8 w-8 text-primary hover:bg-primary/10" 
-                        onClick={() => {
-                          setEditingCollegeId(col.id);
-                          setCollegeForm({
-                            code: col.code,
-                            name: col.name,
-                            location: col.location || '',
-                            logo_url: col.logo_url || '',
-                            image_url: col.image_url || '',
-                          });
-                          setShowCollegeModal(true);
-                        }}
-                      >
-                        <Edit2 className="h-4 w-4" />
-                      </Button>
-                      <Button 
-                        variant="ghost" 
-                        size="icon" 
-                        className="h-8 w-8 text-destructive hover:bg-destructive/10" 
-                        onClick={() => {
-                          store.colleges = store.colleges.filter(c => c.id !== col.id);
-                          setColleges([...store.colleges]);
-                          toast.success('College removed');
-                        }}
-                      >
-                        <Trash2 className="h-4 w-4" />
-                      </Button>
+                {colleges.length === 0 ? (
+                  <tr>
+                    <td colSpan={6} className="p-8 text-center text-muted-foreground text-xs font-mono">
+                      No partner colleges added yet. Click "+ Add College" to register your first college.
                     </td>
                   </tr>
-                ))}
+                ) : (
+                  colleges.map((col) => (
+                    <tr key={col.id} className="hover:bg-muted/30 transition-colors">
+                      <td className="p-4">
+                        {col.logo_url ? (
+                          <img src={col.logo_url} alt={col.name} className="h-9 w-9 rounded-lg object-cover border border-border bg-background shadow-xs" />
+                        ) : (
+                          <div className="h-9 w-9 rounded-lg bg-primary/10 border border-primary/20 flex items-center justify-center font-bold font-mono text-xs text-primary">
+                            {col.code}
+                          </div>
+                        )}
+                      </td>
+                      <td className="p-4 font-mono font-bold text-accent">{col.code}</td>
+                      <td className="p-4 font-medium text-foreground">{col.name}</td>
+                      <td className="p-4 text-muted-foreground">{col.location || '—'}</td>
+                      <td className="p-4">
+                        {col.image_url ? (
+                          <img src={col.image_url} alt={`${col.name} Campus`} className="h-10 w-20 rounded-lg object-cover border border-border shadow-xs" />
+                        ) : (
+                          <span className="text-xs text-muted-foreground font-mono">No image</span>
+                        )}
+                      </td>
+                      <td className="p-4 text-right space-x-1">
+                        <Button 
+                          variant="ghost" 
+                          size="icon" 
+                          className="h-8 w-8 text-primary hover:bg-primary/10" 
+                          onClick={() => {
+                            setEditingCollegeId(col.id);
+                            setCollegeForm({
+                              code: col.code,
+                              name: col.name,
+                              location: col.location || '',
+                              logo_url: col.logo_url || '',
+                              image_url: col.image_url || '',
+                            });
+                            setShowCollegeModal(true);
+                          }}
+                        >
+                          <Edit2 className="h-4 w-4" />
+                        </Button>
+                        <Button 
+                          variant="ghost" 
+                          size="icon" 
+                          className="h-8 w-8 text-destructive hover:bg-destructive/10" 
+                          onClick={() => {
+                            store.colleges = store.colleges.filter(c => c.id !== col.id);
+                            setColleges([...store.colleges]);
+                            toast.success('College removed');
+                          }}
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      </td>
+                    </tr>
+                  ))
+                )}
               </tbody>
             </table>
           </div>
@@ -453,20 +464,26 @@ export default function MasterData() {
             </Button>
           </div>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            {programs.map((prog) => (
-              <div key={prog.id} className="card-meridian p-5 flex items-center justify-between">
-                <div>
-                  <span className="font-mono text-xs px-2 py-0.5 rounded bg-accent/15 text-accent font-bold">{prog.code}</span>
-                  <h3 className="font-bold text-foreground mt-2">{prog.name}</h3>
-                </div>
-                <Button variant="ghost" size="icon" className="text-destructive hover:bg-destructive/10" onClick={() => {
-                  store.programs = store.programs.filter(p => p.id !== prog.id);
-                  setPrograms([...store.programs]);
-                }}>
-                  <Trash2 className="h-4 w-4" />
-                </Button>
+            {programs.length === 0 ? (
+              <div className="col-span-full card-meridian p-8 text-center text-xs font-mono text-muted-foreground">
+                No academic programs added yet. Click "+ Add Program" to create degree programs.
               </div>
-            ))}
+            ) : (
+              programs.map((prog) => (
+                <div key={prog.id} className="card-meridian p-5 flex items-center justify-between">
+                  <div>
+                    <span className="font-mono text-xs px-2 py-0.5 rounded bg-accent/15 text-accent font-bold">{prog.code}</span>
+                    <h3 className="font-bold text-foreground mt-2">{prog.name}</h3>
+                  </div>
+                  <Button variant="ghost" size="icon" className="text-destructive hover:bg-destructive/10" onClick={() => {
+                    store.programs = store.programs.filter(p => p.id !== prog.id);
+                    setPrograms([...store.programs]);
+                  }}>
+                    <Trash2 className="h-4 w-4" />
+                  </Button>
+                </div>
+              ))
+            )}
           </div>
         </div>
       )}
@@ -481,22 +498,28 @@ export default function MasterData() {
             </Button>
           </div>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            {assessmentTypes.map((at) => (
-              <div key={at.id} className="card-meridian p-5 flex items-center justify-between">
-                <div>
-                  <h3 className="font-bold text-foreground text-base">{at.name}</h3>
-                  <div className="text-xs text-muted-foreground font-mono mt-1">
-                    Default Suggestion: <span className="font-bold text-primary">{at.default_max_mark} marks</span>
-                  </div>
-                </div>
-                <Button variant="ghost" size="icon" className="text-destructive hover:bg-destructive/10" onClick={() => {
-                  store.assessmentTypes = store.assessmentTypes.filter(a => a.id !== at.id);
-                  setAssessmentTypes([...store.assessmentTypes]);
-                }}>
-                  <Trash2 className="h-4 w-4" />
-                </Button>
+            {assessmentTypes.length === 0 ? (
+              <div className="col-span-full card-meridian p-8 text-center text-xs font-mono text-muted-foreground">
+                No assessment types added yet. Click "+ Add Assessment Type" to define grading categories.
               </div>
-            ))}
+            ) : (
+              assessmentTypes.map((at) => (
+                <div key={at.id} className="card-meridian p-5 flex items-center justify-between">
+                  <div>
+                    <h3 className="font-bold text-foreground text-base">{at.name}</h3>
+                    <div className="text-xs text-muted-foreground font-mono mt-1">
+                      Default Suggestion: <span className="font-bold text-primary">{at.default_max_mark} marks</span>
+                    </div>
+                  </div>
+                  <Button variant="ghost" size="icon" className="text-destructive hover:bg-destructive/10" onClick={() => {
+                    store.assessmentTypes = store.assessmentTypes.filter(a => a.id !== at.id);
+                    setAssessmentTypes([...store.assessmentTypes]);
+                  }}>
+                    <Trash2 className="h-4 w-4" />
+                  </Button>
+                </div>
+              ))
+            )}
           </div>
         </div>
       )}

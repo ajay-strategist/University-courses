@@ -4,48 +4,16 @@ import type {
   Attendance, Assessment, AssessmentMark, Profile, UserEmailConfig, NotificationLog 
 } from '@/types';
 
-// Clean System Profiles for Role Authentication
+// Admin System Profile
 export const INITIAL_PROFILES: Profile[] = [
   { id: 'usr-admin-1', email: 'mail@thestrategist.co.in', full_name: 'Ajay Thomas', role: 'admin', phone: '+1 555-0192' },
-  { id: 'usr-trainer-1', email: 'trainer@university.edu', full_name: 'Lead Trainer', role: 'trainer', phone: '+1 555-0183' },
-  { id: 'usr-sc-1', email: 'student.coord@university.edu', full_name: 'Student Coordinator', role: 'student_coordinator', phone: '+1 555-0165' },
-  { id: 'usr-cc-1', email: 'college.coord@university.edu', full_name: 'College Coordinator', role: 'college_coordinator', phone: '+1 555-0156' },
 ];
 
 export const INITIAL_COLLEGES: College[] = [];
-
-export const INITIAL_PROGRAMS: Program[] = [
-  { id: 'prog-1', code: 'BBA', name: 'Bachelor of Business Administration' },
-  { id: 'prog-2', code: 'BCOM', name: 'Bachelor of Commerce' },
-  { id: 'prog-3', code: 'BCA', name: 'Bachelor of Computer Applications' },
-];
-
-export const INITIAL_COURSES: Course[] = [
-  { id: 'crs-1', code: 'XL', name: 'Excel' },
-  { id: 'crs-2', code: 'PBI', name: 'Power BI' },
-  { id: 'crs-3', code: 'R', name: 'R' },
-  { id: 'crs-4', code: 'PY', name: 'Python' },
-  { id: 'crs-5', code: 'SQL', name: 'SQL' },
-];
-
-export const INITIAL_DEFAULT_SYLLABUS: CourseDefaultSyllabus[] = [
-  { id: 'sy-xl-1', course_id: 'crs-1', topic_no: 1, topic_name: 'Advanced Formulas & XLOOKUP', planned_hours: 3 },
-  { id: 'sy-xl-2', course_id: 'crs-1', topic_no: 2, topic_name: 'Pivot Tables & Data Models', planned_hours: 4 },
-  { id: 'sy-xl-3', course_id: 'crs-1', topic_no: 3, topic_name: 'Power Query & Data Cleaning', planned_hours: 5 },
-  { id: 'sy-pbi-1', course_id: 'crs-2', topic_no: 1, topic_name: 'Data Modeling & Relationships', planned_hours: 4 },
-  { id: 'sy-pbi-2', course_id: 'crs-2', topic_no: 2, topic_name: 'DAX Fundamentals (CALCULATE, SUMX)', planned_hours: 6 },
-  { id: 'sy-pbi-3', course_id: 'crs-2', topic_no: 3, topic_name: 'Report Design & Visualizations', planned_hours: 5 },
-  { id: 'sy-py-1', course_id: 'crs-4', topic_no: 1, topic_name: 'Python Data Structures & Pandas', planned_hours: 5 },
-  { id: 'sy-py-2', course_id: 'crs-4', topic_no: 2, topic_name: 'Matplotlib & Seaborn Data Viz', planned_hours: 4 },
-  { id: 'sy-sql-1', course_id: 'crs-5', topic_no: 1, topic_name: 'JOINs, Grouping & Aggregations', planned_hours: 4 },
-];
-
-export const INITIAL_ASSESSMENT_TYPES: AssessmentType[] = [
-  { id: 'at-1', name: 'Assignment', default_max_mark: 50 },
-  { id: 'at-2', name: 'Exam', default_max_mark: 100 },
-  { id: 'at-3', name: 'Internal Series', default_max_mark: 40 },
-];
-
+export const INITIAL_PROGRAMS: Program[] = [];
+export const INITIAL_COURSES: Course[] = [];
+export const INITIAL_DEFAULT_SYLLABUS: CourseDefaultSyllabus[] = [];
+export const INITIAL_ASSESSMENT_TYPES: AssessmentType[] = [];
 export const INITIAL_BATCHES: Batch[] = [];
 export const INITIAL_STUDENTS: Student[] = [];
 export const INITIAL_BATCH_COURSES: BatchCourse[] = [];

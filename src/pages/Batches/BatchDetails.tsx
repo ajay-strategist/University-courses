@@ -352,8 +352,8 @@ export default function BatchDetails() {
     });
 
     const trainer = store.profiles.find(p => p.id === store.batchCourses.find(bc => bc.id === selectedBatchCourseId)?.trainer_id);
-    const recipientName = batch.college_coordinator?.full_name || 'Dr. Aris Thorne';
-    const recipientEmail = batch.college_coordinator?.email || 'coordinator.mim@university.edu';
+    const recipientName = batch.college_coordinator?.full_name || batch.college?.contact_person || 'College Coordinator';
+    const recipientEmail = batch.college_coordinator?.email || batch.college?.contact_email || '';
 
     setAbsenteePreview({
       recipient_name: recipientName,

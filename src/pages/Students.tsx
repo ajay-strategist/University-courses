@@ -140,7 +140,7 @@ export default function Students() {
                   </div>
                   <div className="grid gap-2">
                     <Label htmlFor="email">Email Address</Label>
-                    <Input id="email" type="email" required value={newStudent.email} onChange={(e) => setNewStudent({...newStudent, email: e.target.value})} placeholder="student@university.edu" />
+                    <Input id="email" type="email" required value={newStudent.email} onChange={(e) => setNewStudent({...newStudent, email: e.target.value})} placeholder="student@example.com" />
                   </div>
                   <div className="grid grid-cols-2 gap-4">
                     <div className="grid gap-2">
