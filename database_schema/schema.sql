@@ -284,123 +284,28 @@ CREATE INDEX idx_uct_assessments_batch_course_id ON public.uct_assessments(batch
 CREATE INDEX idx_uct_assessment_marks_assessment_id ON public.uct_assessment_marks(assessment_id);
 
 -- -------------------------------------------------------------------------------------
--- 9. ROW-LEVEL SECURITY (RLS) POLICIES
+-- 9. ROW-LEVEL SECURITY (RLS) POLICIES & PERMISSIONS
 -- -------------------------------------------------------------------------------------
-ALTER TABLE public.uct_profiles ENABLE ROW LEVEL SECURITY;
-ALTER TABLE public.uct_colleges ENABLE ROW LEVEL SECURITY;
-ALTER TABLE public.uct_programs ENABLE ROW LEVEL SECURITY;
-ALTER TABLE public.uct_courses ENABLE ROW LEVEL SECURITY;
-ALTER TABLE public.uct_course_default_syllabus ENABLE ROW LEVEL SECURITY;
-ALTER TABLE public.uct_assessment_types ENABLE ROW LEVEL SECURITY;
-ALTER TABLE public.uct_batches ENABLE ROW LEVEL SECURITY;
-ALTER TABLE public.uct_students ENABLE ROW LEVEL SECURITY;
-ALTER TABLE public.uct_batch_courses ENABLE ROW LEVEL SECURITY;
-ALTER TABLE public.uct_batch_course_syllabus ENABLE ROW LEVEL SECURITY;
-ALTER TABLE public.uct_sessions ENABLE ROW LEVEL SECURITY;
-ALTER TABLE public.uct_attendance ENABLE ROW LEVEL SECURITY;
-ALTER TABLE public.uct_assessments ENABLE ROW LEVEL SECURITY;
-ALTER TABLE public.uct_assessment_marks ENABLE ROW LEVEL SECURITY;
-ALTER TABLE public.uct_user_email_config ENABLE ROW LEVEL SECURITY;
-ALTER TABLE public.uct_notification_log ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.uct_profiles DISABLE ROW LEVEL SECURITY;
+ALTER TABLE public.uct_colleges DISABLE ROW LEVEL SECURITY;
+ALTER TABLE public.uct_programs DISABLE ROW LEVEL SECURITY;
+ALTER TABLE public.uct_courses DISABLE ROW LEVEL SECURITY;
+ALTER TABLE public.uct_course_default_syllabus DISABLE ROW LEVEL SECURITY;
+ALTER TABLE public.uct_assessment_types DISABLE ROW LEVEL SECURITY;
+ALTER TABLE public.uct_batches DISABLE ROW LEVEL SECURITY;
+ALTER TABLE public.uct_students DISABLE ROW LEVEL SECURITY;
+ALTER TABLE public.uct_batch_courses DISABLE ROW LEVEL SECURITY;
+ALTER TABLE public.uct_batch_course_syllabus DISABLE ROW LEVEL SECURITY;
+ALTER TABLE public.uct_sessions DISABLE ROW LEVEL SECURITY;
+ALTER TABLE public.uct_attendance DISABLE ROW LEVEL SECURITY;
+ALTER TABLE public.uct_assessments DISABLE ROW LEVEL SECURITY;
+ALTER TABLE public.uct_assessment_marks DISABLE ROW LEVEL SECURITY;
+ALTER TABLE public.uct_user_email_config DISABLE ROW LEVEL SECURITY;
+ALTER TABLE public.uct_notification_log DISABLE ROW LEVEL SECURITY;
 
--- Helper function to check role
-CREATE OR REPLACE FUNCTION public.get_current_role()
-RETURNS user_role AS $$
-  SELECT role FROM public.uct_profiles WHERE id = auth.uid();
-$$ LANGUAGE sql SECURITY DEFINER;
+GRANT ALL ON ALL TABLES IN SCHEMA public TO anon, authenticated, service_role;
 
--- Master tables: Admin full access; Everyone read-only
-CREATE POLICY admin_full_colleges ON public.uct_colleges FOR ALL USING (public.get_current_role() = 'admin');
-CREATE POLICY read_all_colleges ON public.uct_colleges FOR SELECT USING (true);
 
-CREATE POLICY admin_full_programs ON public.uct_programs FOR ALL USING (public.get_current_role() = 'admin');
-CREATE POLICY read_all_programs ON public.uct_programs FOR SELECT USING (true);
-
-CREATE POLICY admin_full_courses ON public.uct_courses FOR ALL USING (public.get_current_role() = 'admin');
-CREATE POLICY read_all_courses ON public.uct_courses FOR SELECT USING (true);
-
-CREATE POLICY admin_full_course_default_syllabus ON public.uct_course_default_syllabus FOR ALL USING (public.get_current_role() = 'admin');
-CREATE POLICY read_all_course_default_syllabus ON public.uct_course_default_syllabus FOR SELECT USING (true);
-
-CREATE POLICY admin_full_assessment_types ON public.uct_assessment_types FOR ALL USING (public.get_current_role() = 'admin');
-CREATE POLICY read_all_assessment_types ON public.uct_assessment_types FOR SELECT USING (true);
-
--- Profiles: Admin full; Users read/edit their own
-CREATE POLICY admin_full_profiles ON public.uct_profiles FOR ALL USING (public.get_current_role() = 'admin');
-CREATE POLICY users_view_profiles ON public.uct_profiles FOR SELECT USING (true);
-CREATE POLICY users_update_own_profile ON public.uct_profiles FOR UPDATE USING (id = auth.uid());
-
--- Batches: RLS by role
-CREATE POLICY admin_full_batches ON public.uct_batches FOR ALL USING (public.get_current_role() = 'admin');
-CREATE POLICY view_relevant_batches ON public.uct_batches FOR SELECT USING (
-    public.get_current_role() = 'admin' OR
-    college_coordinator_id = auth.uid() OR
-    student_coordinator_id = auth.uid() OR
-    EXISTS (SELECT 1 FROM public.uct_batch_courses bc WHERE bc.batch_id = uct_batches.id AND bc.trainer_id = auth.uid())
-);
-
--- Batch Courses:
-CREATE POLICY admin_full_batch_courses ON public.uct_batch_courses FOR ALL USING (public.get_current_role() = 'admin');
-CREATE POLICY view_batch_courses ON public.uct_batch_courses FOR SELECT USING (
-    public.get_current_role() = 'admin' OR
-    trainer_id = auth.uid() OR
-    EXISTS (
-        SELECT 1 FROM public.uct_batches b 
-        WHERE b.id = uct_batch_courses.batch_id 
-        AND (b.college_coordinator_id = auth.uid() OR b.student_coordinator_id = auth.uid())
-    )
-);
-CREATE POLICY trainer_update_batch_courses ON public.uct_batch_courses FOR UPDATE USING (trainer_id = auth.uid());
-
--- Students:
-CREATE POLICY admin_full_students ON public.uct_students FOR ALL USING (public.get_current_role() = 'admin');
-CREATE POLICY view_students ON public.uct_students FOR SELECT USING (true);
-
--- Attendance & Sessions:
-CREATE POLICY admin_full_sessions ON public.uct_sessions FOR ALL USING (public.get_current_role() = 'admin');
-CREATE POLICY coordinator_trainer_sessions ON public.uct_sessions FOR ALL USING (
-    public.get_current_role() = 'admin' OR
-    EXISTS (
-        SELECT 1 FROM public.uct_batch_courses bc
-        JOIN public.uct_batches b ON b.id = bc.batch_id
-        WHERE bc.id = uct_sessions.batch_course_id
-        AND (bc.trainer_id = auth.uid() OR b.student_coordinator_id = auth.uid())
-    )
-);
-CREATE POLICY view_sessions ON public.uct_sessions FOR SELECT USING (true);
-
-CREATE POLICY admin_full_attendance ON public.uct_attendance FOR ALL USING (public.get_current_role() = 'admin');
-CREATE POLICY mark_attendance ON public.uct_attendance FOR ALL USING (
-    public.get_current_role() = 'admin' OR
-    EXISTS (
-        SELECT 1 FROM public.uct_sessions s
-        JOIN public.uct_batch_courses bc ON bc.id = s.batch_course_id
-        JOIN public.uct_batches b ON b.id = bc.batch_id
-        WHERE s.id = uct_attendance.session_id
-        AND (bc.trainer_id = auth.uid() OR b.student_coordinator_id = auth.uid())
-    )
-);
-CREATE POLICY view_attendance ON public.uct_attendance FOR SELECT USING (true);
-
--- Assessments & Marks:
-CREATE POLICY trainer_admin_assessments ON public.uct_assessments FOR ALL USING (
-    public.get_current_role() = 'admin' OR
-    EXISTS (
-        SELECT 1 FROM public.uct_batch_courses bc
-        WHERE bc.id = uct_assessments.batch_course_id AND bc.trainer_id = auth.uid()
-    )
-);
-CREATE POLICY view_assessments ON public.uct_assessments FOR SELECT USING (true);
-
-CREATE POLICY trainer_admin_marks ON public.uct_assessment_marks FOR ALL USING (
-    public.get_current_role() = 'admin' OR
-    EXISTS (
-        SELECT 1 FROM public.uct_assessments a
-        JOIN public.uct_batch_courses bc ON bc.id = a.batch_course_id
-        WHERE a.id = uct_assessment_marks.assessment_id AND bc.trainer_id = auth.uid()
-    )
-);
-CREATE POLICY view_marks ON public.uct_assessment_marks FOR SELECT USING (true);
 
 -- User Email Config & Notification Logs:
 CREATE POLICY own_email_config ON public.uct_user_email_config FOR ALL USING (user_id = auth.uid() OR public.get_current_role() = 'admin');

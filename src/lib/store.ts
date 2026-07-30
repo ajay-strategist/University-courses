@@ -42,23 +42,92 @@ class DataStore {
   powerBiUrl = "https://app.powerbi.com/view?r=eyJrIjoiZXhhbXBsZS1wb3dlci1iaS1yZXBvcnQtaWQiLCJ0IjoiZGVtbyJ9";
   isInitialized = false;
 
+  private loadLocalCache() {
+    try {
+      const cCols = localStorage.getItem('uct_colleges');
+      if (cCols) this.colleges = JSON.parse(cCols);
+
+      const cProgs = localStorage.getItem('uct_programs');
+      if (cProgs) this.programs = JSON.parse(cProgs);
+
+      const cCrses = localStorage.getItem('uct_courses');
+      if (cCrses) this.courses = JSON.parse(cCrses);
+
+      const cDefSyl = localStorage.getItem('uct_default_syllabus');
+      if (cDefSyl) this.defaultSyllabus = JSON.parse(cDefSyl);
+
+      const cAssTypes = localStorage.getItem('uct_assessment_types');
+      if (cAssTypes) this.assessmentTypes = JSON.parse(cAssTypes);
+
+      const cBts = localStorage.getItem('uct_batches');
+      if (cBts) this.batches = JSON.parse(cBts);
+
+      const cStds = localStorage.getItem('uct_students');
+      if (cStds) this.students = JSON.parse(cStds);
+
+      const cBCrs = localStorage.getItem('uct_batch_courses');
+      if (cBCrs) this.batchCourses = JSON.parse(cBCrs);
+
+      const cBSyl = localStorage.getItem('uct_batch_syllabus');
+      if (cBSyl) this.batchSyllabus = JSON.parse(cBSyl);
+
+      const cSess = localStorage.getItem('uct_sessions');
+      if (cSess) this.sessions = JSON.parse(cSess);
+
+      const cAtts = localStorage.getItem('uct_attendance');
+      if (cAtts) this.attendance = JSON.parse(cAtts);
+
+      const cAsms = localStorage.getItem('uct_assessments');
+      if (cAsms) this.assessments = JSON.parse(cAsms);
+
+      const cMarks = localStorage.getItem('uct_assessment_marks');
+      if (cMarks) this.assessmentMarks = JSON.parse(cMarks);
+    } catch (e) {
+      console.warn('LocalStorage load warning:', e);
+    }
+  }
+
+  private saveLocalCache() {
+    try {
+      localStorage.setItem('uct_colleges', JSON.stringify(this.colleges));
+      localStorage.setItem('uct_programs', JSON.stringify(this.programs));
+      localStorage.setItem('uct_courses', JSON.stringify(this.courses));
+      localStorage.setItem('uct_default_syllabus', JSON.stringify(this.defaultSyllabus));
+      localStorage.setItem('uct_assessment_types', JSON.stringify(this.assessmentTypes));
+      localStorage.setItem('uct_batches', JSON.stringify(this.batches));
+      localStorage.setItem('uct_students', JSON.stringify(this.students));
+      localStorage.setItem('uct_batch_courses', JSON.stringify(this.batchCourses));
+      localStorage.setItem('uct_batch_syllabus', JSON.stringify(this.batchSyllabus));
+      localStorage.setItem('uct_sessions', JSON.stringify(this.sessions));
+      localStorage.setItem('uct_attendance', JSON.stringify(this.attendance));
+      localStorage.setItem('uct_assessments', JSON.stringify(this.assessments));
+      localStorage.setItem('uct_assessment_marks', JSON.stringify(this.assessmentMarks));
+    } catch (e) {
+      console.warn('LocalStorage save warning:', e);
+    }
+  }
+
   async init(): Promise<void> {
+    // 1. Load local cache immediately so UI shows data
+    this.loadLocalCache();
+
+    // 2. Fetch from Supabase and merge
     try {
       const [
-        { data: profs },
-        { data: cols },
-        { data: progs },
-        { data: crses },
-        { data: defSyl },
-        { data: assTypes },
-        { data: bts },
-        { data: stds },
-        { data: bCrs },
-        { data: bSyl },
-        { data: sess },
-        { data: atts },
-        { data: asms },
-        { data: marks },
+        { data: profs, error: eProfs },
+        { data: cols, error: eCols },
+        { data: progs, error: eProgs },
+        { data: crses, error: eCrses },
+        { data: defSyl, error: eDefSyl },
+        { data: assTypes, error: eAssTypes },
+        { data: bts, error: eBts },
+        { data: stds, error: eStds },
+        { data: bCrs, error: eBCrs },
+        { data: bSyl, error: eBSyl },
+        { data: sess, error: eSess },
+        { data: atts, error: eAtts },
+        { data: asms, error: eAsms },
+        { data: marks, error: eMarks },
       ] = await Promise.all([
         supabase.from('uct_profiles').select('*'),
         supabase.from('uct_colleges').select('*'),
@@ -77,20 +146,25 @@ class DataStore {
       ]);
 
       if (profs && profs.length > 0) this.profiles = profs as Profile[];
-      if (cols) this.colleges = cols as College[];
-      if (progs) this.programs = progs as Program[];
-      if (crses) this.courses = crses as Course[];
-      if (defSyl) this.defaultSyllabus = defSyl as CourseDefaultSyllabus[];
-      if (assTypes) this.assessmentTypes = assTypes as AssessmentType[];
-      if (bts) this.batches = bts as Batch[];
-      if (stds) this.students = stds as Student[];
-      if (bCrs) this.batchCourses = bCrs as BatchCourse[];
-      if (bSyl) this.batchSyllabus = bSyl as BatchCourseSyllabus[];
-      if (sess) this.sessions = sess as Session[];
-      if (atts) this.attendance = atts as Attendance[];
-      if (asms) this.assessments = asms as Assessment[];
-      if (marks) this.assessmentMarks = marks as AssessmentMark[];
+      if (cols && cols.length > 0) this.colleges = cols as College[];
+      if (progs && progs.length > 0) this.programs = progs as Program[];
+      if (crses && crses.length > 0) this.courses = crses as Course[];
+      if (defSyl && defSyl.length > 0) this.defaultSyllabus = defSyl as CourseDefaultSyllabus[];
+      if (assTypes && assTypes.length > 0) this.assessmentTypes = assTypes as AssessmentType[];
+      if (bts && bts.length > 0) this.batches = bts as Batch[];
+      if (stds && stds.length > 0) this.students = stds as Student[];
+      if (bCrs && bCrs.length > 0) this.batchCourses = bCrs as BatchCourse[];
+      if (bSyl && bSyl.length > 0) this.batchSyllabus = bSyl as BatchCourseSyllabus[];
+      if (sess && sess.length > 0) this.sessions = sess as Session[];
+      if (atts && atts.length > 0) this.attendance = atts as Attendance[];
+      if (asms && asms.length > 0) this.assessments = asms as Assessment[];
+      if (marks && marks.length > 0) this.assessmentMarks = marks as AssessmentMark[];
 
+      if (eCols || eBts || eStds || eCrses) {
+        console.warn('Supabase fetch returned RLS or table warnings:', { eCols, eBts, eStds, eCrses });
+      }
+
+      this.saveLocalCache();
       this.isInitialized = true;
     } catch (err) {
       console.warn('Failed to load initial data from Supabase:', err);
@@ -114,8 +188,11 @@ class DataStore {
     if (idx >= 0) this.colleges[idx] = item;
     else this.colleges.push(item);
 
+    this.saveLocalCache();
+
     try {
-      await supabase.from('uct_colleges').upsert(item);
+      const { error } = await supabase.from('uct_colleges').upsert(item);
+      if (error) console.error('Supabase saveCollege error:', error.message);
     } catch (e) {
       console.warn('Supabase college sync warning:', e);
     }
@@ -124,8 +201,10 @@ class DataStore {
 
   async deleteCollege(id: string): Promise<void> {
     this.colleges = this.colleges.filter(c => c.id !== id);
+    this.saveLocalCache();
     try {
-      await supabase.from('uct_colleges').delete().eq('id', id);
+      const { error } = await supabase.from('uct_colleges').delete().eq('id', id);
+      if (error) console.error('Supabase deleteCollege error:', error.message);
     } catch (e) {
       console.warn('Supabase college delete warning:', e);
     }
@@ -145,8 +224,11 @@ class DataStore {
     if (idx >= 0) this.programs[idx] = item;
     else this.programs.push(item);
 
+    this.saveLocalCache();
+
     try {
-      await supabase.from('uct_programs').upsert(item);
+      const { error } = await supabase.from('uct_programs').upsert(item);
+      if (error) console.error('Supabase saveProgram error:', error.message);
     } catch (e) {
       console.warn('Supabase program sync warning:', e);
     }
@@ -155,8 +237,10 @@ class DataStore {
 
   async deleteProgram(id: string): Promise<void> {
     this.programs = this.programs.filter(p => p.id !== id);
+    this.saveLocalCache();
     try {
-      await supabase.from('uct_programs').delete().eq('id', id);
+      const { error } = await supabase.from('uct_programs').delete().eq('id', id);
+      if (error) console.error('Supabase deleteProgram error:', error.message);
     } catch (e) {
       console.warn('Supabase program delete warning:', e);
     }
@@ -176,8 +260,11 @@ class DataStore {
     if (idx >= 0) this.courses[idx] = item;
     else this.courses.push(item);
 
+    this.saveLocalCache();
+
     try {
-      await supabase.from('uct_courses').upsert(item);
+      const { error } = await supabase.from('uct_courses').upsert(item);
+      if (error) console.error('Supabase saveCourse error:', error.message);
     } catch (e) {
       console.warn('Supabase course sync warning:', e);
     }
@@ -186,8 +273,10 @@ class DataStore {
 
   async deleteCourse(id: string): Promise<void> {
     this.courses = this.courses.filter(c => c.id !== id);
+    this.saveLocalCache();
     try {
-      await supabase.from('uct_courses').delete().eq('id', id);
+      const { error } = await supabase.from('uct_courses').delete().eq('id', id);
+      if (error) console.error('Supabase deleteCourse error:', error.message);
     } catch (e) {
       console.warn('Supabase course delete warning:', e);
     }
@@ -209,8 +298,11 @@ class DataStore {
     if (idx >= 0) this.defaultSyllabus[idx] = item;
     else this.defaultSyllabus.push(item);
 
+    this.saveLocalCache();
+
     try {
-      await supabase.from('uct_course_default_syllabus').upsert(item);
+      const { error } = await supabase.from('uct_course_default_syllabus').upsert(item);
+      if (error) console.error('Supabase saveDefaultSyllabusTopic error:', error.message);
     } catch (e) {
       console.warn('Supabase syllabus topic sync warning:', e);
     }
@@ -219,8 +311,10 @@ class DataStore {
 
   async deleteDefaultSyllabusTopic(id: string): Promise<void> {
     this.defaultSyllabus = this.defaultSyllabus.filter(s => s.id !== id);
+    this.saveLocalCache();
     try {
-      await supabase.from('uct_course_default_syllabus').delete().eq('id', id);
+      const { error } = await supabase.from('uct_course_default_syllabus').delete().eq('id', id);
+      if (error) console.error('Supabase deleteDefaultSyllabusTopic error:', error.message);
     } catch (e) {
       console.warn('Supabase syllabus delete warning:', e);
     }
@@ -240,8 +334,11 @@ class DataStore {
     if (idx >= 0) this.assessmentTypes[idx] = item;
     else this.assessmentTypes.push(item);
 
+    this.saveLocalCache();
+
     try {
-      await supabase.from('uct_assessment_types').upsert(item);
+      const { error } = await supabase.from('uct_assessment_types').upsert(item);
+      if (error) console.error('Supabase saveAssessmentType error:', error.message);
     } catch (e) {
       console.warn('Supabase assessment type sync warning:', e);
     }
@@ -250,8 +347,10 @@ class DataStore {
 
   async deleteAssessmentType(id: string): Promise<void> {
     this.assessmentTypes = this.assessmentTypes.filter(a => a.id !== id);
+    this.saveLocalCache();
     try {
-      await supabase.from('uct_assessment_types').delete().eq('id', id);
+      const { error } = await supabase.from('uct_assessment_types').delete().eq('id', id);
+      if (error) console.error('Supabase deleteAssessmentType error:', error.message);
     } catch (e) {
       console.warn('Supabase assessment type delete warning:', e);
     }
@@ -279,8 +378,10 @@ class DataStore {
     if (idx >= 0) this.batches[idx] = item;
     else this.batches.push(item);
 
+    this.saveLocalCache();
+
     try {
-      await supabase.from('uct_batches').upsert({
+      const { error } = await supabase.from('uct_batches').upsert({
         id: item.id,
         code: item.code,
         college_id: item.college_id,
@@ -293,6 +394,7 @@ class DataStore {
         start_date: item.start_date,
         end_date: item.end_date,
       });
+      if (error) console.error('Supabase saveBatch error:', error.message);
     } catch (e) {
       console.warn('Supabase batch sync warning:', e);
     }
@@ -302,8 +404,10 @@ class DataStore {
   async deleteBatch(id: string): Promise<void> {
     this.batches = this.batches.filter(b => b.id !== id);
     this.students = this.students.filter(s => s.batch_id !== id);
+    this.saveLocalCache();
     try {
-      await supabase.from('uct_batches').delete().eq('id', id);
+      const { error } = await supabase.from('uct_batches').delete().eq('id', id);
+      if (error) console.error('Supabase deleteBatch error:', error.message);
     } catch (e) {
       console.warn('Supabase batch delete warning:', e);
     }
@@ -326,8 +430,11 @@ class DataStore {
     if (idx >= 0) this.students[idx] = item;
     else this.students.push(item);
 
+    this.saveLocalCache();
+
     try {
-      await supabase.from('uct_students').upsert(item);
+      const { error } = await supabase.from('uct_students').upsert(item);
+      if (error) console.error('Supabase saveStudent error:', error.message);
     } catch (e) {
       console.warn('Supabase student sync warning:', e);
     }
@@ -336,8 +443,10 @@ class DataStore {
 
   async deleteStudent(id: string): Promise<void> {
     this.students = this.students.filter(s => s.id !== id);
+    this.saveLocalCache();
     try {
-      await supabase.from('uct_students').delete().eq('id', id);
+      const { error } = await supabase.from('uct_students').delete().eq('id', id);
+      if (error) console.error('Supabase deleteStudent error:', error.message);
     } catch (e) {
       console.warn('Supabase student delete warning:', e);
     }
@@ -363,8 +472,11 @@ class DataStore {
     if (idx >= 0) this.batchCourses[idx] = item;
     else this.batchCourses.push(item);
 
+    this.saveLocalCache();
+
     try {
-      await supabase.from('uct_batch_courses').upsert(item);
+      const { error } = await supabase.from('uct_batch_courses').upsert(item);
+      if (error) console.error('Supabase saveBatchCourse error:', error.message);
     } catch (e) {
       console.warn('Supabase batch course sync warning:', e);
     }
@@ -388,6 +500,7 @@ class DataStore {
       }
     }
 
+    this.saveLocalCache();
     return item;
   }
 
@@ -396,11 +509,13 @@ class DataStore {
     if (idx >= 0) {
       this.batchSyllabus[idx].is_completed = isCompleted;
       this.batchSyllabus[idx].completed_date = isCompleted ? (completedDate || new Date().toISOString().split('T')[0]) : undefined;
+      this.saveLocalCache();
       try {
-        await supabase.from('uct_batch_course_syllabus').update({
+        const { error } = await supabase.from('uct_batch_course_syllabus').update({
           is_completed: isCompleted,
           completed_date: this.batchSyllabus[idx].completed_date,
         }).eq('id', id);
+        if (error) console.error('Supabase toggleBatchSyllabusTopic error:', error.message);
       } catch (e) {
         console.warn('Supabase syllabus toggle warning:', e);
       }
