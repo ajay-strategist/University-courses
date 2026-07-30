@@ -12,7 +12,7 @@ import { toast } from 'sonner';
 import { 
   ArrowLeft, Users, BookOpen, CalendarCheck, Award, FileCheck2, 
   CheckSquare, Plus, Download, Upload, Mail, CheckCircle2, Clock, 
-  AlertTriangle, Check, X, FileSpreadsheet, Send, Edit2
+  AlertTriangle, Check, X, FileSpreadsheet, Send, Edit2, Trash2
 } from 'lucide-react';
 import * as XLSX from 'xlsx';
 
@@ -87,6 +87,62 @@ export default function BatchDetails() {
     start_date: batch?.start_date || '',
     end_date: batch?.end_date || '',
   });
+
+  // Edit/Delete Student State
+  const [editingStudent, setEditingStudent] = useState<Student | null>(null);
+  const [showEditStudentModal, setShowEditStudentModal] = useState(false);
+  const [studentEditForm, setStudentEditForm] = useState({ register_no: '', name: '', class: '', phone: '' });
+
+  const handleDeleteBatch = () => {
+    if (!batch) return;
+    if (confirm(`Are you sure you want to delete batch "${batch.code}"? This will permanently delete all students, courses, attendance, and assessment records associated with this batch.`)) {
+      store.batches = store.batches.filter(b => b.id !== id);
+      store.batchCourses = store.batchCourses.filter(bc => bc.batch_id !== id);
+      store.students = store.students.filter(s => s.batch_id !== id);
+      toast.success(`Batch ${batch.code} deleted successfully`);
+      navigate('/batches');
+    }
+  };
+
+  const handleOpenEditStudent = (stu: Student) => {
+    setEditingStudent(stu);
+    setStudentEditForm({
+      register_no: stu.register_no,
+      name: stu.name,
+      class: stu.class,
+      phone: stu.phone || '',
+    });
+    setShowEditStudentModal(true);
+  };
+
+  const handleSaveEditStudent = () => {
+    if (!editingStudent) return;
+    if (!studentEditForm.register_no || !studentEditForm.name || !studentEditForm.class) {
+      toast.error('Register number, name, and class are required');
+      return;
+    }
+    const idx = store.students.findIndex(s => s.id === editingStudent.id);
+    if (idx !== -1) {
+      store.students[idx] = {
+        ...store.students[idx],
+        register_no: studentEditForm.register_no,
+        name: studentEditForm.name,
+        class: studentEditForm.class,
+        phone: studentEditForm.phone,
+      };
+      setStudents(store.students.filter(s => s.batch_id === id));
+      setShowEditStudentModal(false);
+      toast.success('Student details updated successfully!');
+    }
+  };
+
+  const handleDeleteStudent = (stuId: string, stuName: string) => {
+    if (confirm(`Are you sure you want to delete student "${stuName}"?`)) {
+      store.students = store.students.filter(s => s.id !== stuId);
+      setStudents(store.students.filter(s => s.batch_id === id));
+      toast.success(`Student ${stuName} deleted successfully`);
+    }
+  };
 
   const handleSaveBatchEdit = () => {
     if (!batch) return;
@@ -558,24 +614,34 @@ export default function BatchDetails() {
                   Sem {batch.current_semester}
                 </span>
                 {!isStudentCoordinator && (
-                  <Button 
-                    size="sm" 
-                    variant="outline" 
-                    onClick={() => {
-                      setEditBatchForm({
-                        current_semester: batch.current_semester,
-                        status: batch.status,
-                        college_coordinator_id: batch.college_coordinator_id || '',
-                        student_coordinator_id: batch.student_coordinator_id || '',
-                        start_date: batch.start_date || '',
-                        end_date: batch.end_date || '',
-                      });
-                      setShowEditBatchModal(true);
-                    }} 
-                    className="h-7 text-xs rounded-xl ml-1"
-                  >
-                    <Edit2 className="h-3.5 w-3.5 mr-1" /> Edit Batch
-                  </Button>
+                  <div className="flex items-center gap-1">
+                    <Button 
+                      size="sm" 
+                      variant="outline" 
+                      onClick={() => {
+                        setEditBatchForm({
+                          current_semester: batch.current_semester,
+                          status: batch.status,
+                          college_coordinator_id: batch.college_coordinator_id || '',
+                          student_coordinator_id: batch.student_coordinator_id || '',
+                          start_date: batch.start_date || '',
+                          end_date: batch.end_date || '',
+                        });
+                        setShowEditBatchModal(true);
+                      }} 
+                      className="h-7 text-xs rounded-xl ml-1"
+                    >
+                      <Edit2 className="h-3.5 w-3.5 mr-1" /> Edit Batch
+                    </Button>
+                    <Button 
+                      size="sm" 
+                      variant="outline" 
+                      onClick={handleDeleteBatch} 
+                      className="h-7 text-xs rounded-xl text-destructive hover:bg-destructive/10 border-destructive/30"
+                    >
+                      <Trash2 className="h-3.5 w-3.5 mr-1" /> Delete Batch
+                    </Button>
+                  </div>
                 )}
               </div>
               <p className="text-xs text-muted-foreground mt-0.5">
@@ -699,6 +765,7 @@ export default function BatchDetails() {
                   <th className="p-4">Class (Division)</th>
                   <th className="p-4">Phone</th>
                   <th className="p-4 text-center">Derived Attendance %</th>
+                  <th className="p-4 text-right pr-6">Actions</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-border">
@@ -716,6 +783,14 @@ export default function BatchDetails() {
                         }`}>
                           {attPct}%
                         </span>
+                      </td>
+                      <td className="p-4 text-right pr-6 space-x-1">
+                        <Button size="sm" variant="ghost" onClick={() => handleOpenEditStudent(stu)} className="h-8 w-8 p-0 text-muted-foreground hover:text-primary">
+                          <Edit2 className="h-3.5 w-3.5" />
+                        </Button>
+                        <Button size="sm" variant="ghost" onClick={() => handleDeleteStudent(stu.id, stu.name)} className="h-8 w-8 p-0 text-muted-foreground hover:text-destructive">
+                          <Trash2 className="h-3.5 w-3.5" />
+                        </Button>
                       </td>
                     </tr>
                   );
@@ -1417,6 +1492,60 @@ export default function BatchDetails() {
             <div className="flex justify-end gap-2 pt-2 border-t border-border">
               <Button variant="outline" onClick={() => setShowEditBatchModal(false)}>Cancel</Button>
               <Button onClick={handleSaveBatchEdit} className="bg-primary text-primary-foreground">Save Changes</Button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* MODAL: EDIT STUDENT DETAILS */}
+      {showEditStudentModal && editingStudent && (
+        <div className="fixed inset-0 z-50 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4">
+          <div className="bg-card border border-border rounded-2xl p-6 max-w-md w-full shadow-2xl space-y-4">
+            <div className="flex justify-between items-center border-b border-border pb-3">
+              <h3 className="text-lg font-bold font-heading">Edit Student Details</h3>
+              <Button variant="ghost" size="icon" onClick={() => setShowEditStudentModal(false)} className="h-8 w-8">
+                <X className="h-4 w-4" />
+              </Button>
+            </div>
+
+            <div className="space-y-3">
+              <div>
+                <label className="text-xs font-mono font-medium text-muted-foreground">Register Number</label>
+                <Input 
+                  value={studentEditForm.register_no} 
+                  onChange={(e) => setStudentEditForm({ ...studentEditForm, register_no: e.target.value })} 
+                  className="mt-1 font-mono font-bold" 
+                />
+              </div>
+              <div>
+                <label className="text-xs font-mono font-medium text-muted-foreground">Student Name</label>
+                <Input 
+                  value={studentEditForm.name} 
+                  onChange={(e) => setStudentEditForm({ ...studentEditForm, name: e.target.value })} 
+                  className="mt-1" 
+                />
+              </div>
+              <div>
+                <label className="text-xs font-mono font-medium text-muted-foreground">Class / Division</label>
+                <Input 
+                  value={studentEditForm.class} 
+                  onChange={(e) => setStudentEditForm({ ...studentEditForm, class: e.target.value })} 
+                  className="mt-1" 
+                />
+              </div>
+              <div>
+                <label className="text-xs font-mono font-medium text-muted-foreground">Phone Number</label>
+                <Input 
+                  value={studentEditForm.phone} 
+                  onChange={(e) => setStudentEditForm({ ...studentEditForm, phone: e.target.value })} 
+                  className="mt-1 font-mono" 
+                />
+              </div>
+            </div>
+
+            <div className="flex justify-end gap-2 pt-2 border-t border-border">
+              <Button variant="outline" onClick={() => setShowEditStudentModal(false)}>Cancel</Button>
+              <Button onClick={handleSaveEditStudent} className="bg-primary text-primary-foreground">Save Changes</Button>
             </div>
           </div>
         </div>

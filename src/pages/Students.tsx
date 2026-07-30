@@ -33,6 +33,41 @@ export default function Students() {
     batch_id: ''
   });
 
+  // Edit/Delete State
+  const [editingStudent, setEditingStudent] = useState<any | null>(null);
+  const [isEditOpen, setIsEditOpen] = useState(false);
+
+  const handleDeleteStudent = async (studentId: string, studentName: string) => {
+    if (!confirm(`Are you sure you want to delete student "${studentName}"?`)) return;
+    try {
+      await supabase.from('uct_students').delete().eq('id', studentId);
+      setStudents(students.filter(s => s.id !== studentId));
+      toast.success(`Student ${studentName} deleted successfully`);
+    } catch (err: any) {
+      toast.error('Failed to delete student', { description: err.message });
+    }
+  };
+
+  const handleUpdateStudent = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!editingStudent) return;
+    try {
+      const { error } = await supabase.from('uct_students').update({
+        register_no: editingStudent.register_number || editingStudent.register_no,
+        name: editingStudent.full_name || editingStudent.name,
+        phone: editingStudent.phone,
+      }).eq('id', editingStudent.id);
+
+      if (error) throw error;
+
+      setStudents(students.map(s => s.id === editingStudent.id ? { ...s, ...editingStudent } : s));
+      setIsEditOpen(false);
+      toast.success('Student details updated successfully!');
+    } catch (err: any) {
+      toast.error('Failed to update student', { description: err.message });
+    }
+  };
+
   useEffect(() => {
     fetchData();
   }, []);
@@ -204,9 +239,15 @@ export default function Students() {
                       <DropdownMenuContent align="end" className="w-[160px]">
                         <DropdownMenuLabel>Actions</DropdownMenuLabel>
                         <DropdownMenuSeparator />
-                        <DropdownMenuItem>View Profile</DropdownMenuItem>
-                        <DropdownMenuItem>Edit Details</DropdownMenuItem>
-                        <DropdownMenuItem>View Attendance</DropdownMenuItem>
+                        <DropdownMenuItem onClick={() => {
+                          setEditingStudent({ ...student });
+                          setIsEditOpen(true);
+                        }}>
+                          Edit Details
+                        </DropdownMenuItem>
+                        <DropdownMenuItem onClick={() => handleDeleteStudent(student.id, student.full_name || student.name)} className="text-destructive font-semibold">
+                          Delete Student
+                        </DropdownMenuItem>
                       </DropdownMenuContent>
                     </DropdownMenu>
                   </TableCell>
@@ -216,6 +257,51 @@ export default function Students() {
           </Table>
         </CardContent>
       </Card>
+
+      {/* EDIT STUDENT DIALOG */}
+      <Dialog open={isEditOpen} onOpenChange={setIsEditOpen}>
+        <DialogContent>
+          <form onSubmit={handleUpdateStudent}>
+            <DialogHeader>
+              <DialogTitle>Edit Student Details</DialogTitle>
+              <DialogDescription>Modify register number, full name, or phone details.</DialogDescription>
+            </DialogHeader>
+            {editingStudent && (
+              <div className="grid gap-4 py-4">
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="grid gap-2">
+                    <Label>Register Number</Label>
+                    <Input 
+                      required 
+                      value={editingStudent.register_number || editingStudent.register_no || ''} 
+                      onChange={(e) => setEditingStudent({ ...editingStudent, register_number: e.target.value, register_no: e.target.value })} 
+                    />
+                  </div>
+                  <div className="grid gap-2">
+                    <Label>Full Name</Label>
+                    <Input 
+                      required 
+                      value={editingStudent.full_name || editingStudent.name || ''} 
+                      onChange={(e) => setEditingStudent({ ...editingStudent, full_name: e.target.value, name: e.target.value })} 
+                    />
+                  </div>
+                </div>
+                <div className="grid gap-2">
+                  <Label>Phone Number</Label>
+                  <Input 
+                    value={editingStudent.phone || ''} 
+                    onChange={(e) => setEditingStudent({ ...editingStudent, phone: e.target.value })} 
+                  />
+                </div>
+              </div>
+            )}
+            <DialogFooter>
+              <Button type="button" variant="outline" onClick={() => setIsEditOpen(false)}>Cancel</Button>
+              <Button type="submit">Save Changes</Button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

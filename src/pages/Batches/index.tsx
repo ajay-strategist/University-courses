@@ -5,7 +5,7 @@ import type { Batch } from '@/types';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { toast } from 'sonner';
-import { Plus, Users, BookOpen, ChevronRight, Sparkles, Building2, Calendar, Award } from 'lucide-react';
+import { Plus, Users, BookOpen, ChevronRight, Sparkles, Building2, Calendar, Award, Edit2, Trash2, X } from 'lucide-react';
 
 import { useAuth } from '@/contexts/AuthContext';
 
@@ -36,6 +36,47 @@ export default function BatchesGrid() {
   const [studentCoordId, setStudentCoordId] = useState(store.profiles.find(p => p.role === 'student_coordinator')?.id || '');
   const [startDate, setStartDate] = useState('2026-01-10');
   const [endDate, setEndDate] = useState('2026-06-30');
+
+  // Edit Batch Modal State
+  const [editingBatchId, setEditingBatchId] = useState<string | null>(null);
+  const [showEditModal, setShowEditModal] = useState(false);
+  const [editForm, setEditForm] = useState({
+    current_semester: 1,
+    status: 'Active' as 'Active' | 'Completed',
+    college_coordinator_id: '',
+    student_coordinator_id: '',
+    start_date: '',
+    end_date: '',
+  });
+
+  const handleDeleteBatchInGrid = (batchId: string, batchCode: string) => {
+    if (confirm(`Are you sure you want to delete batch "${batchCode}"? This will remove all student roster data, courses, attendance, and assessment marks for this batch.`)) {
+      store.batches = store.batches.filter(b => b.id !== batchId);
+      store.batchCourses = store.batchCourses.filter(bc => bc.batch_id !== batchId);
+      store.students = store.students.filter(s => s.batch_id !== batchId);
+      setBatches(store.batches.map(b => store.getBatchWithDetails(b.id)!));
+      toast.success(`Batch ${batchCode} deleted successfully`);
+    }
+  };
+
+  const handleSaveEditBatch = () => {
+    if (!editingBatchId) return;
+    const idx = store.batches.findIndex(b => b.id === editingBatchId);
+    if (idx !== -1) {
+      store.batches[idx] = {
+        ...store.batches[idx],
+        current_semester: editForm.current_semester,
+        status: editForm.status,
+        college_coordinator_id: editForm.college_coordinator_id || undefined,
+        student_coordinator_id: editForm.student_coordinator_id || undefined,
+        start_date: editForm.start_date,
+        end_date: editForm.end_date,
+      };
+      setBatches(store.batches.map(b => store.getBatchWithDetails(b.id)!));
+      setShowEditModal(false);
+      toast.success('Batch details updated successfully!');
+    }
+  };
 
   // Derive auto batch code
   const selectedCollege = store.colleges.find(c => c.id === collegeId);
@@ -174,9 +215,44 @@ export default function BatchesGrid() {
                 </div>
 
                 {/* Bottom Action Footer */}
-                <div className="pt-2 flex items-center justify-between text-xs text-primary font-semibold group-hover:translate-x-1 transition-transform">
-                  <span>Enter Workspace</span>
-                  <ChevronRight className="h-4 w-4" />
+                <div className="pt-2 border-t border-border/60 flex items-center justify-between text-xs">
+                  <div className="flex items-center gap-1">
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setEditingBatchId(batch.id);
+                        setEditForm({
+                          current_semester: batch.current_semester,
+                          status: batch.status,
+                          college_coordinator_id: batch.college_coordinator_id || '',
+                          student_coordinator_id: batch.student_coordinator_id || '',
+                          start_date: batch.start_date || '',
+                          end_date: batch.end_date || '',
+                        });
+                        setShowEditModal(true);
+                      }}
+                      className="h-7 px-2 text-xs text-muted-foreground hover:text-primary hover:bg-primary/10"
+                    >
+                      <Edit2 className="h-3.5 w-3.5 mr-1" /> Edit
+                    </Button>
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleDeleteBatchInGrid(batch.id, batch.code);
+                      }}
+                      className="h-7 px-2 text-xs text-muted-foreground hover:text-destructive hover:bg-destructive/10"
+                    >
+                      <Trash2 className="h-3.5 w-3.5 mr-1" /> Delete
+                    </Button>
+                  </div>
+                  <div className="flex items-center gap-1 text-primary font-semibold group-hover:translate-x-0.5 transition-transform">
+                    <span>Enter</span>
+                    <ChevronRight className="h-4 w-4" />
+                  </div>
                 </div>
               </div>
             </div>
@@ -294,6 +370,101 @@ export default function BatchesGrid() {
             <div className="flex justify-end gap-2 pt-3 border-t border-border">
               <Button variant="outline" onClick={() => setShowModal(false)}>Cancel</Button>
               <Button onClick={handleCreateBatch} className="bg-primary text-primary-foreground">Create Batch Workspace</Button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* EDIT BATCH MODAL */}
+      {showEditModal && editingBatchId && (
+        <div className="fixed inset-0 z-50 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4">
+          <div className="bg-card border border-border rounded-2xl p-6 max-w-md w-full shadow-2xl space-y-4">
+            <div className="flex justify-between items-center border-b border-border pb-3">
+              <h3 className="text-lg font-bold font-heading">Edit Batch</h3>
+              <Button variant="ghost" size="icon" onClick={() => setShowEditModal(false)} className="h-8 w-8">
+                <X className="h-4 w-4" />
+              </Button>
+            </div>
+
+            <div className="space-y-3 text-xs font-mono">
+              <div>
+                <label className="font-medium text-muted-foreground">Current Semester</label>
+                <select 
+                  value={editForm.current_semester} 
+                  onChange={(e) => setEditForm({ ...editForm, current_semester: Number(e.target.value) })}
+                  className="w-full mt-1 bg-background border border-border rounded-xl p-2.5 text-sm font-sans font-semibold text-foreground focus:outline-none"
+                >
+                  {[1, 2, 3, 4, 5, 6, 7, 8].map(s => (
+                    <option key={s} value={s}>Semester {s}</option>
+                  ))}
+                </select>
+              </div>
+
+              <div>
+                <label className="font-medium text-muted-foreground">Batch Status</label>
+                <select 
+                  value={editForm.status} 
+                  onChange={(e) => setEditForm({ ...editForm, status: e.target.value as any })}
+                  className="w-full mt-1 bg-background border border-border rounded-xl p-2.5 text-sm font-sans font-semibold text-foreground focus:outline-none"
+                >
+                  <option value="Active">Active</option>
+                  <option value="Completed">Completed</option>
+                </select>
+              </div>
+
+              <div>
+                <label className="font-medium text-muted-foreground">College Coordinator</label>
+                <select 
+                  value={editForm.college_coordinator_id} 
+                  onChange={(e) => setEditForm({ ...editForm, college_coordinator_id: e.target.value })}
+                  className="w-full mt-1 bg-background border border-border rounded-xl p-2.5 text-sm font-sans text-foreground focus:outline-none"
+                >
+                  <option value="">Unassigned</option>
+                  {store.profiles.filter(p => p.role === 'college_coordinator').map(p => (
+                    <option key={p.id} value={p.id}>{p.full_name} ({p.email})</option>
+                  ))}
+                </select>
+              </div>
+
+              <div>
+                <label className="font-medium text-muted-foreground">Student Coordinator</label>
+                <select 
+                  value={editForm.student_coordinator_id} 
+                  onChange={(e) => setEditForm({ ...editForm, student_coordinator_id: e.target.value })}
+                  className="w-full mt-1 bg-background border border-border rounded-xl p-2.5 text-sm font-sans text-foreground focus:outline-none"
+                >
+                  <option value="">Unassigned</option>
+                  {store.profiles.filter(p => p.role === 'student_coordinator').map(p => (
+                    <option key={p.id} value={p.id}>{p.full_name} ({p.email})</option>
+                  ))}
+                </select>
+              </div>
+
+              <div className="grid grid-cols-2 gap-2">
+                <div>
+                  <label className="font-medium text-muted-foreground">Start Date</label>
+                  <Input 
+                    type="date" 
+                    value={editForm.start_date} 
+                    onChange={(e) => setEditForm({ ...editForm, start_date: e.target.value })} 
+                    className="mt-1 font-sans"
+                  />
+                </div>
+                <div>
+                  <label className="font-medium text-muted-foreground">End Date</label>
+                  <Input 
+                    type="date" 
+                    value={editForm.end_date} 
+                    onChange={(e) => setEditForm({ ...editForm, end_date: e.target.value })} 
+                    className="mt-1 font-sans"
+                  />
+                </div>
+              </div>
+            </div>
+
+            <div className="flex justify-end gap-2 pt-2 border-t border-border">
+              <Button variant="outline" onClick={() => setShowEditModal(false)}>Cancel</Button>
+              <Button onClick={handleSaveEditBatch} className="bg-primary text-primary-foreground">Save Changes</Button>
             </div>
           </div>
         </div>
