@@ -2,30 +2,69 @@ import { Link, useLocation } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import {
   LayoutDashboard,
-  Users,
-  GraduationCap,
-  CalendarCheck,
-  BookOpen,
-  ClipboardList,
-  LogOut,
   Settings,
+  BookOpen,
+  FileSpreadsheet,
+  Mail,
+  BarChart3,
+  Users,
+  LogOut,
   ChevronRight,
-  ShieldAlert,
-  PenTool
+  Shield,
+  GraduationCap,
+  Sparkles
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
+import type { UserRole } from '@/types';
 
 export function Sidebar() {
-  const { profile, signOut } = useAuth();
+  const { profile, setRole, signOut } = useAuth();
   const location = useLocation();
 
   const navItems = [
-    { name: 'Dashboard', path: '/', icon: LayoutDashboard, roles: ['super_admin', 'trainer', 'student_coordinator'] },
-    { name: 'Master Data', path: '/master', icon: Settings, roles: ['super_admin'] },
-    { name: 'Users', path: '/users', icon: ShieldAlert, roles: ['super_admin'] },
-    { name: 'Students Data', path: '/students', icon: Users, roles: ['super_admin', 'student_coordinator'] },
-    { name: 'Batches', path: '/batches', icon: BookOpen, roles: ['super_admin', 'trainer', 'student_coordinator'] },
+    { 
+      name: 'Dashboard', 
+      path: '/', 
+      icon: LayoutDashboard, 
+      roles: ['admin', 'trainer', 'student_coordinator', 'college_coordinator'] 
+    },
+    { 
+      name: 'Masters', 
+      path: '/masters', 
+      icon: Settings, 
+      roles: ['admin'] 
+    },
+    { 
+      name: 'Batches', 
+      path: '/batches', 
+      icon: BookOpen, 
+      roles: ['admin', 'trainer', 'student_coordinator', 'college_coordinator'] 
+    },
+    { 
+      name: 'Import Center', 
+      path: '/import-center', 
+      icon: FileSpreadsheet, 
+      roles: ['admin', 'trainer', 'student_coordinator'] 
+    },
+    { 
+      name: 'Email & Notifications', 
+      path: '/notifications', 
+      icon: Mail, 
+      roles: ['admin', 'trainer'] 
+    },
+    { 
+      name: 'Reports (Power BI)', 
+      path: '/reports', 
+      icon: BarChart3, 
+      roles: ['admin', 'trainer', 'student_coordinator', 'college_coordinator'] 
+    },
+    { 
+      name: 'Users & Admin', 
+      path: '/users', 
+      icon: Users, 
+      roles: ['admin'] 
+    },
   ];
 
   const allowedNavItems = navItems.filter(item => 
@@ -37,20 +76,55 @@ export function Sidebar() {
     return name.split(' ').map((n) => n[0]).join('').toUpperCase().substring(0, 2);
   };
 
+  const roleLabels: Record<UserRole, string> = {
+    admin: 'Admin',
+    trainer: 'Trainer',
+    student_coordinator: 'Student Coordinator',
+    college_coordinator: 'College Coordinator',
+  };
+
   return (
-    <div className="flex h-full w-[280px] flex-col border-r bg-card/50 backdrop-blur-xl text-card-foreground shadow-sm">
-      <div className="flex h-16 items-center px-6 border-b border-border/50 bg-background/50">
-        <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary text-primary-foreground shadow-sm mr-3">
+    <div className="flex h-full w-[280px] flex-col border-r border-border bg-card text-card-foreground shadow-sm">
+      {/* Brand Header */}
+      <div className="flex h-16 items-center px-6 border-b border-border bg-background/50">
+        <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-primary text-primary-foreground shadow-sm mr-3">
           <GraduationCap className="h-5 w-5" />
         </div>
-        <span className="text-lg font-bold tracking-tight bg-gradient-to-br from-foreground to-foreground/70 bg-clip-text text-transparent">ACTS Platform</span>
+        <div className="flex flex-col">
+          <span className="font-heading text-base font-bold tracking-tight text-foreground leading-tight">
+            Training Tracker
+          </span>
+          <span className="text-[11px] text-muted-foreground font-mono uppercase tracking-wider">
+            Meridian Console
+          </span>
+        </div>
       </div>
       
-      <div className="flex-1 py-6 overflow-y-auto px-4">
-        <div className="mb-4 px-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground/70">
-          Main Menu
+      {/* Role Switcher Banner (for testing & demonstration) */}
+      <div className="p-3 mx-3 mt-3 rounded-xl bg-primary-tint/60 border border-primary/20 text-xs">
+        <div className="flex items-center justify-between mb-1.5 font-semibold text-primary">
+          <span className="flex items-center gap-1">
+            <Sparkles className="h-3.5 w-3.5 text-accent" /> Active Role Simulator
+          </span>
         </div>
-        <nav className="grid gap-1.5">
+        <select 
+          value={profile?.role || 'admin'} 
+          onChange={(e) => setRole(e.target.value as UserRole)}
+          className="w-full bg-background border border-border rounded-lg px-2 py-1 text-xs font-medium text-foreground focus:outline-none focus:ring-1 focus:ring-primary"
+        >
+          <option value="admin">Admin (Full Access)</option>
+          <option value="trainer">Trainer (Assigned Courses & Marks)</option>
+          <option value="student_coordinator">Student Coordinator (Attendance)</option>
+          <option value="college_coordinator">College Coordinator (Read-Only)</option>
+        </select>
+      </div>
+
+      {/* Navigation Menu */}
+      <div className="flex-1 py-4 overflow-y-auto px-3">
+        <div className="mb-2 px-3 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground/80 font-mono">
+          Main Navigation
+        </div>
+        <nav className="grid gap-1">
           {allowedNavItems.map((item) => {
             const isActive = location.pathname === item.path || (item.path !== '/' && location.pathname.startsWith(item.path));
             return (
@@ -58,43 +132,44 @@ export function Sidebar() {
                 key={item.name}
                 to={item.path}
                 className={cn(
-                  "group flex items-center justify-between rounded-lg px-3 py-2.5 text-sm font-medium transition-all duration-200",
+                  "group flex items-center justify-between rounded-xl px-3 py-2.5 text-sm font-medium transition-all duration-200",
                   isActive 
-                    ? "bg-primary text-primary-foreground shadow-md shadow-primary/20" 
-                    : "text-muted-foreground hover:bg-muted/80 hover:text-foreground"
+                    ? "bg-primary text-primary-foreground shadow-sm" 
+                    : "text-muted-foreground hover:bg-muted/60 hover:text-foreground"
                 )}
               >
                 <div className="flex items-center gap-3">
                   <item.icon className={cn("h-4 w-4 transition-colors", isActive ? "text-primary-foreground" : "text-muted-foreground group-hover:text-foreground")} />
                   {item.name}
                 </div>
-                {isActive && <ChevronRight className="h-4 w-4 opacity-50" />}
+                {isActive && <ChevronRight className="h-4 w-4 opacity-70" />}
               </Link>
             );
           })}
         </nav>
       </div>
 
-      <div className="border-t border-border/50 p-4 bg-muted/20">
-        <div className="flex items-center gap-3 px-2 py-2 mb-2 rounded-lg bg-background border shadow-sm">
-          <Avatar className="h-9 w-9 border-2 border-primary/20">
+      {/* User Profile Footer */}
+      <div className="border-t border-border p-4 bg-muted/20">
+        <div className="flex items-center gap-3 px-2 py-2 mb-2 rounded-xl bg-background border border-border shadow-sm">
+          <Avatar className="h-9 w-9 border border-primary/20">
             <AvatarFallback className="bg-primary/10 text-primary font-bold">
               {getInitials(profile?.full_name || 'User')}
             </AvatarFallback>
           </Avatar>
           <div className="flex flex-col flex-1 overflow-hidden">
             <span className="text-sm font-semibold truncate leading-tight">{profile?.full_name || 'User'}</span>
-            <span className="text-xs text-muted-foreground truncate flex items-center gap-1 mt-0.5">
-              {profile?.role === 'super_admin' && <ShieldAlert className="h-3 w-3 text-amber-500" />}
-              {profile?.role?.replace('_', ' ')}
+            <span className="text-xs text-muted-foreground truncate flex items-center gap-1 mt-0.5 font-mono">
+              <Shield className="h-3 w-3 text-accent" />
+              {profile?.role ? roleLabels[profile.role] : 'Guest'}
             </span>
           </div>
         </div>
         <button 
           onClick={() => signOut()}
-          className="w-full flex items-center justify-center gap-2 rounded-lg px-3 py-2 text-sm font-medium text-destructive/90 transition-colors hover:bg-destructive/10 hover:text-destructive mt-1"
+          className="w-full flex items-center justify-center gap-2 rounded-xl px-3 py-2 text-xs font-medium text-destructive transition-colors hover:bg-destructive/10"
         >
-          <LogOut className="h-4 w-4" />
+          <LogOut className="h-3.5 w-3.5" />
           Sign out
         </button>
       </div>

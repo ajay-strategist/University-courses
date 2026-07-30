@@ -1,22 +1,15 @@
 import React, { createContext, useContext, useEffect, useState } from 'react';
 import type { User, Session } from '@supabase/supabase-js';
 import { supabase } from '@/lib/supabase';
-
-type UserRole = 'super_admin' | 'trainer' | 'student_coordinator';
-
-interface AuthProfile {
-  id: string;
-  email: string;
-  full_name: string;
-  role: UserRole;
-  college_id: string;
-}
+import type { Profile, UserRole } from '@/types';
+import { store } from '@/lib/store';
 
 interface AuthContextType {
   session: Session | null;
   user: User | null;
-  profile: AuthProfile | null;
+  profile: Profile | null;
   isLoading: boolean;
+  setRole: (role: UserRole) => void;
   signOut: () => Promise<void>;
 }
 
@@ -25,6 +18,7 @@ const AuthContext = createContext<AuthContextType>({
   user: null,
   profile: null,
   isLoading: true,
+  setRole: () => {},
   signOut: async () => {},
 });
 
@@ -33,70 +27,56 @@ export const useAuth = () => useContext(AuthContext);
 export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   const [session, setSession] = useState<Session | null>(null);
   const [user, setUser] = useState<User | null>(null);
-  const [profile, setProfile] = useState<AuthProfile | null>(null);
+  const [profile, setProfile] = useState<Profile | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
+  // Initialize with admin demo user by default if Supabase session is not active
   useEffect(() => {
     let mounted = true;
 
-    async function fetchProfile(userId: string) {
-      try {
-        const { data, error } = await supabase
-          .from('uct_profiles')
-          .select('*')
-          .eq('id', userId)
-          .single();
-
-        if (error) {
-          console.error('Error fetching profile:', error);
-          alert(`Database Error fetching profile: ${error.message} (Code: ${error.code}). Please check your RLS policies in Supabase!`);
-          return null;
-        }
-        return data as AuthProfile;
-      } catch (err: any) {
-        console.error('Unexpected error fetching profile:', err);
-        alert(`Unexpected Error: ${err.message}`);
-        return null;
-      }
-    }
-
-    async function getInitialSession() {
+    async function initAuth() {
       setIsLoading(true);
-      const { data: { session } } = await supabase.auth.getSession();
-      
-      if (mounted) {
-        setSession(session);
-        setUser(session?.user || null);
-        
-        if (session?.user) {
-          const profileData = await fetchProfile(session.user.id);
-          if (mounted) {
-            setProfile(profileData);
+      try {
+        const { data: { session: supaSession } } = await supabase.auth.getSession();
+        if (supaSession?.user && mounted) {
+          setSession(supaSession);
+          setUser(supaSession.user);
+          const { data } = await supabase.from('profiles').select('*').eq('id', supaSession.user.id).single();
+          if (data && mounted) {
+            setProfile(data as Profile);
+          } else if (mounted) {
+            setProfile(store.profiles[0]);
           }
+        } else if (mounted) {
+          // Fallback to active demo profile (Admin default)
+          const defaultProfile = store.profiles[0];
+          setProfile(defaultProfile);
+          setUser({ id: defaultProfile.id, email: defaultProfile.email } as User);
+          setSession({ user: { id: defaultProfile.id } } as Session);
         }
-        setIsLoading(false);
+      } catch {
+        if (mounted) {
+          const defaultProfile = store.profiles[0];
+          setProfile(defaultProfile);
+          setUser({ id: defaultProfile.id, email: defaultProfile.email } as User);
+          setSession({ user: { id: defaultProfile.id } } as Session);
+        }
+      } finally {
+        if (mounted) setIsLoading(false);
       }
     }
 
-    getInitialSession();
+    initAuth();
 
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      async (_event, newSession) => {
-        if (!mounted) return;
-        
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (_event, newSession) => {
+      if (!mounted) return;
+      if (newSession?.user) {
         setSession(newSession);
-        setUser(newSession?.user || null);
-
-        if (newSession?.user) {
-          const profileData = await fetchProfile(newSession.user.id);
-          setProfile(profileData);
-        } else {
-          setProfile(null);
-        }
-        
-        setIsLoading(false);
+        setUser(newSession.user);
+        const { data } = await supabase.from('profiles').select('*').eq('id', newSession.user.id).single();
+        if (data) setProfile(data as Profile);
       }
-    );
+    });
 
     return () => {
       mounted = false;
@@ -104,12 +84,25 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     };
   }, []);
 
+  const setRole = (role: UserRole) => {
+    const matched = store.profiles.find(p => p.role === role) || {
+      id: `usr-${role}-temp`,
+      email: `${role}@university.edu`,
+      full_name: `Demo ${role.replace('_', ' ').toUpperCase()}`,
+      role,
+    };
+    setProfile(matched);
+  };
+
   const signOut = async () => {
     await supabase.auth.signOut();
+    setSession(null);
+    setUser(null);
+    setProfile(null);
   };
 
   return (
-    <AuthContext.Provider value={{ session, user, profile, isLoading, signOut }}>
+    <AuthContext.Provider value={{ session, user, profile, isLoading, setRole, signOut }}>
       {children}
     </AuthContext.Provider>
   );

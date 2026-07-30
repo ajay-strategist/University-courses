@@ -1,355 +1,555 @@
-import { useState, useEffect } from 'react';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { useState } from 'react';
+import { store } from '@/lib/store';
+import type { College, Course, Program, AssessmentType, CourseDefaultSyllabus } from '@/types';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
-import { Label } from '@/components/ui/label';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Search, Plus } from 'lucide-react';
-import { supabase } from '@/lib/supabase';
 import { toast } from 'sonner';
+import { 
+  Building2, BookOpen, GraduationCap, Award, Plus, Trash2, Edit2, Upload, FileText 
+} from 'lucide-react';
+import * as XLSX from 'xlsx';
 
 export default function MasterData() {
-  const [activeTab, setActiveTab] = useState('programs');
-  
-  // Data states
-  const [programs, setPrograms] = useState<any[]>([]);
-  const [academicYears, setAcademicYears] = useState<any[]>([]);
-  const [batches, setBatches] = useState<any[]>([]);
-  const [coordinators, setCoordinators] = useState<any[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
+  const [activeTab, setActiveTab] = useState<'colleges' | 'courses' | 'programs' | 'assessments'>('colleges');
+  const [colleges, setColleges] = useState<College[]>([...store.colleges]);
+  const [courses, setCourses] = useState<Course[]>([...store.courses]);
+  const [programs, setPrograms] = useState<Program[]>([...store.programs]);
+  const [assessmentTypes, setAssessmentTypes] = useState<AssessmentType[]>([...store.assessmentTypes]);
+  const [defaultSyllabus, setDefaultSyllabus] = useState<CourseDefaultSyllabus[]>([...store.defaultSyllabus]);
 
-  // Form states
-  const [isProgramModalOpen, setIsProgramModalOpen] = useState(false);
-  const [newProgram, setNewProgram] = useState({ name: '', code: '' });
+  // Selected course for syllabus editing
+  const [selectedCourseId, setSelectedCourseId] = useState<string>(courses[0]?.id || '');
 
-  const [isYearModalOpen, setIsYearModalOpen] = useState(false);
-  const [newYear, setNewYear] = useState({ name: '', start_date: '', end_date: '' });
+  // Form Modals State
+  const [showCollegeModal, setShowCollegeModal] = useState(false);
+  const [showCourseModal, setShowCourseModal] = useState(false);
+  const [showProgramModal, setShowProgramModal] = useState(false);
+  const [showAssessmentModal, setShowAssessmentModal] = useState(false);
+  const [showSyllabusTopicModal, setShowSyllabusTopicModal] = useState(false);
 
-  const [isBatchModalOpen, setIsBatchModalOpen] = useState(false);
-  const [newBatch, setNewBatch] = useState({ name: '', program_id: '', academic_year_id: '', coordinator_id: '' });
+  // Form Inputs
+  const [collegeForm, setCollegeForm] = useState<Partial<College>>({ code: '', name: '', location: '', contact_person: '', contact_email: '' });
+  const [courseForm, setCourseForm] = useState<Partial<Course>>({ code: '', name: '' });
+  const [programForm, setProgramForm] = useState<Partial<Program>>({ code: '', name: '' });
+  const [assessmentForm, setAssessmentForm] = useState<Partial<AssessmentType>>({ name: '', default_max_mark: 100 });
+  const [topicForm, setTopicForm] = useState<{ topic_no: number; topic_name: string; planned_hours: number }>({ topic_no: 1, topic_name: '', planned_hours: 2 });
 
-  useEffect(() => {
-    fetchMasterData();
-  }, []);
-
-  async function fetchMasterData() {
-    setIsLoading(true);
-    try {
-      const [programsRes, yearsRes, coordinatorsRes, batchesRes] = await Promise.all([
-        supabase.from('uct_programs').select('*').order('name'),
-        supabase.from('uct_academic_years').select('*').order('name'),
-        supabase.from('uct_profiles').select('*').eq('role', 'student_coordinator').order('full_name'),
-        supabase.from('uct_batches').select('*, program:uct_programs(name), year:uct_academic_years(name)').order('created_at', { ascending: false })
-      ]);
-
-      if (programsRes.error) throw programsRes.error;
-      if (yearsRes.error) throw yearsRes.error;
-      if (coordinatorsRes.error) throw coordinatorsRes.error;
-      if (batchesRes.error) throw batchesRes.error;
-
-      setPrograms(programsRes.data || []);
-      setAcademicYears(yearsRes.data || []);
-      setCoordinators(coordinatorsRes.data || []);
-      setBatches(batchesRes.data || []);
-    } catch (error: any) {
-      toast.error('Failed to load master data', { description: error.message });
-    } finally {
-      setIsLoading(false);
+  // Add College
+  const handleSaveCollege = () => {
+    if (!collegeForm.code || !collegeForm.name) {
+      toast.error('Code and Name are required');
+      return;
     }
-  }
+    const newCol: College = {
+      id: `col-${Date.now()}`,
+      code: collegeForm.code.toUpperCase(),
+      name: collegeForm.name,
+      location: collegeForm.location || '',
+      contact_person: collegeForm.contact_person || '',
+      contact_email: collegeForm.contact_email || '',
+    };
+    store.colleges.push(newCol);
+    setColleges([...store.colleges]);
+    setShowCollegeModal(false);
+    setCollegeForm({ code: '', name: '', location: '', contact_person: '', contact_email: '' });
+    toast.success(`College ${newCol.code} added`);
+  };
 
-  async function handleAddProgram(e: React.FormEvent) {
-    e.preventDefault();
-    try {
-      const { data, error } = await supabase.from('uct_programs').insert([newProgram]).select();
-      if (error) throw error;
-      setPrograms([data[0], ...programs]);
-      setIsProgramModalOpen(false);
-      setNewProgram({ name: '', code: '' });
-      toast.success('Program added successfully');
-    } catch (error: any) {
-      toast.error('Error adding program', { description: error.message });
+  // Add Course
+  const handleSaveCourse = () => {
+    if (!courseForm.code || !courseForm.name) {
+      toast.error('Course Code and Name are required');
+      return;
     }
-  }
+    const newCourse: Course = {
+      id: `crs-${Date.now()}`,
+      code: courseForm.code.toUpperCase(),
+      name: courseForm.name,
+    };
+    store.courses.push(newCourse);
+    setCourses([...store.courses]);
+    setShowCourseModal(false);
+    setCourseForm({ code: '', name: '' });
+    toast.success(`Course ${newCourse.name} created`);
+  };
 
-  async function handleAddYear(e: React.FormEvent) {
-    e.preventDefault();
-    try {
-      const { data, error } = await supabase.from('uct_academic_years').insert([newYear]).select();
-      if (error) throw error;
-      setAcademicYears([data[0], ...academicYears]);
-      setIsYearModalOpen(false);
-      setNewYear({ name: '', start_date: '', end_date: '' });
-      toast.success('Academic Year added successfully');
-    } catch (error: any) {
-      toast.error('Error adding academic year', { description: error.message });
+  // Add Program
+  const handleSaveProgram = () => {
+    if (!programForm.code || !programForm.name) {
+      toast.error('Program Code and Name are required');
+      return;
     }
-  }
+    const newProg: Program = {
+      id: `prog-${Date.now()}`,
+      code: programForm.code.toUpperCase(),
+      name: programForm.name,
+    };
+    store.programs.push(newProg);
+    setPrograms([...store.programs]);
+    setShowProgramModal(false);
+    setProgramForm({ code: '', name: '' });
+    toast.success(`Program ${newProg.code} created`);
+  };
 
-  async function handleAddBatch(e: React.FormEvent) {
-    e.preventDefault();
-    try {
-      const payload: any = { ...newBatch };
-      if (!payload.coordinator_id || payload.coordinator_id === 'unassigned') {
-        payload.coordinator_id = null;
+  // Add Assessment Type
+  const handleSaveAssessment = () => {
+    if (!assessmentForm.name) {
+      toast.error('Name is required');
+      return;
+    }
+    const newAt: AssessmentType = {
+      id: `at-${Date.now()}`,
+      name: assessmentForm.name,
+      default_max_mark: Number(assessmentForm.default_max_mark) || 100,
+    };
+    store.assessmentTypes.push(newAt);
+    setAssessmentTypes([...store.assessmentTypes]);
+    setShowAssessmentModal(false);
+    setAssessmentForm({ name: '', default_max_mark: 100 });
+    toast.success(`Assessment Type ${newAt.name} added`);
+  };
+
+  // Add Default Syllabus Topic
+  const handleSaveTopic = () => {
+    if (!topicForm.topic_name || !selectedCourseId) {
+      toast.error('Topic name is required');
+      return;
+    }
+    const newTopic: CourseDefaultSyllabus = {
+      id: `sy-def-${Date.now()}`,
+      course_id: selectedCourseId,
+      topic_no: topicForm.topic_no,
+      topic_name: topicForm.topic_name,
+      planned_hours: Number(topicForm.planned_hours) || 1,
+    };
+    store.defaultSyllabus.push(newTopic);
+    setDefaultSyllabus([...store.defaultSyllabus]);
+    setShowSyllabusTopicModal(false);
+    setTopicForm({ topic_no: (store.defaultSyllabus.filter(s => s.course_id === selectedCourseId).length + 1), topic_name: '', planned_hours: 2 });
+    toast.success('Topic added to default syllabus');
+  };
+
+  // CSV/Excel Import for Syllabus Topics
+  const handleImportTopics = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file || !selectedCourseId) return;
+
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      try {
+        const wb = XLSX.read(event.target?.result, { type: 'binary' });
+        const sheet = wb.Sheets[wb.SheetNames[0]];
+        const data = XLSX.utils.sheet_to_json<any>(sheet);
+        
+        let count = 0;
+        data.forEach((row: any, idx: number) => {
+          const topic_name = row.topic_name || row['Topic Name'] || row.topic || row.Topic;
+          if (topic_name) {
+            const topic_no = Number(row.topic_no || row['Topic No'] || (idx + 1));
+            const planned_hours = Number(row.planned_hours || row['Planned Hours'] || 2);
+            store.defaultSyllabus.push({
+              id: `sy-imp-${Date.now()}-${idx}`,
+              course_id: selectedCourseId,
+              topic_no,
+              topic_name,
+              planned_hours
+            });
+            count++;
+          }
+        });
+        setDefaultSyllabus([...store.defaultSyllabus]);
+        toast.success(`Imported ${count} syllabus topics!`);
+      } catch (err) {
+        toast.error('Failed to parse file. Please upload a valid CSV/Excel file.');
       }
-      const { data, error } = await supabase.from('uct_batches').insert([payload]).select('*, program:uct_programs(name), year:uct_academic_years(name)');
-      if (error) throw error;
-      setBatches([data[0], ...batches]);
-      setIsBatchModalOpen(false);
-      setNewBatch({ name: '', program_id: '', academic_year_id: '', coordinator_id: '' });
-      toast.success('Batch added successfully');
-    } catch (error: any) {
-      toast.error('Error adding batch', { description: error.message });
-    }
-  }
+    };
+    reader.readAsBinaryString(file);
+  };
+
+  const selectedCourse = courses.find(c => c.id === selectedCourseId);
+  const currentCourseSyllabus = defaultSyllabus.filter(s => s.course_id === selectedCourseId).sort((a, b) => a.topic_no - b.topic_no);
 
   return (
     <div className="space-y-6">
-      <div>
-        <h2 className="text-3xl font-bold tracking-tight">Master Data Management</h2>
-        <p className="text-muted-foreground">Manage core entities like programs, academic years, and batches.</p>
+      {/* Header */}
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+        <div>
+          <h1 className="text-2xl font-bold font-heading text-foreground">Master Data Directory</h1>
+          <p className="text-sm text-muted-foreground">Manage partner colleges, degree programs, tool courses, and default syllabi.</p>
+        </div>
       </div>
 
-      <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-4">
-        <TabsList>
-          <TabsTrigger value="programs">Programs</TabsTrigger>
-          <TabsTrigger value="years">Academic Years</TabsTrigger>
-          <TabsTrigger value="batches">Batches</TabsTrigger>
-        </TabsList>
+      {/* Tabs Bar */}
+      <div className="flex border-b border-border bg-card rounded-xl p-1 gap-1">
+        <button
+          onClick={() => setActiveTab('colleges')}
+          className={`flex items-center gap-2 px-4 py-2 text-sm font-medium rounded-lg transition-colors ${
+            activeTab === 'colleges' ? 'bg-primary text-primary-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground'
+          }`}
+        >
+          <Building2 className="h-4 w-4" /> Colleges ({colleges.length})
+        </button>
+        <button
+          onClick={() => setActiveTab('courses')}
+          className={`flex items-center gap-2 px-4 py-2 text-sm font-medium rounded-lg transition-colors ${
+            activeTab === 'courses' ? 'bg-primary text-primary-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground'
+          }`}
+        >
+          <BookOpen className="h-4 w-4" /> Courses & Default Syllabus ({courses.length})
+        </button>
+        <button
+          onClick={() => setActiveTab('programs')}
+          className={`flex items-center gap-2 px-4 py-2 text-sm font-medium rounded-lg transition-colors ${
+            activeTab === 'programs' ? 'bg-primary text-primary-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground'
+          }`}
+        >
+          <GraduationCap className="h-4 w-4" /> Programs ({programs.length})
+        </button>
+        <button
+          onClick={() => setActiveTab('assessments')}
+          className={`flex items-center gap-2 px-4 py-2 text-sm font-medium rounded-lg transition-colors ${
+            activeTab === 'assessments' ? 'bg-primary text-primary-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground'
+          }`}
+        >
+          <Award className="h-4 w-4" /> Assessment Types ({assessmentTypes.length})
+        </button>
+      </div>
 
-        {/* Programs Tab */}
-        <TabsContent value="programs" className="space-y-4">
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between">
-              <div>
-                <CardTitle>Programs</CardTitle>
-                <CardDescription>Manage academic programs (e.g., B.Tech CS, MBA).</CardDescription>
-              </div>
-              <Dialog open={isProgramModalOpen} onOpenChange={setIsProgramModalOpen}>
-                <DialogTrigger className="inline-flex items-center justify-center whitespace-nowrap rounded-md text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 bg-primary text-primary-foreground shadow hover:bg-primary/90 h-9 px-4 py-2">
-                  <Plus className="mr-2 h-4 w-4" /> Add Program
-                </DialogTrigger>
-                <DialogContent>
-                  <form onSubmit={handleAddProgram}>
-                    <DialogHeader>
-                      <DialogTitle>Add New Program</DialogTitle>
-                      <DialogDescription>Enter the details for the new academic program.</DialogDescription>
-                    </DialogHeader>
-                    <div className="grid gap-4 py-4">
-                      <div className="grid gap-2">
-                        <Label htmlFor="prog-name">Name</Label>
-                        <Input id="prog-name" required value={newProgram.name} onChange={(e) => setNewProgram({...newProgram, name: e.target.value})} placeholder="e.g. B.Tech Computer Science" />
-                      </div>
-                      <div className="grid gap-2">
-                        <Label htmlFor="prog-code">Code</Label>
-                        <Input id="prog-code" required value={newProgram.code} onChange={(e) => setNewProgram({...newProgram, code: e.target.value})} placeholder="e.g. BTECH-CS" />
-                      </div>
-                    </div>
-                    <DialogFooter>
-                      <Button type="submit">Save Program</Button>
-                    </DialogFooter>
-                  </form>
-                </DialogContent>
-              </Dialog>
-            </CardHeader>
-            <CardContent>
-              <div className="rounded-md border">
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>Code</TableHead>
-                      <TableHead>Name</TableHead>
-                      <TableHead className="text-right">Actions</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {programs.length === 0 && !isLoading && (
-                      <TableRow><TableCell colSpan={3} className="text-center py-4 text-muted-foreground">No programs found.</TableCell></TableRow>
-                    )}
-                    {programs.map(prog => (
-                      <TableRow key={prog.id}>
-                        <TableCell className="font-medium">{prog.code}</TableCell>
-                        <TableCell>{prog.name}</TableCell>
-                        <TableCell className="text-right">
-                          <Button variant="ghost" size="sm">Edit</Button>
-                        </TableCell>
-                      </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
-              </div>
-            </CardContent>
-          </Card>
-        </TabsContent>
+      {/* Tab 1: Colleges */}
+      {activeTab === 'colleges' && (
+        <div className="space-y-4">
+          <div className="flex justify-between items-center">
+            <h2 className="text-lg font-semibold font-heading">Partner Colleges</h2>
+            <Button onClick={() => setShowCollegeModal(true)} className="bg-primary text-primary-foreground hover:bg-primary-hover">
+              <Plus className="h-4 w-4 mr-2" /> Add College
+            </Button>
+          </div>
 
-        {/* Academic Years Tab */}
-        <TabsContent value="years" className="space-y-4">
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between">
-              <div>
-                <CardTitle>Academic Years</CardTitle>
-                <CardDescription>Manage academic timelines (e.g., 2024-2025).</CardDescription>
-              </div>
-              <Dialog open={isYearModalOpen} onOpenChange={setIsYearModalOpen}>
-                <DialogTrigger className="inline-flex items-center justify-center whitespace-nowrap rounded-md text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 bg-primary text-primary-foreground shadow hover:bg-primary/90 h-9 px-4 py-2">
-                  <Plus className="mr-2 h-4 w-4" /> Add Year
-                </DialogTrigger>
-                <DialogContent>
-                  <form onSubmit={handleAddYear}>
-                    <DialogHeader>
-                      <DialogTitle>Add Academic Year</DialogTitle>
-                      <DialogDescription>Define a new academic year period.</DialogDescription>
-                    </DialogHeader>
-                    <div className="grid gap-4 py-4">
-                      <div className="grid gap-2">
-                        <Label htmlFor="year-name">Name</Label>
-                        <Input id="year-name" required value={newYear.name} onChange={(e) => setNewYear({...newYear, name: e.target.value})} placeholder="e.g. 2024-2025" />
-                      </div>
-                      <div className="grid grid-cols-2 gap-4">
-                        <div className="grid gap-2">
-                          <Label htmlFor="start-date">Start Date</Label>
-                          <Input id="start-date" type="date" required value={newYear.start_date} onChange={(e) => setNewYear({...newYear, start_date: e.target.value})} />
-                        </div>
-                        <div className="grid gap-2">
-                          <Label htmlFor="end-date">End Date</Label>
-                          <Input id="end-date" type="date" required value={newYear.end_date} onChange={(e) => setNewYear({...newYear, end_date: e.target.value})} />
-                        </div>
-                      </div>
-                    </div>
-                    <DialogFooter>
-                      <Button type="submit">Save Year</Button>
-                    </DialogFooter>
-                  </form>
-                </DialogContent>
-              </Dialog>
-            </CardHeader>
-            <CardContent>
-              <div className="rounded-md border">
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>Name</TableHead>
-                      <TableHead>Start Date</TableHead>
-                      <TableHead>End Date</TableHead>
-                      <TableHead className="text-right">Actions</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {academicYears.length === 0 && !isLoading && (
-                      <TableRow><TableCell colSpan={4} className="text-center py-4 text-muted-foreground">No academic years found.</TableCell></TableRow>
-                    )}
-                    {academicYears.map(yr => (
-                      <TableRow key={yr.id}>
-                        <TableCell className="font-medium">{yr.name}</TableCell>
-                        <TableCell>{new Date(yr.start_date).toLocaleDateString()}</TableCell>
-                        <TableCell>{new Date(yr.end_date).toLocaleDateString()}</TableCell>
-                        <TableCell className="text-right">
-                          <Button variant="ghost" size="sm">Edit</Button>
-                        </TableCell>
-                      </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
-              </div>
-            </CardContent>
-          </Card>
-        </TabsContent>
+          <div className="bg-card rounded-2xl border border-border overflow-hidden shadow-sm">
+            <table className="w-full text-left text-sm">
+              <thead className="bg-muted/50 border-b border-border text-muted-foreground font-mono text-xs uppercase">
+                <tr>
+                  <th className="p-4">Code</th>
+                  <th className="p-4">College Name</th>
+                  <th className="p-4">Location</th>
+                  <th className="p-4">Contact Coordinator</th>
+                  <th className="p-4 text-right">Actions</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-border">
+                {colleges.map((col) => (
+                  <tr key={col.id} className="hover:bg-muted/30 transition-colors">
+                    <td className="p-4 font-mono font-bold text-accent">{col.code}</td>
+                    <td className="p-4 font-medium text-foreground">{col.name}</td>
+                    <td className="p-4 text-muted-foreground">{col.location || '—'}</td>
+                    <td className="p-4">
+                      <div className="font-medium text-foreground">{col.contact_person || 'Unassigned'}</div>
+                      <div className="text-xs text-muted-foreground">{col.contact_email}</div>
+                    </td>
+                    <td className="p-4 text-right">
+                      <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive hover:bg-destructive/10" onClick={() => {
+                        store.colleges = store.colleges.filter(c => c.id !== col.id);
+                        setColleges([...store.colleges]);
+                        toast.success('College removed');
+                      }}>
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
 
-        {/* Batches Tab */}
-        <TabsContent value="batches" className="space-y-4">
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between">
-              <div>
-                <CardTitle>Batches</CardTitle>
-                <CardDescription>Manage student batches mapping to programs and years.</CardDescription>
-              </div>
-              <Dialog open={isBatchModalOpen} onOpenChange={setIsBatchModalOpen}>
-                <DialogTrigger className="inline-flex items-center justify-center whitespace-nowrap rounded-md text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 bg-primary text-primary-foreground shadow hover:bg-primary/90 h-9 px-4 py-2">
-                  <Plus className="mr-2 h-4 w-4" /> Add Batch
-                </DialogTrigger>
-                <DialogContent>
-                  <form onSubmit={handleAddBatch}>
-                    <DialogHeader>
-                      <DialogTitle>Add New Batch</DialogTitle>
-                      <DialogDescription>Create a new batch (e.g. CS-2024).</DialogDescription>
-                    </DialogHeader>
-                    <div className="grid gap-4 py-4">
-                      <div className="grid gap-2">
-                        <Label htmlFor="batch-name">Batch Name</Label>
-                        <Input id="batch-name" required value={newBatch.name} onChange={(e) => setNewBatch({...newBatch, name: e.target.value})} placeholder="e.g. CS-Batch-A-2024" />
-                      </div>
-                      <div className="grid gap-2">
-                        <Label>Program</Label>
-                        <Select value={newBatch.program_id} onValueChange={(val) => setNewBatch({...newBatch, program_id: val || ''})} required>
-                          <SelectTrigger><SelectValue placeholder="Select Program" /></SelectTrigger>
-                          <SelectContent>
-                            {programs.map(p => <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>)}
-                          </SelectContent>
-                        </Select>
-                      </div>
-                      <div className="grid gap-2">
-                        <Label>Academic Year</Label>
-                        <Select value={newBatch.academic_year_id} onValueChange={(val) => setNewBatch({...newBatch, academic_year_id: val || ''})} required>
-                          <SelectTrigger><SelectValue placeholder="Select Academic Year" /></SelectTrigger>
-                          <SelectContent>
-                            {academicYears.map(y => <SelectItem key={y.id} value={y.id}>{y.name}</SelectItem>)}
-                          </SelectContent>
-                        </Select>
-                      </div>
-                      <div className="grid gap-2">
-                        <Label>Coordinator (Optional)</Label>
-                        <Select value={newBatch.coordinator_id} onValueChange={(val) => setNewBatch({...newBatch, coordinator_id: val || ''})}>
-                          <SelectTrigger><SelectValue placeholder="Select Coordinator" /></SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="unassigned" className="text-muted-foreground italic">None</SelectItem>
-                            {coordinators.map(c => <SelectItem key={c.id} value={c.id}>{c.full_name || c.email}</SelectItem>)}
-                          </SelectContent>
-                        </Select>
-                      </div>
+      {/* Tab 2: Courses & Default Syllabus */}
+      {activeTab === 'courses' && (
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+          {/* Left Column: Courses list */}
+          <div className="space-y-4 lg:col-span-1">
+            <div className="flex justify-between items-center">
+              <h2 className="text-lg font-semibold font-heading">Tool Courses</h2>
+              <Button size="sm" onClick={() => setShowCourseModal(true)} className="bg-primary text-primary-foreground">
+                <Plus className="h-4 w-4 mr-1" /> Add Course
+              </Button>
+            </div>
+            <div className="bg-card rounded-2xl border border-border p-2 space-y-1">
+              {courses.map((crs) => {
+                const topicCount = defaultSyllabus.filter(s => s.course_id === crs.id).length;
+                return (
+                  <button
+                    key={crs.id}
+                    onClick={() => setSelectedCourseId(crs.id)}
+                    className={`w-full flex items-center justify-between p-3 rounded-xl transition-all text-left ${
+                      selectedCourseId === crs.id 
+                        ? 'bg-primary-tint/80 border border-primary/30 text-primary font-semibold' 
+                        : 'hover:bg-muted/50 text-foreground'
+                    }`}
+                  >
+                    <div className="flex items-center gap-3">
+                      <span className="font-mono text-xs px-2 py-0.5 rounded bg-primary/10 text-primary font-bold">{crs.code}</span>
+                      <span>{crs.name}</span>
                     </div>
-                    <DialogFooter>
-                      <Button type="submit">Save Batch</Button>
-                    </DialogFooter>
-                  </form>
-                </DialogContent>
-              </Dialog>
-            </CardHeader>
-            <CardContent>
-              <div className="rounded-md border">
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>Batch Name</TableHead>
-                      <TableHead>Program</TableHead>
-                      <TableHead>Academic Year</TableHead>
-                      <TableHead className="text-right">Actions</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {batches.length === 0 && !isLoading && (
-                      <TableRow><TableCell colSpan={4} className="text-center py-4 text-muted-foreground">No batches found.</TableCell></TableRow>
-                    )}
-                    {batches.map(batch => (
-                      <TableRow key={batch.id}>
-                        <TableCell className="font-medium">{batch.name}</TableCell>
-                        <TableCell>{batch.program?.name || 'N/A'}</TableCell>
-                        <TableCell>{batch.year?.name || 'N/A'}</TableCell>
-                        <TableCell className="text-right">
-                          <Button variant="ghost" size="sm">Edit</Button>
-                        </TableCell>
-                      </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
+                    <span className="text-xs text-muted-foreground font-mono">{topicCount} topics</span>
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+
+          {/* Right Column: Default Syllabus Editor */}
+          <div className="space-y-4 lg:col-span-2">
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 bg-card p-4 rounded-2xl border border-border">
+              <div>
+                <h3 className="font-heading font-bold text-foreground">
+                  Default Syllabus: <span className="text-primary font-mono">{selectedCourse?.name} ({selectedCourse?.code})</span>
+                </h3>
+                <p className="text-xs text-muted-foreground">Template syllabus copied automatically when adding this course to a batch.</p>
               </div>
-            </CardContent>
-          </Card>
-        </TabsContent>
-      </Tabs>
+              <div className="flex items-center gap-2">
+                <label className="cursor-pointer inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-secondary text-secondary-foreground text-xs font-medium hover:bg-secondary/80">
+                  <Upload className="h-3.5 w-3.5" /> CSV Import
+                  <input type="file" accept=".csv, .xlsx" onChange={handleImportTopics} className="hidden" />
+                </label>
+                <Button size="sm" onClick={() => {
+                  setTopicForm({ topic_no: currentCourseSyllabus.length + 1, topic_name: '', planned_hours: 2 });
+                  setShowSyllabusTopicModal(true);
+                }} className="bg-primary text-primary-foreground">
+                  <Plus className="h-3.5 w-3.5 mr-1" /> Add Topic
+                </Button>
+              </div>
+            </div>
+
+            <div className="bg-card rounded-2xl border border-border overflow-hidden shadow-sm">
+              <table className="w-full text-left text-sm">
+                <thead className="bg-muted/50 border-b border-border text-muted-foreground font-mono text-xs uppercase">
+                  <tr>
+                    <th className="p-3 w-16 text-center">#</th>
+                    <th className="p-3">Topic Description</th>
+                    <th className="p-3 w-28 text-center">Planned Hours</th>
+                    <th className="p-3 w-16 text-right">Actions</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-border">
+                  {currentCourseSyllabus.length === 0 ? (
+                    <tr>
+                      <td colSpan={4} className="p-6 text-center text-muted-foreground text-xs font-mono">
+                        No default syllabus topics configured for this course yet.
+                      </td>
+                    </tr>
+                  ) : (
+                    currentCourseSyllabus.map((topic) => (
+                      <tr key={topic.id} className="hover:bg-muted/30">
+                        <td className="p-3 text-center font-mono font-bold text-muted-foreground">{topic.topic_no}</td>
+                        <td className="p-3 font-medium text-foreground">{topic.topic_name}</td>
+                        <td className="p-3 text-center font-mono text-xs">{topic.planned_hours} hrs</td>
+                        <td className="p-3 text-right">
+                          <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive" onClick={() => {
+                            store.defaultSyllabus = store.defaultSyllabus.filter(s => s.id !== topic.id);
+                            setDefaultSyllabus([...store.defaultSyllabus]);
+                          }}>
+                            <Trash2 className="h-3.5 w-3.5" />
+                          </Button>
+                        </td>
+                      </tr>
+                    ))
+                  )}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Tab 3: Programs */}
+      {activeTab === 'programs' && (
+        <div className="space-y-4">
+          <div className="flex justify-between items-center">
+            <h2 className="text-lg font-semibold font-heading">Academic Programs</h2>
+            <Button onClick={() => setShowProgramModal(true)} className="bg-primary text-primary-foreground">
+              <Plus className="h-4 w-4 mr-2" /> Add Program
+            </Button>
+          </div>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            {programs.map((prog) => (
+              <div key={prog.id} className="card-meridian p-5 flex items-center justify-between">
+                <div>
+                  <span className="font-mono text-xs px-2 py-0.5 rounded bg-accent/15 text-accent font-bold">{prog.code}</span>
+                  <h3 className="font-bold text-foreground mt-2">{prog.name}</h3>
+                </div>
+                <Button variant="ghost" size="icon" className="text-destructive hover:bg-destructive/10" onClick={() => {
+                  store.programs = store.programs.filter(p => p.id !== prog.id);
+                  setPrograms([...store.programs]);
+                }}>
+                  <Trash2 className="h-4 w-4" />
+                </Button>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Tab 4: Assessment Types */}
+      {activeTab === 'assessments' && (
+        <div className="space-y-4">
+          <div className="flex justify-between items-center">
+            <h2 className="text-lg font-semibold font-heading">Assessment Types & Default Max Marks</h2>
+            <Button onClick={() => setShowAssessmentModal(true)} className="bg-primary text-primary-foreground">
+              <Plus className="h-4 w-4 mr-2" /> Add Assessment Type
+            </Button>
+          </div>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            {assessmentTypes.map((at) => (
+              <div key={at.id} className="card-meridian p-5 flex items-center justify-between">
+                <div>
+                  <h3 className="font-bold text-foreground text-base">{at.name}</h3>
+                  <div className="text-xs text-muted-foreground font-mono mt-1">
+                    Default Suggestion: <span className="font-bold text-primary">{at.default_max_mark} marks</span>
+                  </div>
+                </div>
+                <Button variant="ghost" size="icon" className="text-destructive hover:bg-destructive/10" onClick={() => {
+                  store.assessmentTypes = store.assessmentTypes.filter(a => a.id !== at.id);
+                  setAssessmentTypes([...store.assessmentTypes]);
+                }}>
+                  <Trash2 className="h-4 w-4" />
+                </Button>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* MODAL 1: Add College */}
+      {showCollegeModal && (
+        <div className="fixed inset-0 z-50 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4">
+          <div className="bg-card border border-border rounded-2xl p-6 max-w-md w-full shadow-2xl space-y-4">
+            <h3 className="text-lg font-bold font-heading">Add Partner College</h3>
+            <div className="space-y-3">
+              <div>
+                <label className="text-xs font-mono font-medium text-muted-foreground">College Short Code (e.g. MIM)</label>
+                <Input value={collegeForm.code} onChange={(e) => setCollegeForm({ ...collegeForm, code: e.target.value })} placeholder="MIM" className="mt-1 font-mono uppercase" />
+              </div>
+              <div>
+                <label className="text-xs font-mono font-medium text-muted-foreground">Full College Name</label>
+                <Input value={collegeForm.name} onChange={(e) => setCollegeForm({ ...collegeForm, name: e.target.value })} placeholder="Metropolitan Institute of Management" className="mt-1" />
+              </div>
+              <div>
+                <label className="text-xs font-mono font-medium text-muted-foreground">Location / Campus</label>
+                <Input value={collegeForm.location} onChange={(e) => setCollegeForm({ ...collegeForm, location: e.target.value })} placeholder="North Campus" className="mt-1" />
+              </div>
+              <div>
+                <label className="text-xs font-mono font-medium text-muted-foreground">Contact Coordinator Name</label>
+                <Input value={collegeForm.contact_person} onChange={(e) => setCollegeForm({ ...collegeForm, contact_person: e.target.value })} placeholder="Dr. Aris Thorne" className="mt-1" />
+              </div>
+              <div>
+                <label className="text-xs font-mono font-medium text-muted-foreground">Contact Email (for absentee alerts)</label>
+                <Input value={collegeForm.contact_email} onChange={(e) => setCollegeForm({ ...collegeForm, contact_email: e.target.value })} placeholder="coordinator.mim@university.edu" className="mt-1" />
+              </div>
+            </div>
+            <div className="flex justify-end gap-2 pt-2">
+              <Button variant="outline" onClick={() => setShowCollegeModal(false)}>Cancel</Button>
+              <Button onClick={handleSaveCollege} className="bg-primary text-primary-foreground">Save College</Button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* MODAL 2: Add Course */}
+      {showCourseModal && (
+        <div className="fixed inset-0 z-50 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4">
+          <div className="bg-card border border-border rounded-2xl p-6 max-w-md w-full shadow-2xl space-y-4">
+            <h3 className="text-lg font-bold font-heading">Add Tool Course</h3>
+            <div className="space-y-3">
+              <div>
+                <label className="text-xs font-mono font-medium text-muted-foreground">Course Code (e.g. XL, PBI, R)</label>
+                <Input value={courseForm.code} onChange={(e) => setCourseForm({ ...courseForm, code: e.target.value })} placeholder="PBI" className="mt-1 font-mono uppercase" />
+              </div>
+              <div>
+                <label className="text-xs font-mono font-medium text-muted-foreground">Course Name</label>
+                <Input value={courseForm.name} onChange={(e) => setCourseForm({ ...courseForm, name: e.target.value })} placeholder="Power BI" className="mt-1" />
+              </div>
+            </div>
+            <div className="flex justify-end gap-2 pt-2">
+              <Button variant="outline" onClick={() => setShowCourseModal(false)}>Cancel</Button>
+              <Button onClick={handleSaveCourse} className="bg-primary text-primary-foreground">Save Course</Button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* MODAL 3: Add Program */}
+      {showProgramModal && (
+        <div className="fixed inset-0 z-50 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4">
+          <div className="bg-card border border-border rounded-2xl p-6 max-w-md w-full shadow-2xl space-y-4">
+            <h3 className="text-lg font-bold font-heading">Add Academic Program</h3>
+            <div className="space-y-3">
+              <div>
+                <label className="text-xs font-mono font-medium text-muted-foreground">Program Code (e.g. BBA)</label>
+                <Input value={programForm.code} onChange={(e) => setProgramForm({ ...programForm, code: e.target.value })} placeholder="BBA" className="mt-1 font-mono uppercase" />
+              </div>
+              <div>
+                <label className="text-xs font-mono font-medium text-muted-foreground">Program Name</label>
+                <Input value={programForm.name} onChange={(e) => setProgramForm({ ...programForm, name: e.target.value })} placeholder="Bachelor of Business Administration" className="mt-1" />
+              </div>
+            </div>
+            <div className="flex justify-end gap-2 pt-2">
+              <Button variant="outline" onClick={() => setShowProgramModal(false)}>Cancel</Button>
+              <Button onClick={handleSaveProgram} className="bg-primary text-primary-foreground">Save Program</Button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* MODAL 4: Add Assessment Type */}
+      {showAssessmentModal && (
+        <div className="fixed inset-0 z-50 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4">
+          <div className="bg-card border border-border rounded-2xl p-6 max-w-md w-full shadow-2xl space-y-4">
+            <h3 className="text-lg font-bold font-heading">Add Assessment Type</h3>
+            <div className="space-y-3">
+              <div>
+                <label className="text-xs font-mono font-medium text-muted-foreground">Assessment Type Name</label>
+                <Input value={assessmentForm.name} onChange={(e) => setAssessmentForm({ ...assessmentForm, name: e.target.value })} placeholder="Assignment / Exam / Quiz" className="mt-1" />
+              </div>
+              <div>
+                <label className="text-xs font-mono font-medium text-muted-foreground">Default Max Mark (Suggestion)</label>
+                <Input type="number" value={assessmentForm.default_max_mark} onChange={(e) => setAssessmentForm({ ...assessmentForm, default_max_mark: Number(e.target.value) })} placeholder="100" className="mt-1 font-mono" />
+              </div>
+            </div>
+            <div className="flex justify-end gap-2 pt-2">
+              <Button variant="outline" onClick={() => setShowAssessmentModal(false)}>Cancel</Button>
+              <Button onClick={handleSaveAssessment} className="bg-primary text-primary-foreground">Save Type</Button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* MODAL 5: Add Default Syllabus Topic */}
+      {showSyllabusTopicModal && (
+        <div className="fixed inset-0 z-50 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4">
+          <div className="bg-card border border-border rounded-2xl p-6 max-w-md w-full shadow-2xl space-y-4">
+            <h3 className="text-lg font-bold font-heading">Add Topic to {selectedCourse?.name} Default Syllabus</h3>
+            <div className="space-y-3">
+              <div>
+                <label className="text-xs font-mono font-medium text-muted-foreground">Topic Number</label>
+                <Input type="number" value={topicForm.topic_no} onChange={(e) => setTopicForm({ ...topicForm, topic_no: Number(e.target.value) })} className="mt-1 font-mono" />
+              </div>
+              <div>
+                <label className="text-xs font-mono font-medium text-muted-foreground">Topic Name / Title</label>
+                <Input value={topicForm.topic_name} onChange={(e) => setTopicForm({ ...topicForm, topic_name: e.target.value })} placeholder="Data Modeling & DAX" className="mt-1" />
+              </div>
+              <div>
+                <label className="text-xs font-mono font-medium text-muted-foreground">Planned Duration (Hours)</label>
+                <Input type="number" step="0.5" value={topicForm.planned_hours} onChange={(e) => setTopicForm({ ...topicForm, planned_hours: Number(e.target.value) })} className="mt-1 font-mono" />
+              </div>
+            </div>
+            <div className="flex justify-end gap-2 pt-2">
+              <Button variant="outline" onClick={() => setShowSyllabusTopicModal(false)}>Cancel</Button>
+              <Button onClick={handleSaveTopic} className="bg-primary text-primary-foreground">Save Topic</Button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

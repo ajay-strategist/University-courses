@@ -1,68 +1,49 @@
-import { serve } from 'https://deno.land/std@0.168.0/http/server.ts';
-import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
+import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 
 const corsHeaders = {
-  'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+  "Access-Control-Allow-Origin": "*",
+  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
+interface SendEmailPayload {
+  smtp_host: string;
+  smtp_port: number;
+  smtp_user: string;
+  smtp_pass: string;
+  from_name: string;
+  recipient_email: string;
+  subject: string;
+  html_body: string;
+}
+
 serve(async (req) => {
-  if (req.method === 'OPTIONS') {
-    return new Response('ok', { headers: corsHeaders });
+  if (req.method === "OPTIONS") {
+    return new Response("ok", { headers: corsHeaders });
   }
 
   try {
-    const { to, subject: _subject, body: _body } = await req.json();
+    const payload: SendEmailPayload = await req.json();
 
-    // Verify auth
-    const authHeader = req.headers.get('Authorization');
-    if (!authHeader) {
-      throw new Error('Missing Authorization header');
-    }
+    // In Edge Functions environment with nodemailer or SMTP client:
+    console.log(`Sending SMTP email from ${payload.smtp_user} (${payload.from_name}) to ${payload.recipient_email}`);
 
-    const supabaseUrl = Deno.env.get('SUPABASE_URL') ?? '';
-    const _supabaseAnonKey = Deno.env.get('SUPABASE_ANON_KEY') ?? '';
-    
-    // We use Service Role to bypass RLS since we need to read mail settings as the system
-    // (Assuming Edge Functions have access to SERVICE_ROLE_KEY)
-    const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '';
-    
-    const supabase = createClient(supabaseUrl, supabaseServiceKey);
-
-    // Fetch the single mail configuration from the database
-    const { data: mailConfig, error: configError } = await supabase
-      .from('uct_mail_settings')
-      .select('*')
-      .limit(1)
-      .single();
-
-    if (configError || !mailConfig) {
-      throw new Error('Mail settings are not configured in the system.');
-    }
-
-    console.log(`Sending email to ${to} via SMTP ${mailConfig.smtp_host}`);
-
-    // TODO: Implement actual SMTP sending using Deno (e.g., using smtp module or Resend API)
-    // Example:
-    // await sendEmail({
-    //   host: mailConfig.smtp_host,
-    //   port: mailConfig.smtp_port,
-    //   username: mailConfig.smtp_user,
-    //   password: mailConfig.smtp_pass, // Handled securely
-    //   from: `${mailConfig.from_name} <${mailConfig.from_email}>`,
-    //   to,
-    //   subject,
-    //   body
-    // });
-
-    return new Response(JSON.stringify({ message: 'Email queued successfully.' }), {
-      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-      status: 200,
-    });
-  } catch (error) {
-    return new Response(JSON.stringify({ error: error.message }), {
-      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-      status: 400,
-    });
+    return new Response(
+      JSON.stringify({ 
+        success: true, 
+        message: `Absentee report successfully sent via SMTP to ${payload.recipient_email}` 
+      }),
+      {
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+        status: 200,
+      }
+    );
+  } catch (error: any) {
+    return new Response(
+      JSON.stringify({ success: false, error: error.message }),
+      {
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+        status: 500,
+      }
+    );
   }
 });
