@@ -31,8 +31,8 @@ export default function Dashboard() {
         </Button>
       </div>
 
-      {/* 5 Section 5 Light KPI Cards */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
+      {/* Operational KPI Cards */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
         <div className="card-meridian p-5 border-l-4 border-l-primary space-y-1">
           <div className="flex items-center justify-between text-muted-foreground text-xs font-mono uppercase">
             <span>Active Batches</span>
@@ -49,33 +49,6 @@ export default function Dashboard() {
           </div>
           <div className="text-3xl font-bold font-mono text-foreground mt-2">{totalStudentsCount}</div>
           <div className="text-[11px] text-muted-foreground font-mono">Active student count</div>
-        </div>
-
-        <div className="card-meridian p-5 border-l-4 border-l-success space-y-1">
-          <div className="flex items-center justify-between text-muted-foreground text-xs font-mono uppercase">
-            <span>Avg Attendance %</span>
-            <CalendarCheck className="h-4 w-4 text-success" />
-          </div>
-          <div className="text-3xl font-bold font-mono text-success mt-2">{avgAttendance}%</div>
-          <div className="text-[11px] text-muted-foreground font-mono">Overall attendance rate</div>
-        </div>
-
-        <div className="card-meridian p-5 border-l-4 border-l-primary space-y-1">
-          <div className="flex items-center justify-between text-muted-foreground text-xs font-mono uppercase">
-            <span>Avg Coverage %</span>
-            <CheckCircle2 className="h-4 w-4 text-primary" />
-          </div>
-          <div className="text-3xl font-bold font-mono text-primary mt-2">{avgCoverage}%</div>
-          <div className="text-[11px] text-muted-foreground font-mono">Syllabus delivery pace</div>
-        </div>
-
-        <div className="card-meridian p-5 border-l-4 border-l-warning space-y-1">
-          <div className="flex items-center justify-between text-muted-foreground text-xs font-mono uppercase">
-            <span>Pending Imports</span>
-            <FileSpreadsheet className="h-4 w-4 text-warning" />
-          </div>
-          <div className="text-3xl font-bold font-mono text-warning mt-2">0</div>
-          <div className="text-[11px] text-muted-foreground font-mono">Clean data state</div>
         </div>
       </div>
 

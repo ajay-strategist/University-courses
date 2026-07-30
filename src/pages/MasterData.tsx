@@ -40,25 +40,42 @@ export default function MasterData() {
   const [assessmentForm, setAssessmentForm] = useState<Partial<AssessmentType>>({ name: '', default_max_mark: 100 });
   const [topicForm, setTopicForm] = useState<{ topic_no: number; topic_name: string; planned_hours: number }>({ topic_no: 1, topic_name: '', planned_hours: 2 });
 
-  // Add College
+  const [editingCollegeId, setEditingCollegeId] = useState<string | null>(null);
+
+  // Add / Edit College
   const handleSaveCollege = () => {
     if (!collegeForm.code || !collegeForm.name) {
       toast.error('Code and Name are required');
       return;
     }
-    const newCol: College = {
-      id: `col-${Date.now()}`,
-      code: collegeForm.code.toUpperCase(),
-      name: collegeForm.name,
-      location: collegeForm.location || '',
-      logo_url: collegeForm.logo_url || 'https://images.unsplash.com/photo-1599305445671-ac291c95aaa9?w=150&auto=format&fit=crop&q=80',
-      image_url: collegeForm.image_url || 'https://images.unsplash.com/photo-1562774053-701939374585?w=600&auto=format&fit=crop&q=80',
-    };
-    store.colleges.push(newCol);
+
+    if (editingCollegeId) {
+      const target = store.colleges.find(c => c.id === editingCollegeId);
+      if (target) {
+        target.code = collegeForm.code.toUpperCase();
+        target.name = collegeForm.name;
+        target.location = collegeForm.location || '';
+        target.logo_url = collegeForm.logo_url;
+        target.image_url = collegeForm.image_url;
+      }
+      toast.success(`College ${collegeForm.name} updated!`);
+    } else {
+      const newCol: College = {
+        id: `col-${Date.now()}`,
+        code: collegeForm.code.toUpperCase(),
+        name: collegeForm.name,
+        location: collegeForm.location || '',
+        logo_url: collegeForm.logo_url || 'https://images.unsplash.com/photo-1599305445671-ac291c95aaa9?w=150&auto=format&fit=crop&q=80',
+        image_url: collegeForm.image_url || 'https://images.unsplash.com/photo-1562774053-701939374585?w=600&auto=format&fit=crop&q=80',
+      };
+      store.colleges.push(newCol);
+      toast.success(`College ${newCol.code} added`);
+    }
+
     setColleges([...store.colleges]);
     setShowCollegeModal(false);
+    setEditingCollegeId(null);
     setCollegeForm({ code: '', name: '', location: '', logo_url: '', image_url: '' });
-    toast.success(`College ${newCol.code} added`);
   };
 
   // Add Course
@@ -265,12 +282,35 @@ export default function MasterData() {
                         <span className="text-xs text-muted-foreground font-mono">No image</span>
                       )}
                     </td>
-                    <td className="p-4 text-right">
-                      <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive hover:bg-destructive/10" onClick={() => {
-                        store.colleges = store.colleges.filter(c => c.id !== col.id);
-                        setColleges([...store.colleges]);
-                        toast.success('College removed');
-                      }}>
+                    <td className="p-4 text-right space-x-1">
+                      <Button 
+                        variant="ghost" 
+                        size="icon" 
+                        className="h-8 w-8 text-primary hover:bg-primary/10" 
+                        onClick={() => {
+                          setEditingCollegeId(col.id);
+                          setCollegeForm({
+                            code: col.code,
+                            name: col.name,
+                            location: col.location || '',
+                            logo_url: col.logo_url || '',
+                            image_url: col.image_url || '',
+                          });
+                          setShowCollegeModal(true);
+                        }}
+                      >
+                        <Edit2 className="h-4 w-4" />
+                      </Button>
+                      <Button 
+                        variant="ghost" 
+                        size="icon" 
+                        className="h-8 w-8 text-destructive hover:bg-destructive/10" 
+                        onClick={() => {
+                          store.colleges = store.colleges.filter(c => c.id !== col.id);
+                          setColleges([...store.colleges]);
+                          toast.success('College removed');
+                        }}
+                      >
                         <Trash2 className="h-4 w-4" />
                       </Button>
                     </td>
@@ -443,7 +483,7 @@ export default function MasterData() {
       {showCollegeModal && (
         <div className="fixed inset-0 z-50 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4">
           <div className="bg-card border border-border rounded-2xl p-6 max-w-md w-full shadow-2xl space-y-4">
-            <h3 className="text-lg font-bold font-heading">Add Partner College</h3>
+            <h3 className="text-lg font-bold font-heading">{editingCollegeId ? 'Edit Partner College' : 'Add Partner College'}</h3>
             <div className="space-y-3">
               <div>
                 <label className="text-xs font-mono font-medium text-muted-foreground">College Short Code (e.g. MIM)</label>
@@ -467,8 +507,10 @@ export default function MasterData() {
               </div>
             </div>
             <div className="flex justify-end gap-2 pt-2">
-              <Button variant="outline" onClick={() => setShowCollegeModal(false)}>Cancel</Button>
-              <Button onClick={handleSaveCollege} className="bg-primary text-primary-foreground">Save College</Button>
+              <Button variant="outline" onClick={() => { setShowCollegeModal(false); setEditingCollegeId(null); }}>Cancel</Button>
+              <Button onClick={handleSaveCollege} className="bg-primary text-primary-foreground">
+                {editingCollegeId ? 'Save Changes' : 'Add College'}
+              </Button>
             </div>
           </div>
         </div>

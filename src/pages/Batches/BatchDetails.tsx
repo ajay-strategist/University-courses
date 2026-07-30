@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { store } from '@/lib/store';
+import { useAuth } from '@/contexts/AuthContext';
 import type { 
   Student, BatchCourse, BatchCourseSyllabus, Session, Attendance, 
   Assessment, AssessmentMark, Course, AbsenteePreview 
@@ -11,7 +12,7 @@ import { toast } from 'sonner';
 import { 
   ArrowLeft, Users, BookOpen, CalendarCheck, Award, FileCheck2, 
   CheckSquare, Plus, Download, Upload, Mail, CheckCircle2, Clock, 
-  AlertTriangle, Check, X, FileSpreadsheet, Send
+  AlertTriangle, Check, X, FileSpreadsheet, Send, Edit2
 } from 'lucide-react';
 import * as XLSX from 'xlsx';
 
@@ -21,9 +22,12 @@ export default function BatchDetails() {
 
   const batch = store.getBatchWithDetails(id || '');
 
+  const { profile } = useAuth();
+  const isStudentCoordinator = profile?.role === 'student_coordinator';
+
   const [activeTab, setActiveTab] = useState<
     'students' | 'courses' | 'attendance' | 'marks' | 'assessment_types' | 'syllabus' | 'coverage'
-  >('students');
+  >(isStudentCoordinator ? 'attendance' : 'students');
 
   // Local reactive states for this batch
   const [students, setStudents] = useState<Student[]>(
@@ -70,8 +74,62 @@ export default function BatchDetails() {
   // Assessment Form Input
   const [assessmentForm, setAssessmentForm] = useState({ name: '', type_id: store.assessmentTypes[0]?.id || '', max_mark: 50 });
 
-  // Absentee Email Preview
+  // Absentee Email Preview Modal State
   const [absenteePreview, setAbsenteePreview] = useState<AbsenteePreview | null>(null);
+
+  // Edit Batch Modal State
+  const [showEditBatchModal, setShowEditBatchModal] = useState(false);
+  const [editBatchForm, setEditBatchForm] = useState({
+    current_semester: batch?.current_semester || 1,
+    status: batch?.status || 'Active',
+    college_coordinator_id: batch?.college_coordinator_id || '',
+    student_coordinator_id: batch?.student_coordinator_id || '',
+    start_date: batch?.start_date || '',
+    end_date: batch?.end_date || '',
+  });
+
+  const handleSaveBatchEdit = () => {
+    if (!batch) return;
+    const targetBatch = store.batches.find(b => b.id === batch.id);
+    if (targetBatch) {
+      targetBatch.current_semester = Number(editBatchForm.current_semester);
+      targetBatch.status = editBatchForm.status as 'Active' | 'Completed';
+      targetBatch.college_coordinator_id = editBatchForm.college_coordinator_id;
+      targetBatch.student_coordinator_id = editBatchForm.student_coordinator_id;
+      targetBatch.start_date = editBatchForm.start_date;
+      targetBatch.end_date = editBatchForm.end_date;
+    }
+    setShowEditBatchModal(false);
+    toast.success(`Batch ${batch.code} updated successfully!`);
+  };
+
+  const handleUpdateSingleMark = (studentId: string, valStr: string) => {
+    const curAsm = store.assessments.find(a => a.id === selectedAssessmentId);
+    if (!curAsm) return;
+    const num = Number(valStr);
+    if (isNaN(num) || num < 0) {
+      toast.error('Mark must be a non-negative number');
+      return;
+    }
+    if (num > curAsm.max_mark) {
+      toast.error(`Mark (${num}) cannot exceed assessment Max Mark of ${curAsm.max_mark}`);
+      return;
+    }
+
+    const idx = store.assessmentMarks.findIndex(m => m.assessment_id === curAsm.id && m.student_id === studentId);
+    if (idx >= 0) {
+      store.assessmentMarks[idx].mark = num;
+    } else {
+      store.assessmentMarks.push({
+        id: `mk-${Date.now()}-${studentId}`,
+        assessment_id: curAsm.id,
+        student_id: studentId,
+        mark: num,
+      });
+    }
+    setMarksState(prev => ({ ...prev, [studentId]: num }));
+    toast.success('Mark saved');
+  };
 
   if (!batch) {
     return (
@@ -410,6 +468,26 @@ export default function BatchDetails() {
                 <span className="font-mono text-xs px-2.5 py-0.5 rounded-full bg-accent/15 text-accent font-bold">
                   Sem {batch.current_semester}
                 </span>
+                {!isStudentCoordinator && (
+                  <Button 
+                    size="sm" 
+                    variant="outline" 
+                    onClick={() => {
+                      setEditBatchForm({
+                        current_semester: batch.current_semester,
+                        status: batch.status,
+                        college_coordinator_id: batch.college_coordinator_id || '',
+                        student_coordinator_id: batch.student_coordinator_id || '',
+                        start_date: batch.start_date || '',
+                        end_date: batch.end_date || '',
+                      });
+                      setShowEditBatchModal(true);
+                    }} 
+                    className="h-7 text-xs rounded-xl ml-1"
+                  >
+                    <Edit2 className="h-3.5 w-3.5 mr-1" /> Edit Batch
+                  </Button>
+                )}
               </div>
               <p className="text-xs text-muted-foreground mt-0.5">
                 <span className="font-semibold text-foreground">{batch.college?.name}</span> · {batch.program?.name} ({batch.academic_year})
@@ -438,62 +516,70 @@ export default function BatchDetails() {
 
       {/* 7 Workspace Tabs */}
       <div className="flex border-b border-border bg-card rounded-2xl p-1 gap-1 overflow-x-auto">
-        <button
-          onClick={() => setActiveTab('students')}
-          className={`flex items-center gap-2 px-4 py-2 text-xs font-semibold rounded-xl transition-all whitespace-nowrap ${
-            activeTab === 'students' ? 'bg-primary text-primary-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground'
-          }`}
-        >
-          <Users className="h-3.5 w-3.5" /> 7.1 Students ({students.length})
-        </button>
-        <button
-          onClick={() => setActiveTab('courses')}
-          className={`flex items-center gap-2 px-4 py-2 text-xs font-semibold rounded-xl transition-all whitespace-nowrap ${
-            activeTab === 'courses' ? 'bg-primary text-primary-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground'
-          }`}
-        >
-          <BookOpen className="h-3.5 w-3.5" /> 7.2 Courses ({batchCourses.length})
-        </button>
+        {!isStudentCoordinator && (
+          <>
+            <button
+              onClick={() => setActiveTab('students')}
+              className={`flex items-center gap-2 px-4 py-2 text-xs font-semibold rounded-xl transition-all whitespace-nowrap ${
+                activeTab === 'students' ? 'bg-primary text-primary-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground'
+              }`}
+            >
+              <Users className="h-3.5 w-3.5" /> 7.1 Students ({students.length})
+            </button>
+            <button
+              onClick={() => setActiveTab('courses')}
+              className={`flex items-center gap-2 px-4 py-2 text-xs font-semibold rounded-xl transition-all whitespace-nowrap ${
+                activeTab === 'courses' ? 'bg-primary text-primary-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground'
+              }`}
+            >
+              <BookOpen className="h-3.5 w-3.5" /> 7.2 Courses ({batchCourses.length})
+            </button>
+          </>
+        )}
         <button
           onClick={() => setActiveTab('attendance')}
           className={`flex items-center gap-2 px-4 py-2 text-xs font-semibold rounded-xl transition-all whitespace-nowrap ${
             activeTab === 'attendance' ? 'bg-primary text-primary-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground'
           }`}
         >
-          <CalendarCheck className="h-3.5 w-3.5" /> 7.3 Attendance
+          <CalendarCheck className="h-3.5 w-3.5" /> 7.3 Attendance Register & Matrix
         </button>
-        <button
-          onClick={() => setActiveTab('marks')}
-          className={`flex items-center gap-2 px-4 py-2 text-xs font-semibold rounded-xl transition-all whitespace-nowrap ${
-            activeTab === 'marks' ? 'bg-primary text-primary-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground'
-          }`}
-        >
-          <Award className="h-3.5 w-3.5" /> 7.4 Marks & Excel Import
-        </button>
-        <button
-          onClick={() => setActiveTab('assessment_types')}
-          className={`flex items-center gap-2 px-4 py-2 text-xs font-semibold rounded-xl transition-all whitespace-nowrap ${
-            activeTab === 'assessment_types' ? 'bg-primary text-primary-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground'
-          }`}
-        >
-          <FileCheck2 className="h-3.5 w-3.5" /> 7.5 Assessment Types
-        </button>
-        <button
-          onClick={() => setActiveTab('syllabus')}
-          className={`flex items-center gap-2 px-4 py-2 text-xs font-semibold rounded-xl transition-all whitespace-nowrap ${
-            activeTab === 'syllabus' ? 'bg-primary text-primary-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground'
-          }`}
-        >
-          <CheckSquare className="h-3.5 w-3.5" /> 7.6 Syllabus
-        </button>
-        <button
-          onClick={() => setActiveTab('coverage')}
-          className={`flex items-center gap-2 px-4 py-2 text-xs font-semibold rounded-xl transition-all whitespace-nowrap ${
-            activeTab === 'coverage' ? 'bg-primary text-primary-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground'
-          }`}
-        >
-          <CheckCircle2 className="h-3.5 w-3.5" /> 7.7 Course Coverage ({coveragePct}%)
-        </button>
+        {!isStudentCoordinator && (
+          <>
+            <button
+              onClick={() => setActiveTab('marks')}
+              className={`flex items-center gap-2 px-4 py-2 text-xs font-semibold rounded-xl transition-all whitespace-nowrap ${
+                activeTab === 'marks' ? 'bg-primary text-primary-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground'
+              }`}
+            >
+              <Award className="h-3.5 w-3.5" /> 7.4 Marks & Excel Import
+            </button>
+            <button
+              onClick={() => setActiveTab('assessment_types')}
+              className={`flex items-center gap-2 px-4 py-2 text-xs font-semibold rounded-xl transition-all whitespace-nowrap ${
+                activeTab === 'assessment_types' ? 'bg-primary text-primary-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground'
+              }`}
+            >
+              <FileCheck2 className="h-3.5 w-3.5" /> 7.5 Assessment Types
+            </button>
+            <button
+              onClick={() => setActiveTab('syllabus')}
+              className={`flex items-center gap-2 px-4 py-2 text-xs font-semibold rounded-xl transition-all whitespace-nowrap ${
+                activeTab === 'syllabus' ? 'bg-primary text-primary-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground'
+              }`}
+            >
+              <CheckSquare className="h-3.5 w-3.5" /> 7.6 Syllabus
+            </button>
+            <button
+              onClick={() => setActiveTab('coverage')}
+              className={`flex items-center gap-2 px-4 py-2 text-xs font-semibold rounded-xl transition-all whitespace-nowrap ${
+                activeTab === 'coverage' ? 'bg-primary text-primary-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground'
+              }`}
+            >
+              <CheckCircle2 className="h-3.5 w-3.5" /> 7.7 Course Coverage ({coveragePct}%)
+            </button>
+          </>
+        )}
       </div>
 
       {/* TAB 7.1: STUDENTS */}
@@ -823,7 +909,24 @@ export default function BatchDetails() {
                       <td className="p-3 font-mono font-bold text-accent">{stu.register_no}</td>
                       <td className="p-3 font-medium text-foreground">{stu.name}</td>
                       <td className="p-3 text-xs font-mono">{activeCourse?.name}</td>
-                      <td className="p-3 text-center font-mono font-bold text-primary">{markVal}</td>
+                      <td className="p-3 text-center font-mono">
+                        <div className="flex items-center justify-center gap-1">
+                          <Input
+                            type="number"
+                            min="0"
+                            max={maxMark}
+                            key={`${stu.id}-${selectedAssessmentId}-${markVal}`}
+                            defaultValue={markVal !== '—' ? markVal : ''}
+                            placeholder="—"
+                            onBlur={(e) => {
+                              if (e.target.value !== '') {
+                                handleUpdateSingleMark(stu.id, e.target.value);
+                              }
+                            }}
+                            className="w-20 h-8 text-center font-mono font-bold text-primary bg-background border border-border rounded-lg focus:outline-none"
+                          />
+                        </div>
+                      </td>
                       <td className="p-3 text-center font-mono text-muted-foreground">{maxMark}</td>
                       <td className="p-3 text-center font-mono text-xs font-bold text-foreground">
                         {typeof pct === 'number' ? `${pct}%` : '—'}
@@ -1116,6 +1219,101 @@ export default function BatchDetails() {
                 setShowAddAssessmentModal(false);
                 toast.success('Assessment created!');
               }} className="bg-primary text-primary-foreground">Create Assessment</Button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* MODAL: EDIT BATCH DETAILS */}
+      {showEditBatchModal && (
+        <div className="fixed inset-0 z-50 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4">
+          <div className="bg-card border border-border rounded-2xl p-6 max-w-md w-full shadow-2xl space-y-4">
+            <div className="flex justify-between items-center border-b border-border pb-3">
+              <h3 className="text-lg font-bold font-heading">Edit Batch ({batch.code})</h3>
+              <Button variant="ghost" size="icon" onClick={() => setShowEditBatchModal(false)} className="h-8 w-8">
+                <X className="h-4 w-4" />
+              </Button>
+            </div>
+
+            <div className="space-y-3 text-xs font-mono">
+              <div>
+                <label className="font-medium text-muted-foreground">Current Semester</label>
+                <select 
+                  value={editBatchForm.current_semester} 
+                  onChange={(e) => setEditBatchForm({ ...editBatchForm, current_semester: Number(e.target.value) })}
+                  className="w-full mt-1 bg-background border border-border rounded-xl p-2.5 text-sm font-sans font-semibold text-foreground focus:outline-none"
+                >
+                  {[1, 2, 3, 4, 5, 6, 7, 8].map(s => (
+                    <option key={s} value={s}>Semester {s}</option>
+                  ))}
+                </select>
+              </div>
+
+              <div>
+                <label className="font-medium text-muted-foreground">Batch Status</label>
+                <select 
+                  value={editBatchForm.status} 
+                  onChange={(e) => setEditBatchForm({ ...editBatchForm, status: e.target.value as any })}
+                  className="w-full mt-1 bg-background border border-border rounded-xl p-2.5 text-sm font-sans font-semibold text-foreground focus:outline-none"
+                >
+                  <option value="Active">Active</option>
+                  <option value="Completed">Completed</option>
+                </select>
+              </div>
+
+              <div>
+                <label className="font-medium text-muted-foreground">College Coordinator</label>
+                <select 
+                  value={editBatchForm.college_coordinator_id} 
+                  onChange={(e) => setEditBatchForm({ ...editBatchForm, college_coordinator_id: e.target.value })}
+                  className="w-full mt-1 bg-background border border-border rounded-xl p-2.5 text-sm font-sans text-foreground focus:outline-none"
+                >
+                  <option value="">Unassigned</option>
+                  {store.profiles.filter(p => p.role === 'college_coordinator').map(p => (
+                    <option key={p.id} value={p.id}>{p.full_name} ({p.email})</option>
+                  ))}
+                </select>
+              </div>
+
+              <div>
+                <label className="font-medium text-muted-foreground">Student Coordinator</label>
+                <select 
+                  value={editBatchForm.student_coordinator_id} 
+                  onChange={(e) => setEditBatchForm({ ...editBatchForm, student_coordinator_id: e.target.value })}
+                  className="w-full mt-1 bg-background border border-border rounded-xl p-2.5 text-sm font-sans text-foreground focus:outline-none"
+                >
+                  <option value="">Unassigned</option>
+                  {store.profiles.filter(p => p.role === 'student_coordinator').map(p => (
+                    <option key={p.id} value={p.id}>{p.full_name} ({p.email})</option>
+                  ))}
+                </select>
+              </div>
+
+              <div className="grid grid-cols-2 gap-2">
+                <div>
+                  <label className="font-medium text-muted-foreground">Start Date</label>
+                  <Input 
+                    type="date" 
+                    value={editBatchForm.start_date} 
+                    onChange={(e) => setEditBatchForm({ ...editBatchForm, start_date: e.target.value })} 
+                    className="mt-1 font-sans"
+                  />
+                </div>
+                <div>
+                  <label className="font-medium text-muted-foreground">End Date</label>
+                  <Input 
+                    type="date" 
+                    value={editBatchForm.end_date} 
+                    onChange={(e) => setEditBatchForm({ ...editBatchForm, end_date: e.target.value })} 
+                    className="mt-1 font-sans"
+                  />
+                </div>
+              </div>
+            </div>
+
+            <div className="flex justify-end gap-2 pt-2 border-t border-border">
+              <Button variant="outline" onClick={() => setShowEditBatchModal(false)}>Cancel</Button>
+              <Button onClick={handleSaveBatchEdit} className="bg-primary text-primary-foreground">Save Changes</Button>
             </div>
           </div>
         </div>

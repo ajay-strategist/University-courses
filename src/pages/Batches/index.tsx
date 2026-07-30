@@ -7,11 +7,24 @@ import { Input } from '@/components/ui/input';
 import { toast } from 'sonner';
 import { Plus, Users, BookOpen, ChevronRight, Sparkles, Building2, Calendar, Award } from 'lucide-react';
 
+import { useAuth } from '@/contexts/AuthContext';
+
 export default function BatchesGrid() {
   const navigate = useNavigate();
-  const [batches, setBatches] = useState<Batch[]>(
-    store.batches.map(b => store.getBatchWithDetails(b.id)!)
-  );
+  const { profile } = useAuth();
+  
+  const allBatches = store.batches.map(b => store.getBatchWithDetails(b.id)!);
+  const filteredBatches = allBatches.filter(b => {
+    if (profile?.role === 'college_coordinator') {
+      return b.college_coordinator_id === profile.id || b.college_coordinator?.email === profile.email;
+    }
+    if (profile?.role === 'student_coordinator') {
+      return b.student_coordinator_id === profile.id || b.student_coordinator?.email === profile.email;
+    }
+    return true;
+  });
+
+  const [batches, setBatches] = useState<Batch[]>(filteredBatches);
 
   // New Batch Modal State
   const [showModal, setShowModal] = useState(false);
