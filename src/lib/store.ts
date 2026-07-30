@@ -3,48 +3,409 @@ import type {
   Batch, Student, BatchCourse, BatchCourseSyllabus, Session, 
   Attendance, Assessment, AssessmentMark, Profile, UserEmailConfig, NotificationLog 
 } from '@/types';
+import { supabase } from './supabase';
+
+export const generateUUID = (): string => {
+  if (typeof crypto !== 'undefined' && crypto.randomUUID) {
+    return crypto.randomUUID();
+  }
+  return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, (c) => {
+    const r = (Math.random() * 16) | 0;
+    const v = c === 'x' ? r : (r & 0x3) | 0x8;
+    return v.toString(16);
+  });
+};
 
 // Admin System Profile
 export const INITIAL_PROFILES: Profile[] = [
   { id: 'usr-admin-1', email: 'mail@thestrategist.co.in', full_name: 'Ajay Thomas', role: 'admin', phone: '+1 555-0192' },
 ];
 
-export const INITIAL_COLLEGES: College[] = [];
-export const INITIAL_PROGRAMS: Program[] = [];
-export const INITIAL_COURSES: Course[] = [];
-export const INITIAL_DEFAULT_SYLLABUS: CourseDefaultSyllabus[] = [];
-export const INITIAL_ASSESSMENT_TYPES: AssessmentType[] = [];
-export const INITIAL_BATCHES: Batch[] = [];
-export const INITIAL_STUDENTS: Student[] = [];
-export const INITIAL_BATCH_COURSES: BatchCourse[] = [];
-export const INITIAL_BATCH_COURSE_SYLLABUS: BatchCourseSyllabus[] = [];
-export const INITIAL_SESSIONS: Session[] = [];
-export const INITIAL_ATTENDANCE: Attendance[] = [];
-export const INITIAL_ASSESSMENTS: Assessment[] = [];
-export const INITIAL_ASSESSMENT_MARKS: AssessmentMark[] = [];
-export const INITIAL_EMAIL_CONFIGS: UserEmailConfig[] = [];
-export const INITIAL_NOTIFICATION_LOGS: NotificationLog[] = [];
-
-// In-Memory Reactive Local Store for Production & Dynamic Data Entry
 class DataStore {
-  profiles = [...INITIAL_PROFILES];
-  colleges = [...INITIAL_COLLEGES];
-  programs = [...INITIAL_PROGRAMS];
-  courses = [...INITIAL_COURSES];
-  defaultSyllabus = [...INITIAL_DEFAULT_SYLLABUS];
-  assessmentTypes = [...INITIAL_ASSESSMENT_TYPES];
-  batches = [...INITIAL_BATCHES];
-  students = [...INITIAL_STUDENTS];
-  batchCourses = [...INITIAL_BATCH_COURSES];
-  batchSyllabus = [...INITIAL_BATCH_COURSE_SYLLABUS];
-  sessions = [...INITIAL_SESSIONS];
-  attendance = [...INITIAL_ATTENDANCE];
-  assessments = [...INITIAL_ASSESSMENTS];
-  assessmentMarks = [...INITIAL_ASSESSMENT_MARKS];
-  emailConfigs = [...INITIAL_EMAIL_CONFIGS];
-  notificationLogs = [...INITIAL_NOTIFICATION_LOGS];
+  profiles: Profile[] = [...INITIAL_PROFILES];
+  colleges: College[] = [];
+  programs: Program[] = [];
+  courses: Course[] = [];
+  defaultSyllabus: CourseDefaultSyllabus[] = [];
+  assessmentTypes: AssessmentType[] = [];
+  batches: Batch[] = [];
+  students: Student[] = [];
+  batchCourses: BatchCourse[] = [];
+  batchSyllabus: BatchCourseSyllabus[] = [];
+  sessions: Session[] = [];
+  attendance: Attendance[] = [];
+  assessments: Assessment[] = [];
+  assessmentMarks: AssessmentMark[] = [];
+  emailConfigs: UserEmailConfig[] = [];
+  notificationLogs: NotificationLog[] = [];
 
   powerBiUrl = "https://app.powerbi.com/view?r=eyJrIjoiZXhhbXBsZS1wb3dlci1iaS1yZXBvcnQtaWQiLCJ0IjoiZGVtbyJ9";
+  isInitialized = false;
+
+  async init(): Promise<void> {
+    try {
+      const [
+        { data: profs },
+        { data: cols },
+        { data: progs },
+        { data: crses },
+        { data: defSyl },
+        { data: assTypes },
+        { data: bts },
+        { data: stds },
+        { data: bCrs },
+        { data: bSyl },
+        { data: sess },
+        { data: atts },
+        { data: asms },
+        { data: marks },
+      ] = await Promise.all([
+        supabase.from('uct_profiles').select('*'),
+        supabase.from('uct_colleges').select('*'),
+        supabase.from('uct_programs').select('*'),
+        supabase.from('uct_courses').select('*'),
+        supabase.from('uct_course_default_syllabus').select('*'),
+        supabase.from('uct_assessment_types').select('*'),
+        supabase.from('uct_batches').select('*'),
+        supabase.from('uct_students').select('*'),
+        supabase.from('uct_batch_courses').select('*'),
+        supabase.from('uct_batch_course_syllabus').select('*'),
+        supabase.from('uct_sessions').select('*'),
+        supabase.from('uct_attendance').select('*'),
+        supabase.from('uct_assessments').select('*'),
+        supabase.from('uct_assessment_marks').select('*'),
+      ]);
+
+      if (profs && profs.length > 0) this.profiles = profs as Profile[];
+      if (cols) this.colleges = cols as College[];
+      if (progs) this.programs = progs as Program[];
+      if (crses) this.courses = crses as Course[];
+      if (defSyl) this.defaultSyllabus = defSyl as CourseDefaultSyllabus[];
+      if (assTypes) this.assessmentTypes = assTypes as AssessmentType[];
+      if (bts) this.batches = bts as Batch[];
+      if (stds) this.students = stds as Student[];
+      if (bCrs) this.batchCourses = bCrs as BatchCourse[];
+      if (bSyl) this.batchSyllabus = bSyl as BatchCourseSyllabus[];
+      if (sess) this.sessions = sess as Session[];
+      if (atts) this.attendance = atts as Attendance[];
+      if (asms) this.assessments = asms as Assessment[];
+      if (marks) this.assessmentMarks = marks as AssessmentMark[];
+
+      this.isInitialized = true;
+    } catch (err) {
+      console.warn('Failed to load initial data from Supabase:', err);
+    }
+  }
+
+  // -------------------------
+  // COLLEGES
+  // -------------------------
+  async saveCollege(college: Partial<College>): Promise<College> {
+    const item: College = {
+      id: college.id || generateUUID(),
+      code: college.code || '',
+      name: college.name || '',
+      location: college.location || '',
+      logo_url: college.logo_url || '',
+      image_url: college.image_url || '',
+    };
+
+    const idx = this.colleges.findIndex(c => c.id === item.id);
+    if (idx >= 0) this.colleges[idx] = item;
+    else this.colleges.push(item);
+
+    try {
+      await supabase.from('uct_colleges').upsert(item);
+    } catch (e) {
+      console.warn('Supabase college sync warning:', e);
+    }
+    return item;
+  }
+
+  async deleteCollege(id: string): Promise<void> {
+    this.colleges = this.colleges.filter(c => c.id !== id);
+    try {
+      await supabase.from('uct_colleges').delete().eq('id', id);
+    } catch (e) {
+      console.warn('Supabase college delete warning:', e);
+    }
+  }
+
+  // -------------------------
+  // PROGRAMS
+  // -------------------------
+  async saveProgram(program: Partial<Program>): Promise<Program> {
+    const item: Program = {
+      id: program.id || generateUUID(),
+      code: program.code || '',
+      name: program.name || '',
+    };
+
+    const idx = this.programs.findIndex(p => p.id === item.id);
+    if (idx >= 0) this.programs[idx] = item;
+    else this.programs.push(item);
+
+    try {
+      await supabase.from('uct_programs').upsert(item);
+    } catch (e) {
+      console.warn('Supabase program sync warning:', e);
+    }
+    return item;
+  }
+
+  async deleteProgram(id: string): Promise<void> {
+    this.programs = this.programs.filter(p => p.id !== id);
+    try {
+      await supabase.from('uct_programs').delete().eq('id', id);
+    } catch (e) {
+      console.warn('Supabase program delete warning:', e);
+    }
+  }
+
+  // -------------------------
+  // COURSES
+  // -------------------------
+  async saveCourse(course: Partial<Course>): Promise<Course> {
+    const item: Course = {
+      id: course.id || generateUUID(),
+      code: course.code || '',
+      name: course.name || '',
+    };
+
+    const idx = this.courses.findIndex(c => c.id === item.id);
+    if (idx >= 0) this.courses[idx] = item;
+    else this.courses.push(item);
+
+    try {
+      await supabase.from('uct_courses').upsert(item);
+    } catch (e) {
+      console.warn('Supabase course sync warning:', e);
+    }
+    return item;
+  }
+
+  async deleteCourse(id: string): Promise<void> {
+    this.courses = this.courses.filter(c => c.id !== id);
+    try {
+      await supabase.from('uct_courses').delete().eq('id', id);
+    } catch (e) {
+      console.warn('Supabase course delete warning:', e);
+    }
+  }
+
+  // -------------------------
+  // DEFAULT SYLLABUS TOPICS
+  // -------------------------
+  async saveDefaultSyllabusTopic(topic: Partial<CourseDefaultSyllabus>): Promise<CourseDefaultSyllabus> {
+    const item: CourseDefaultSyllabus = {
+      id: topic.id || generateUUID(),
+      course_id: topic.course_id!,
+      topic_no: topic.topic_no!,
+      topic_name: topic.topic_name!,
+      planned_hours: topic.planned_hours || 1,
+    };
+
+    const idx = this.defaultSyllabus.findIndex(s => s.id === item.id);
+    if (idx >= 0) this.defaultSyllabus[idx] = item;
+    else this.defaultSyllabus.push(item);
+
+    try {
+      await supabase.from('uct_course_default_syllabus').upsert(item);
+    } catch (e) {
+      console.warn('Supabase syllabus topic sync warning:', e);
+    }
+    return item;
+  }
+
+  async deleteDefaultSyllabusTopic(id: string): Promise<void> {
+    this.defaultSyllabus = this.defaultSyllabus.filter(s => s.id !== id);
+    try {
+      await supabase.from('uct_course_default_syllabus').delete().eq('id', id);
+    } catch (e) {
+      console.warn('Supabase syllabus delete warning:', e);
+    }
+  }
+
+  // -------------------------
+  // ASSESSMENT TYPES
+  // -------------------------
+  async saveAssessmentType(at: Partial<AssessmentType>): Promise<AssessmentType> {
+    const item: AssessmentType = {
+      id: at.id || generateUUID(),
+      name: at.name || '',
+      default_max_mark: at.default_max_mark || 100,
+    };
+
+    const idx = this.assessmentTypes.findIndex(a => a.id === item.id);
+    if (idx >= 0) this.assessmentTypes[idx] = item;
+    else this.assessmentTypes.push(item);
+
+    try {
+      await supabase.from('uct_assessment_types').upsert(item);
+    } catch (e) {
+      console.warn('Supabase assessment type sync warning:', e);
+    }
+    return item;
+  }
+
+  async deleteAssessmentType(id: string): Promise<void> {
+    this.assessmentTypes = this.assessmentTypes.filter(a => a.id !== id);
+    try {
+      await supabase.from('uct_assessment_types').delete().eq('id', id);
+    } catch (e) {
+      console.warn('Supabase assessment type delete warning:', e);
+    }
+  }
+
+  // -------------------------
+  // BATCHES
+  // -------------------------
+  async saveBatch(batch: Partial<Batch>): Promise<Batch> {
+    const item: Batch = {
+      id: batch.id || generateUUID(),
+      code: batch.code || '',
+      college_id: batch.college_id!,
+      program_id: batch.program_id!,
+      academic_year: batch.academic_year || '',
+      current_semester: batch.current_semester || 1,
+      college_coordinator_id: batch.college_coordinator_id,
+      student_coordinator_id: batch.student_coordinator_id,
+      status: batch.status || 'Active',
+      start_date: batch.start_date,
+      end_date: batch.end_date,
+    };
+
+    const idx = this.batches.findIndex(b => b.id === item.id);
+    if (idx >= 0) this.batches[idx] = item;
+    else this.batches.push(item);
+
+    try {
+      await supabase.from('uct_batches').upsert({
+        id: item.id,
+        code: item.code,
+        college_id: item.college_id,
+        program_id: item.program_id,
+        academic_year: item.academic_year,
+        current_semester: item.current_semester,
+        college_coordinator_id: item.college_coordinator_id,
+        student_coordinator_id: item.student_coordinator_id,
+        status: item.status,
+        start_date: item.start_date,
+        end_date: item.end_date,
+      });
+    } catch (e) {
+      console.warn('Supabase batch sync warning:', e);
+    }
+    return item;
+  }
+
+  async deleteBatch(id: string): Promise<void> {
+    this.batches = this.batches.filter(b => b.id !== id);
+    this.students = this.students.filter(s => s.batch_id !== id);
+    try {
+      await supabase.from('uct_batches').delete().eq('id', id);
+    } catch (e) {
+      console.warn('Supabase batch delete warning:', e);
+    }
+  }
+
+  // -------------------------
+  // STUDENTS
+  // -------------------------
+  async saveStudent(student: Partial<Student>): Promise<Student> {
+    const item: Student = {
+      id: student.id || generateUUID(),
+      batch_id: student.batch_id!,
+      register_no: student.register_no!,
+      name: student.name!,
+      class: student.class || '',
+      phone: student.phone || '',
+    };
+
+    const idx = this.students.findIndex(s => s.id === item.id);
+    if (idx >= 0) this.students[idx] = item;
+    else this.students.push(item);
+
+    try {
+      await supabase.from('uct_students').upsert(item);
+    } catch (e) {
+      console.warn('Supabase student sync warning:', e);
+    }
+    return item;
+  }
+
+  async deleteStudent(id: string): Promise<void> {
+    this.students = this.students.filter(s => s.id !== id);
+    try {
+      await supabase.from('uct_students').delete().eq('id', id);
+    } catch (e) {
+      console.warn('Supabase student delete warning:', e);
+    }
+  }
+
+  // -------------------------
+  // BATCH COURSES & SYLLABUS
+  // -------------------------
+  async saveBatchCourse(bc: Partial<BatchCourse>): Promise<BatchCourse> {
+    const item: BatchCourse = {
+      id: bc.id || generateUUID(),
+      batch_id: bc.batch_id!,
+      course_id: bc.course_id!,
+      trainer_id: bc.trainer_id,
+      semester: bc.semester || 1,
+      planned_hours: bc.planned_hours || 30,
+      start_date: bc.start_date,
+      end_date: bc.end_date,
+      status: bc.status || 'Active',
+    };
+
+    const idx = this.batchCourses.findIndex(b => b.id === item.id);
+    if (idx >= 0) this.batchCourses[idx] = item;
+    else this.batchCourses.push(item);
+
+    try {
+      await supabase.from('uct_batch_courses').upsert(item);
+    } catch (e) {
+      console.warn('Supabase batch course sync warning:', e);
+    }
+
+    // Auto copy default syllabus if new
+    const defTopics = this.defaultSyllabus.filter(s => s.course_id === item.course_id);
+    for (const topic of defTopics) {
+      const sylItem: BatchCourseSyllabus = {
+        id: generateUUID(),
+        batch_course_id: item.id,
+        topic_no: topic.topic_no,
+        topic_name: topic.topic_name,
+        planned_hours: topic.planned_hours,
+        is_completed: false,
+      };
+      this.batchSyllabus.push(sylItem);
+      try {
+        await supabase.from('uct_batch_course_syllabus').upsert(sylItem);
+      } catch (e) {
+        console.warn('Supabase batch syllabus sync warning:', e);
+      }
+    }
+
+    return item;
+  }
+
+  async toggleBatchSyllabusTopic(id: string, isCompleted: boolean, completedDate?: string): Promise<void> {
+    const idx = this.batchSyllabus.findIndex(s => s.id === id);
+    if (idx >= 0) {
+      this.batchSyllabus[idx].is_completed = isCompleted;
+      this.batchSyllabus[idx].completed_date = isCompleted ? (completedDate || new Date().toISOString().split('T')[0]) : undefined;
+      try {
+        await supabase.from('uct_batch_course_syllabus').update({
+          is_completed: isCompleted,
+          completed_date: this.batchSyllabus[idx].completed_date,
+        }).eq('id', id);
+      } catch (e) {
+        console.warn('Supabase syllabus toggle warning:', e);
+      }
+    }
+  }
 
   // Derived helpers
   getBatchWithDetails(batchId: string): Batch | undefined {

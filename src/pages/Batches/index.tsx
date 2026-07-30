@@ -49,29 +49,27 @@ export default function BatchesGrid() {
     end_date: '',
   });
 
-  const handleDeleteBatchInGrid = (batchId: string, batchCode: string) => {
+  const handleDeleteBatchInGrid = async (batchId: string, batchCode: string) => {
     if (confirm(`Are you sure you want to delete batch "${batchCode}"? This will remove all student roster data, courses, attendance, and assessment marks for this batch.`)) {
-      store.batches = store.batches.filter(b => b.id !== batchId);
-      store.batchCourses = store.batchCourses.filter(bc => bc.batch_id !== batchId);
-      store.students = store.students.filter(s => s.batch_id !== batchId);
+      await store.deleteBatch(batchId);
       setBatches(store.batches.map(b => store.getBatchWithDetails(b.id)!));
       toast.success(`Batch ${batchCode} deleted successfully`);
     }
   };
 
-  const handleSaveEditBatch = () => {
+  const handleSaveEditBatch = async () => {
     if (!editingBatchId) return;
-    const idx = store.batches.findIndex(b => b.id === editingBatchId);
-    if (idx !== -1) {
-      store.batches[idx] = {
-        ...store.batches[idx],
+    const target = store.batches.find(b => b.id === editingBatchId);
+    if (target) {
+      await store.saveBatch({
+        ...target,
         current_semester: editForm.current_semester,
         status: editForm.status,
         college_coordinator_id: editForm.college_coordinator_id || undefined,
         student_coordinator_id: editForm.student_coordinator_id || undefined,
         start_date: editForm.start_date,
         end_date: editForm.end_date,
-      };
+      });
       setBatches(store.batches.map(b => store.getBatchWithDetails(b.id)!));
       setShowEditModal(false);
       toast.success('Batch details updated successfully!');
@@ -83,14 +81,13 @@ export default function BatchesGrid() {
   const selectedProgram = store.programs.find(p => p.id === programId);
   const autoBatchCode = `${selectedCollege?.code || 'COL'}-${selectedProgram?.code || 'PROG'}-${academicYear}`;
 
-  const handleCreateBatch = () => {
-    if (!selectedCollege || !selectedProgram || !academicYear) {
+  const handleCreateBatch = async () => {
+    if (!collegeId || !programId || !academicYear) {
       toast.error('Please fill all required fields');
       return;
     }
 
-    const newBatch: Batch = {
-      id: `bat-${Date.now()}`,
+    const saved = await store.saveBatch({
       code: autoBatchCode,
       college_id: collegeId,
       program_id: programId,
@@ -101,12 +98,11 @@ export default function BatchesGrid() {
       status: 'Active',
       start_date: startDate,
       end_date: endDate,
-    };
+    });
 
-    store.batches.push(newBatch);
     setBatches(store.batches.map(b => store.getBatchWithDetails(b.id)!));
     setShowModal(false);
-    toast.success(`Batch ${autoBatchCode} created successfully!`);
+    toast.success(`Batch ${saved.code} created successfully!`);
   };
 
   return (

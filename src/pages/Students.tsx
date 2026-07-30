@@ -17,6 +17,7 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { supabase } from '@/lib/supabase';
+import { store } from '@/lib/store';
 import { toast } from 'sonner';
 
 export default function Students() {
@@ -40,7 +41,7 @@ export default function Students() {
   const handleDeleteStudent = async (studentId: string, studentName: string) => {
     if (!confirm(`Are you sure you want to delete student "${studentName}"?`)) return;
     try {
-      await supabase.from('uct_students').delete().eq('id', studentId);
+      await store.deleteStudent(studentId);
       setStudents(students.filter(s => s.id !== studentId));
       toast.success(`Student ${studentName} deleted successfully`);
     } catch (err: any) {
@@ -52,15 +53,16 @@ export default function Students() {
     e.preventDefault();
     if (!editingStudent) return;
     try {
-      const { error } = await supabase.from('uct_students').update({
+      const saved = await store.saveStudent({
+        id: editingStudent.id,
+        batch_id: editingStudent.batch_id,
         register_no: editingStudent.register_number || editingStudent.register_no,
         name: editingStudent.full_name || editingStudent.name,
-        phone: editingStudent.phone,
-      }).eq('id', editingStudent.id);
+        class: editingStudent.class || 'Div A',
+        phone: editingStudent.phone || '',
+      });
 
-      if (error) throw error;
-
-      setStudents(students.map(s => s.id === editingStudent.id ? { ...s, ...editingStudent } : s));
+      setStudents(students.map(s => s.id === editingStudent.id ? { ...s, ...saved, register_number: saved.register_no, full_name: saved.name } : s));
       setIsEditOpen(false);
       toast.success('Student details updated successfully!');
     } catch (err: any) {
@@ -75,16 +77,9 @@ export default function Students() {
   async function fetchData() {
     setIsLoading(true);
     try {
-      const [studentsRes, batchesRes] = await Promise.all([
-        supabase.from('uct_students').select('*, batch:uct_batches(name, program:uct_programs(name))').order('created_at', { ascending: false }),
-        supabase.from('uct_batches').select('*, program:uct_programs(name)').order('created_at', { ascending: false })
-      ]);
-
-      if (studentsRes.error) throw studentsRes.error;
-      if (batchesRes.error) throw batchesRes.error;
-
-      setStudents(studentsRes.data || []);
-      setBatches(batchesRes.data || []);
+      await store.init();
+      setStudents(store.students as any[]);
+      setBatches(store.batches as any[]);
     } catch (error: any) {
       toast.error('Failed to load students data', { description: error.message });
     } finally {
@@ -95,9 +90,14 @@ export default function Students() {
   async function handleAddStudent(e: React.FormEvent) {
     e.preventDefault();
     try {
-      const { data, error } = await supabase.from('uct_students').insert([newStudent]).select('*, batch:uct_batches(name, program:uct_programs(name))');
-      if (error) throw error;
-      setStudents([data[0], ...students]);
+      const saved = await store.saveStudent({
+        batch_id: newStudent.batch_id,
+        register_no: newStudent.register_number || '',
+        name: newStudent.full_name || '',
+        class: 'Div A',
+        phone: newStudent.phone || '',
+      });
+      setStudents([saved as any, ...students]);
       setIsAddOpen(false);
       setNewStudent({ register_number: '', full_name: '', email: '', phone: '', batch_id: '' });
       toast.success('Student added successfully');

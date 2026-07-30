@@ -43,116 +43,95 @@ export default function MasterData() {
   const [editingCollegeId, setEditingCollegeId] = useState<string | null>(null);
 
   // Add / Edit College
-  const handleSaveCollege = () => {
+  const handleSaveCollege = async () => {
     if (!collegeForm.code || !collegeForm.name) {
       toast.error('Code and Name are required');
       return;
     }
 
-    if (editingCollegeId) {
-      const target = store.colleges.find(c => c.id === editingCollegeId);
-      if (target) {
-        target.code = collegeForm.code.toUpperCase();
-        target.name = collegeForm.name;
-        target.location = collegeForm.location || '';
-        target.logo_url = collegeForm.logo_url;
-        target.image_url = collegeForm.image_url;
-      }
-      toast.success(`College ${collegeForm.name} updated!`);
-    } else {
-      const newCol: College = {
-        id: `col-${Date.now()}`,
-        code: collegeForm.code.toUpperCase(),
-        name: collegeForm.name,
-        location: collegeForm.location || '',
-        logo_url: collegeForm.logo_url || 'https://images.unsplash.com/photo-1599305445671-ac291c95aaa9?w=150&auto=format&fit=crop&q=80',
-        image_url: collegeForm.image_url || 'https://images.unsplash.com/photo-1562774053-701939374585?w=600&auto=format&fit=crop&q=80',
-      };
-      store.colleges.push(newCol);
-      toast.success(`College ${newCol.code} added`);
-    }
+    const saved = await store.saveCollege({
+      id: editingCollegeId || undefined,
+      code: collegeForm.code.toUpperCase(),
+      name: collegeForm.name,
+      location: collegeForm.location || '',
+      logo_url: collegeForm.logo_url || '',
+      image_url: collegeForm.image_url || '',
+    });
 
     setColleges([...store.colleges]);
     setShowCollegeModal(false);
     setEditingCollegeId(null);
     setCollegeForm({ code: '', name: '', location: '', logo_url: '', image_url: '' });
+    toast.success(`College ${saved.code} saved successfully!`);
   };
 
   // Add Course
-  const handleSaveCourse = () => {
+  const handleSaveCourse = async () => {
     if (!courseForm.code || !courseForm.name) {
       toast.error('Course Code and Name are required');
       return;
     }
-    const newCourse: Course = {
-      id: `crs-${Date.now()}`,
+    const saved = await store.saveCourse({
       code: courseForm.code.toUpperCase(),
       name: courseForm.name,
-    };
-    store.courses.push(newCourse);
+    });
     setCourses([...store.courses]);
     if (!selectedCourseId) {
-      setSelectedCourseId(newCourse.id);
+      setSelectedCourseId(saved.id);
     }
     setShowCourseModal(false);
     setCourseForm({ code: '', name: '' });
-    toast.success(`Course ${newCourse.name} created`);
+    toast.success(`Course ${saved.name} saved successfully!`);
   };
 
   // Add Program
-  const handleSaveProgram = () => {
+  const handleSaveProgram = async () => {
     if (!programForm.code || !programForm.name) {
       toast.error('Program Code and Name are required');
       return;
     }
-    const newProg: Program = {
-      id: `prog-${Date.now()}`,
+    const saved = await store.saveProgram({
       code: programForm.code.toUpperCase(),
       name: programForm.name,
-    };
-    store.programs.push(newProg);
+    });
     setPrograms([...store.programs]);
     setShowProgramModal(false);
     setProgramForm({ code: '', name: '' });
-    toast.success(`Program ${newProg.code} created`);
+    toast.success(`Program ${saved.code} saved successfully!`);
   };
 
   // Add Assessment Type
-  const handleSaveAssessment = () => {
+  const handleSaveAssessment = async () => {
     if (!assessmentForm.name) {
       toast.error('Name is required');
       return;
     }
-    const newAt: AssessmentType = {
-      id: `at-${Date.now()}`,
+    const saved = await store.saveAssessmentType({
       name: assessmentForm.name,
       default_max_mark: Number(assessmentForm.default_max_mark) || 100,
-    };
-    store.assessmentTypes.push(newAt);
+    });
     setAssessmentTypes([...store.assessmentTypes]);
     setShowAssessmentModal(false);
     setAssessmentForm({ name: '', default_max_mark: 100 });
-    toast.success(`Assessment Type ${newAt.name} added`);
+    toast.success(`Assessment Type ${saved.name} saved successfully!`);
   };
 
   // Add Default Syllabus Topic
-  const handleSaveTopic = () => {
+  const handleSaveTopic = async () => {
     if (!topicForm.topic_name || !selectedCourseId) {
       toast.error('Topic name is required');
       return;
     }
-    const newTopic: CourseDefaultSyllabus = {
-      id: `sy-def-${Date.now()}`,
+    await store.saveDefaultSyllabusTopic({
       course_id: selectedCourseId,
       topic_no: topicForm.topic_no,
       topic_name: topicForm.topic_name,
       planned_hours: Number(topicForm.planned_hours) || 1,
-    };
-    store.defaultSyllabus.push(newTopic);
+    });
     setDefaultSyllabus([...store.defaultSyllabus]);
     setShowSyllabusTopicModal(false);
     setTopicForm({ topic_no: (store.defaultSyllabus.filter(s => s.course_id === selectedCourseId).length + 1), topic_name: '', planned_hours: 2 });
-    toast.success('Topic added to default syllabus');
+    toast.success('Topic saved to default syllabus');
   };
 
   // CSV/Excel Import for Syllabus Topics
@@ -334,8 +313,8 @@ export default function MasterData() {
                           variant="ghost" 
                           size="icon" 
                           className="h-8 w-8 text-destructive hover:bg-destructive/10" 
-                          onClick={() => {
-                            store.colleges = store.colleges.filter(c => c.id !== col.id);
+                          onClick={async () => {
+                            await store.deleteCollege(col.id);
                             setColleges([...store.colleges]);
                             toast.success('College removed');
                           }}
@@ -437,8 +416,8 @@ export default function MasterData() {
                         <td className="p-3 font-medium text-foreground">{topic.topic_name}</td>
                         <td className="p-3 text-center font-mono text-xs">{topic.planned_hours} hrs</td>
                         <td className="p-3 text-right">
-                          <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive" onClick={() => {
-                            store.defaultSyllabus = store.defaultSyllabus.filter(s => s.id !== topic.id);
+                          <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive" onClick={async () => {
+                            await store.deleteDefaultSyllabusTopic(topic.id);
                             setDefaultSyllabus([...store.defaultSyllabus]);
                           }}>
                             <Trash2 className="h-3.5 w-3.5" />
@@ -475,8 +454,8 @@ export default function MasterData() {
                     <span className="font-mono text-xs px-2 py-0.5 rounded bg-accent/15 text-accent font-bold">{prog.code}</span>
                     <h3 className="font-bold text-foreground mt-2">{prog.name}</h3>
                   </div>
-                  <Button variant="ghost" size="icon" className="text-destructive hover:bg-destructive/10" onClick={() => {
-                    store.programs = store.programs.filter(p => p.id !== prog.id);
+                  <Button variant="ghost" size="icon" className="text-destructive hover:bg-destructive/10" onClick={async () => {
+                    await store.deleteProgram(prog.id);
                     setPrograms([...store.programs]);
                   }}>
                     <Trash2 className="h-4 w-4" />
@@ -511,8 +490,8 @@ export default function MasterData() {
                       Default Suggestion: <span className="font-bold text-primary">{at.default_max_mark} marks</span>
                     </div>
                   </div>
-                  <Button variant="ghost" size="icon" className="text-destructive hover:bg-destructive/10" onClick={() => {
-                    store.assessmentTypes = store.assessmentTypes.filter(a => a.id !== at.id);
+                  <Button variant="ghost" size="icon" className="text-destructive hover:bg-destructive/10" onClick={async () => {
+                    await store.deleteAssessmentType(at.id);
                     setAssessmentTypes([...store.assessmentTypes]);
                   }}>
                     <Trash2 className="h-4 w-4" />

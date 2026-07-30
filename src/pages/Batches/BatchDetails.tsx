@@ -201,42 +201,39 @@ export default function BatchDetails() {
   // -------------------------------------------------------------------------------------
   // 7.1 STUDENTS WORKFLOW
   // -------------------------------------------------------------------------------------
-  const handleAddStudent = () => {
+  const handleAddStudent = async () => {
     if (!studentForm.register_no || !studentForm.name) {
       toast.error('Register Number and Name are required');
       return;
     }
-    const newStudent: Student = {
-      id: `stu-${Date.now()}`,
+    const newStudent = await store.saveStudent({
       batch_id: batch.id,
       register_no: studentForm.register_no,
       name: studentForm.name,
-      class: studentForm.class,
-      phone: studentForm.phone,
-    };
-    store.students.push(newStudent);
+      class: studentForm.class || 'Div A',
+      phone: studentForm.phone || '',
+    });
     setStudents(store.students.filter(s => s.batch_id === batch.id));
     setShowAddStudentModal(false);
     setStudentForm({ register_no: '', name: '', class: 'Div A', phone: '' });
     toast.success(`Student ${newStudent.name} added`);
   };
 
-  const handleStudentCSVImport = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleStudentCSVImport = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
     const reader = new FileReader();
-    reader.onload = (evt) => {
+    reader.onload = async (evt) => {
       try {
         const wb = XLSX.read(evt.target?.result, { type: 'binary' });
         const sheet = wb.Sheets[wb.SheetNames[0]];
         const rows = XLSX.utils.sheet_to_json<any>(sheet);
         let added = 0;
-        rows.forEach((r, idx) => {
+        for (const r of rows) {
           const regNo = r.register_no || r['Register No'] || r.reg_no;
           const name = r.name || r['Student Name'] || r.Name;
           if (regNo && name) {
-            store.students.push({
-              id: `stu-imp-${Date.now()}-${idx}`,
+            await store.saveStudent({
               batch_id: batch.id,
               register_no: String(regNo),
               name: String(name),
@@ -245,7 +242,7 @@ export default function BatchDetails() {
             });
             added++;
           }
-        });
+        }
         setStudents(store.students.filter(s => s.batch_id === batch.id));
         toast.success(`Successfully imported ${added} students!`);
       } catch (err) {
@@ -258,12 +255,11 @@ export default function BatchDetails() {
   // -------------------------------------------------------------------------------------
   // 7.2 COURSES ALLOCATION WORKFLOW
   // -------------------------------------------------------------------------------------
-  const handleAddBatchCourse = () => {
+  const handleAddBatchCourse = async () => {
     const targetCourse = store.courses.find(c => c.id === newCourseId);
     if (!targetCourse) return;
 
-    const newBC: BatchCourse = {
-      id: `bc-${Date.now()}`,
+    const newBC = await store.saveBatchCourse({
       batch_id: batch.id,
       course_id: newCourseId,
       trainer_id: newTrainerId,
@@ -271,20 +267,6 @@ export default function BatchDetails() {
       planned_hours: newPlannedHours,
       start_date: new Date().toISOString().split('T')[0],
       status: 'Active',
-    };
-    store.batchCourses.push(newBC);
-
-    // Auto-seed syllabus from default course syllabus!
-    const defaults = store.defaultSyllabus.filter(s => s.course_id === newCourseId);
-    defaults.forEach((def, idx) => {
-      store.batchSyllabus.push({
-        id: `bcs-${Date.now()}-${idx}`,
-        batch_course_id: newBC.id,
-        topic_no: def.topic_no,
-        topic_name: def.topic_name,
-        planned_hours: def.planned_hours,
-        is_completed: false,
-      });
     });
 
     setBatchCourses(store.batchCourses.filter(bc => bc.batch_id === batch.id));
@@ -1223,10 +1205,10 @@ export default function BatchDetails() {
               {currentSyllabus.map((topic) => (
                 <div
                   key={topic.id}
-                  onClick={() => {
-                    topic.is_completed = !topic.is_completed;
-                    topic.completed_date = topic.is_completed ? new Date().toISOString().split('T')[0] : undefined;
-                    // Trigger reactivity
+                  onClick={async () => {
+                    const newCompletedState = !topic.is_completed;
+                    const date = newCompletedState ? new Date().toISOString().split('T')[0] : undefined;
+                    await store.toggleBatchSyllabusTopic(topic.id, newCompletedState, date);
                     setSelectedBatchCourseId(selectedBatchCourseId);
                     toast.success(`Topic "${topic.topic_name}" status updated!`);
                   }}
