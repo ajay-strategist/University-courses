@@ -167,6 +167,7 @@ export interface AssessmentMark {
 
 export interface AbsenteePreview {
   recipient_email: string;
+  recipient_name: string;
   sender_email: string;
   session_date: string;
   batch_code: string;

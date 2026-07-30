@@ -238,10 +238,12 @@ export default function BatchDetails() {
     });
 
     const trainer = store.profiles.find(p => p.id === store.batchCourses.find(bc => bc.id === selectedBatchCourseId)?.trainer_id);
-    const recipient = batch.college_coordinator?.email || 'coordinator.mim@university.edu';
+    const recipientName = batch.college_coordinator?.full_name || 'Dr. Aris Thorne';
+    const recipientEmail = batch.college_coordinator?.email || 'coordinator.mim@university.edu';
 
     setAbsenteePreview({
-      recipient_email: recipient,
+      recipient_name: recipientName,
+      recipient_email: recipientEmail,
       sender_email: trainer?.email || 'trainer.excel@gmail.com',
       session_date: attendanceDate,
       batch_code: batch.code,
@@ -985,7 +987,7 @@ export default function BatchDetails() {
 
             <div className="space-y-3 text-xs font-mono">
               <div className="bg-sunken p-3 rounded-xl space-y-1">
-                <div>Recipient: <span className="font-bold text-foreground">{absenteePreview.recipient_email}</span> (College Coordinator)</div>
+                <div>Recipient: <span className="font-bold text-foreground">{absenteePreview.recipient_name}</span> ({absenteePreview.recipient_email})</div>
                 <div>Sender: <span className="font-bold text-foreground">{absenteePreview.sender_email}</span> (Trainer SMTP)</div>
                 <div>Subject: <span className="font-bold text-primary">Absentee Report - {absenteePreview.batch_code} ({absenteePreview.course_name}) - {absenteePreview.session_date}</span></div>
               </div>

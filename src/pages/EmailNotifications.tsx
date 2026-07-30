@@ -22,7 +22,7 @@ export default function EmailNotifications() {
     }
   );
 
-  const [emailTemplate, setEmailTemplate] = useState(`Dear College Coordinator,
+  const [emailTemplate, setEmailTemplate] = useState(`Dear {recipient_name},
 
 Please find below the absentee report for training session on {session_date} for batch {batch_code} ({course_name}):
 
@@ -161,7 +161,7 @@ University Training Tracker`);
 
           <div className="bg-sunken p-3 rounded-xl text-xs space-y-1 font-mono text-muted-foreground">
             <div className="font-bold text-foreground">Available Dynamic Variables:</div>
-            <div>{"{session_date}"}, {"{batch_code}"}, {"{course_name}"}, {"{absentee_table}"}, {"{sender_name}"}</div>
+            <div>{"{recipient_name}"}, {"{session_date}"}, {"{batch_code}"}, {"{course_name}"}, {"{absentee_table}"}, {"{sender_name}"}</div>
           </div>
 
           <Button size="sm" onClick={() => toast.success('Email template updated!')} className="w-full bg-primary text-primary-foreground">
