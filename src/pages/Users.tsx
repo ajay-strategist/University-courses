@@ -4,7 +4,8 @@ import type { Profile, UserRole } from '@/types';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { toast } from 'sonner';
-import { Shield, Plus, Trash2, Mail, Phone, UserCheck } from 'lucide-react';
+import { Shield, Plus, Trash2, Mail, Phone, UserCheck, KeyRound } from 'lucide-react';
+import { supabase } from '@/lib/supabase';
 
 export default function Users() {
   const [profiles, setProfiles] = useState<Profile[]>([...store.profiles]);
@@ -16,25 +17,53 @@ export default function Users() {
     role: 'trainer',
   });
 
-  const handleSaveUser = () => {
+  const handleSaveUser = async () => {
     if (!form.full_name || !form.email) {
       toast.error('Name and Email are required');
       return;
     }
 
-    const newUser: Profile = {
-      id: `usr-${Date.now()}`,
-      full_name: form.full_name,
-      email: form.email,
-      phone: form.phone,
-      role: form.role,
-    };
+    try {
+      const { data: newUserId, error } = await supabase.rpc('admin_create_user', {
+        p_email: form.email,
+        p_full_name: form.full_name,
+        p_phone: form.phone || null,
+        p_role: form.role,
+      });
 
-    store.profiles.push(newUser);
-    setProfiles([...store.profiles]);
-    setShowModal(false);
-    setForm({ full_name: '', email: '', phone: '', role: 'trainer' });
-    toast.success(`User ${newUser.full_name} created with role ${newUser.role}`);
+      if (error) throw error;
+
+      const newUser: Profile = {
+        id: newUserId,
+        full_name: form.full_name,
+        email: form.email,
+        phone: form.phone,
+        role: form.role,
+        must_change_password: true,
+      };
+
+      store.profiles.push(newUser);
+      setProfiles([...store.profiles]);
+      setShowModal(false);
+      setForm({ full_name: '', email: '', phone: '', role: 'trainer' });
+      toast.success(`User ${newUser.full_name} created. Default password is "password".`);
+    } catch (err: any) {
+      console.warn('Failed to create user on Supabase:', err);
+      // Fallback for offline/demo mode
+      const newUser: Profile = {
+        id: `usr-${Date.now()}`,
+        full_name: form.full_name,
+        email: form.email,
+        phone: form.phone,
+        role: form.role,
+        must_change_password: true,
+      };
+      store.profiles.push(newUser);
+      setProfiles([...store.profiles]);
+      setShowModal(false);
+      setForm({ full_name: '', email: '', phone: '', role: 'trainer' });
+      toast.success(`User ${newUser.full_name} created locally (Demo Mode).`);
+    }
   };
 
   const roleBadges: Record<UserRole, string> = {
@@ -83,15 +112,47 @@ export default function Users() {
                   </span>
                 </td>
                 <td className="p-4 font-mono text-xs text-muted-foreground">{p.phone || '—'}</td>
-                <td className="p-4 text-right">
+                <td className="p-4 text-right space-x-1">
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    title="Reset password to default ('password')"
+                    className="h-8 w-8 text-amber-500 hover:bg-amber-500/10"
+                    onClick={async () => {
+                      try {
+                        const { error } = await supabase.rpc('reset_user_password', {
+                          target_user_id: p.id
+                        });
+                        if (error) throw error;
+                        toast.success(`Password for ${p.full_name} has been reset to "password".`);
+                      } catch (err: any) {
+                        toast.error('Failed to reset password', { description: err.message || err });
+                      }
+                    }}
+                  >
+                    <KeyRound className="h-4 w-4" />
+                  </Button>
                   <Button
                     variant="ghost"
                     size="icon"
                     className="h-8 w-8 text-destructive hover:bg-destructive/10"
-                    onClick={() => {
-                      store.profiles = store.profiles.filter(u => u.id !== p.id);
-                      setProfiles([...store.profiles]);
-                      toast.success('User removed');
+                    onClick={async () => {
+                      try {
+                        const { error } = await supabase.rpc('admin_delete_user', {
+                          target_user_id: p.id
+                        });
+                        if (error) throw error;
+
+                        store.profiles = store.profiles.filter(u => u.id !== p.id);
+                        setProfiles([...store.profiles]);
+                        toast.success('User removed');
+                      } catch (err: any) {
+                        console.warn('Failed to delete user on Supabase:', err);
+                        // Fallback delete for local demo users
+                        store.profiles = store.profiles.filter(u => u.id !== p.id);
+                        setProfiles([...store.profiles]);
+                        toast.success('User removed locally');
+                      }
                     }}
                   >
                     <Trash2 className="h-4 w-4" />

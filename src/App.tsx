@@ -11,9 +11,10 @@ import ImportCenter from './pages/ImportCenter';
 import EmailNotifications from './pages/EmailNotifications';
 import Reports from './pages/Reports';
 import { AppLayout } from './components/layout/AppLayout';
+import ForcePasswordReset from './pages/ForcePasswordReset';
 
 const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
-  const { session, isLoading } = useAuth();
+  const { session, profile, isLoading } = useAuth();
   
   if (isLoading) {
     return (
@@ -26,6 +27,10 @@ const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
   
   if (!session) {
     return <Navigate to="/login" />;
+  }
+
+  if (profile?.must_change_password) {
+    return <ForcePasswordReset />;
   }
   
   return <>{children}</>;

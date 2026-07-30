@@ -50,6 +50,16 @@ export default function BatchDetails() {
   // Student Form Inputs
   const [studentForm, setStudentForm] = useState({ register_no: '', name: '', class: 'Div A', phone: '' });
 
+  // Selected Student IDs for bulk delete
+  const [selectedStudentIds, setSelectedStudentIds] = useState<string[]>([]);
+
+  // Edit Allocated Course Modal State
+  const [showEditCourseModal, setShowEditCourseModal] = useState(false);
+  const [editingBatchCourse, setEditingBatchCourse] = useState<BatchCourse | null>(null);
+  const [editCourseTrainerId, setEditCourseTrainerId] = useState('');
+  const [editCoursePlannedHours, setEditCoursePlannedHours] = useState(30);
+  const [editCourseStatus, setEditCourseStatus] = useState<string>('Active');
+
   // Add Batch Course Inputs
   const [newCourseId, setNewCourseId] = useState(store.courses[0]?.id || '');
   const [newTrainerId, setNewTrainerId] = useState(store.profiles.find(p => p.role === 'trainer')?.id || '');
@@ -60,6 +70,9 @@ export default function BatchDetails() {
   const [attendanceHour, setAttendanceHour] = useState(1);
   const [registerStatusMap, setRegisterStatusMap] = useState<Record<string, 'present' | 'absent' | 'late'>>({});
   const [attendanceViewMode, setAttendanceViewMode] = useState<'register' | 'matrix'>('register');
+  const [attendanceReportMode, setAttendanceReportMode] = useState<'single' | 'range'>('single');
+  const [attendanceStartDate, setAttendanceStartDate] = useState(new Date().toISOString().split('T')[0]);
+  const [attendanceEndDate, setAttendanceEndDate] = useState(new Date().toISOString().split('T')[0]);
 
   // Marks State
   const [selectedAssessmentId, setSelectedAssessmentId] = useState<string>(
@@ -140,7 +153,17 @@ export default function BatchDetails() {
     if (confirm(`Are you sure you want to delete student "${stuName}"?`)) {
       store.students = store.students.filter(s => s.id !== stuId);
       setStudents(store.students.filter(s => s.batch_id === id));
+      setSelectedStudentIds(prev => prev.filter(x => x !== stuId));
       toast.success(`Student ${stuName} deleted successfully`);
+    }
+  };
+
+  const handleBulkDeleteStudents = () => {
+    if (confirm(`Are you sure you want to delete the ${selectedStudentIds.length} selected students?`)) {
+      store.students = store.students.filter(s => !selectedStudentIds.includes(s.id));
+      setStudents(store.students.filter(s => s.batch_id === id));
+      setSelectedStudentIds([]);
+      toast.success('Selected students deleted successfully');
     }
   };
 
@@ -230,21 +253,24 @@ export default function BatchDetails() {
         const rows = XLSX.utils.sheet_to_json<any>(sheet);
         let added = 0;
         for (const r of rows) {
-          const regNo = r.register_no || r['Register No'] || r.reg_no;
-          const name = r.name || r['Student Name'] || r.Name;
+          const regNo = r.register_no || r['Register No'] || r.reg_no || r['Reg No'];
+          const name = r.name || r['Student Name'] || r.Name || r['Name'];
+          const phone = r.phone || r['Phone'] || r['Phone Number'] || r['Mobile'] || r['Contact'] || '';
+          const classVal = r.class || r['Class'] || r['Division'] || r['Div'] || 'Div A';
+
           if (regNo && name) {
             await store.saveStudent({
               batch_id: batch.id,
-              register_no: String(regNo),
-              name: String(name),
-              class: r.class || r['Class'] || 'Div A',
-              phone: String(r.phone || ''),
+              register_no: String(regNo).trim().toUpperCase(),
+              name: String(name).trim(),
+              class: String(classVal).trim(),
+              phone: String(phone).trim(),
             });
             added++;
           }
         }
         setStudents(store.students.filter(s => s.batch_id === batch.id));
-        toast.success(`Successfully imported ${added} students!`);
+        toast.success(`Successfully imported/updated ${added} students!`);
       } catch (err) {
         toast.error('Failed to parse CSV/Excel file');
       }
@@ -273,6 +299,41 @@ export default function BatchDetails() {
     setSelectedBatchCourseId(newBC.id);
     setShowAddCourseModal(false);
     toast.success(`Course ${targetCourse.name} added to batch with auto-seeded syllabus!`);
+  };
+
+  const handleOpenEditBatchCourse = (bc: BatchCourse) => {
+    setEditingBatchCourse(bc);
+    setEditCourseTrainerId(bc.trainer_id || '');
+    setEditCoursePlannedHours(bc.planned_hours || 30);
+    setEditCourseStatus(bc.status || 'Active');
+    setShowEditCourseModal(true);
+  };
+
+  const handleSaveEditBatchCourse = async () => {
+    if (!editingBatchCourse) return;
+
+    await store.saveBatchCourse({
+      ...editingBatchCourse,
+      trainer_id: editCourseTrainerId || undefined,
+      planned_hours: Number(editCoursePlannedHours),
+      status: editCourseStatus,
+    });
+
+    setBatchCourses(store.batchCourses.filter(bc => bc.batch_id === batch.id));
+    setShowEditCourseModal(false);
+    toast.success('Course allocation updated successfully!');
+  };
+
+  const handleDeleteBatchCourse = async (bcId: string, courseName: string) => {
+    if (confirm(`Are you sure you want to delete the course "${courseName}" from this batch? This will permanently delete all attendance registers and marks associated with this course.`)) {
+      await store.deleteBatchCourse(bcId);
+      setBatchCourses(store.batchCourses.filter(bc => bc.batch_id === batch.id));
+      const remaining = store.batchCourses.filter(bc => bc.batch_id === batch.id);
+      if (selectedBatchCourseId === bcId) {
+        setSelectedBatchCourseId(remaining[0]?.id || '');
+      }
+      toast.success(`Course ${courseName} removed from batch successfully`);
+    }
   };
 
   // -------------------------------------------------------------------------------------
@@ -314,23 +375,130 @@ export default function BatchDetails() {
     toast.success(`Attendance saved for ${attendanceDate} (Hour ${attendanceHour})!`);
   };
 
-  const handleGenerateAbsenteeList = () => {
-    const session = store.sessions.find(
-      s => s.batch_course_id === selectedBatchCourseId && s.session_date === attendanceDate
-    );
+  const getSessionHeaders = () => {
+    if (!absenteePreview) return [];
     
-    // Find absentees
+    const isRange = absenteePreview.session_date.includes(' to ');
+    if (!isRange) {
+      const daySessions = store.sessions.filter(
+        s => s.batch_course_id === selectedBatchCourseId && s.session_date === absenteePreview.session_date
+      ).sort((a, b) => a.hour_no - b.hour_no);
+      
+      if (daySessions.length === 0) {
+        return [`Hour ${attendanceHour}`];
+      }
+      return daySessions.map(s => `Hour ${s.hour_no}`);
+    }
+
+    const parts = absenteePreview.session_date.split(' to ');
+    const start = parts[0];
+    const end = parts[1];
+    const rangeSessions = store.sessions.filter(
+      s => s.batch_course_id === selectedBatchCourseId && 
+           s.session_date >= start && 
+           s.session_date <= end
+    ).sort((a, b) => {
+      if (a.session_date !== b.session_date) return a.session_date.localeCompare(b.session_date);
+      return a.hour_no - b.hour_no;
+    });
+
+    return rangeSessions.map(s => {
+      const dateStr = s.session_date.substring(5).replace('-', '/');
+      return `${dateStr} H${s.hour_no}`;
+    });
+  };
+
+  const handleGenerateAbsenteeList = () => {
+    let daySessions: Session[] = [];
+    let titleDate = '';
+
+    if (attendanceReportMode === 'single') {
+      daySessions = store.sessions.filter(
+        s => s.batch_course_id === selectedBatchCourseId && s.session_date === attendanceDate
+      );
+      titleDate = attendanceDate;
+    } else {
+      daySessions = store.sessions.filter(
+        s => s.batch_course_id === selectedBatchCourseId && 
+             s.session_date >= attendanceStartDate && 
+             s.session_date <= attendanceEndDate
+      );
+      titleDate = `${attendanceStartDate} to ${attendanceEndDate}`;
+    }
+    
+    daySessions.sort((a, b) => {
+      if (a.session_date !== b.session_date) {
+        return a.session_date.localeCompare(b.session_date);
+      }
+      return a.hour_no - b.hour_no;
+    });
+
+    const getStatusForSession = (stuId: string, s: Session) => {
+      const att = store.attendance.find(a => a.session_id === s.id && a.student_id === stuId);
+      return att ? att.status : 'present';
+    };
+
+    if (attendanceReportMode === 'single' && daySessions.length === 0) {
+      const absenteesList: AbsenteePreview['absentees'] = [];
+      students.forEach((stu) => {
+        const st = registerStatusMap[stu.id] || 'present';
+        if (st === 'absent') {
+          absenteesList.push({
+            register_no: stu.register_no,
+            name: stu.name,
+            class: stu.class || 'Div A',
+            hours_absent: [0],
+          });
+        }
+      });
+
+      absenteesList.sort((a, b) => {
+        const classA = (a.class || '').toLowerCase();
+        const classB = (b.class || '').toLowerCase();
+        if (classA !== classB) return classA.localeCompare(classB);
+        return (a.register_no || '').localeCompare(b.register_no || '');
+      });
+
+      const trainer = store.profiles.find(p => p.id === store.batchCourses.find(bc => bc.id === selectedBatchCourseId)?.trainer_id);
+      const recipientName = batch.college_coordinator?.full_name || batch.college?.contact_person || 'College Coordinator';
+      const recipientEmail = batch.college_coordinator?.email || batch.college?.contact_email || '';
+
+      setAbsenteePreview({
+        recipient_name: recipientName,
+        recipient_email: recipientEmail,
+        sender_email: trainer?.email || 'trainer.excel@gmail.com',
+        session_date: titleDate,
+        batch_code: batch.code,
+        course_name: activeCourse?.name || 'Excel',
+        absentees: absenteesList,
+      });
+      setShowAbsenteeModal(true);
+      return;
+    }
+
     const absenteesList: AbsenteePreview['absentees'] = [];
     students.forEach((stu) => {
-      const st = registerStatusMap[stu.id] || 'present';
-      if (st === 'absent') {
+      const absentIndices = daySessions
+        .map((s, idx) => (getStatusForSession(stu.id, s) === 'absent' ? idx : -1))
+        .filter(idx => idx !== -1);
+
+      if (absentIndices.length > 0) {
         absenteesList.push({
           register_no: stu.register_no,
           name: stu.name,
-          class: stu.class,
-          hours_absent: [attendanceHour],
+          class: stu.class || 'Div A',
+          hours_absent: absentIndices,
         });
       }
+    });
+
+    absenteesList.sort((a, b) => {
+      const classA = (a.class || '').toLowerCase();
+      const classB = (b.class || '').toLowerCase();
+      if (classA !== classB) {
+        return classA.localeCompare(classB);
+      }
+      return (a.register_no || '').localeCompare(b.register_no || '');
     });
 
     const trainer = store.profiles.find(p => p.id === store.batchCourses.find(bc => bc.id === selectedBatchCourseId)?.trainer_id);
@@ -341,7 +509,7 @@ export default function BatchDetails() {
       recipient_name: recipientName,
       recipient_email: recipientEmail,
       sender_email: trainer?.email || 'trainer.excel@gmail.com',
-      session_date: attendanceDate,
+      session_date: titleDate,
       batch_code: batch.code,
       course_name: activeCourse?.name || 'Excel',
       absentees: absenteesList,
@@ -725,6 +893,16 @@ export default function BatchDetails() {
           <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
             <h2 className="text-lg font-semibold font-heading">Student Roster</h2>
             <div className="flex items-center gap-2">
+              {selectedStudentIds.length > 0 && (
+                <Button 
+                  size="sm" 
+                  variant="destructive" 
+                  onClick={handleBulkDeleteStudents}
+                  className="h-8 text-xs bg-destructive hover:bg-destructive/90 text-destructive-foreground animate-in fade-in zoom-in duration-200"
+                >
+                  <Trash2 className="h-3.5 w-3.5 mr-1" /> Delete Selected ({selectedStudentIds.length})
+                </Button>
+              )}
               <Button size="sm" variant="outline" onClick={handleExportStudents} className="h-8 text-xs">
                 <Download className="h-3.5 w-3.5 mr-1" /> Export Roster (.xlsx)
               </Button>
@@ -742,6 +920,20 @@ export default function BatchDetails() {
             <table className="w-full text-left text-sm">
               <thead className="bg-muted/50 border-b border-border text-muted-foreground font-mono text-xs uppercase">
                 <tr>
+                  <th className="p-4 pl-6 w-12">
+                    <input 
+                      type="checkbox" 
+                      checked={selectedStudentIds.length === students.length && students.length > 0}
+                      onChange={(e) => {
+                        if (e.target.checked) {
+                          setSelectedStudentIds(students.map(s => s.id));
+                        } else {
+                          setSelectedStudentIds([]);
+                        }
+                      }}
+                      className="rounded border-border bg-background focus:ring-primary h-4 w-4"
+                    />
+                  </th>
                   <th className="p-4">Register No</th>
                   <th className="p-4">Student Name</th>
                   <th className="p-4">Class (Division)</th>
@@ -755,6 +947,20 @@ export default function BatchDetails() {
                   const attPct = store.getStudentAttendancePct(stu.id);
                   return (
                     <tr key={stu.id} className="hover:bg-muted/30 transition-colors">
+                      <td className="p-4 pl-6">
+                        <input 
+                          type="checkbox" 
+                          checked={selectedStudentIds.includes(stu.id)}
+                          onChange={(e) => {
+                            if (e.target.checked) {
+                              setSelectedStudentIds(prev => [...prev, stu.id]);
+                            } else {
+                              setSelectedStudentIds(prev => prev.filter(id => id !== stu.id));
+                            }
+                          }}
+                          className="rounded border-border bg-background focus:ring-primary h-4 w-4"
+                        />
+                      </td>
                       <td className="p-4 font-mono font-bold text-accent">{stu.register_no}</td>
                       <td className="p-4 font-medium text-foreground">{stu.name}</td>
                       <td className="p-4 text-muted-foreground font-mono text-xs">{stu.class}</td>
@@ -808,9 +1014,27 @@ export default function BatchDetails() {
                       <span className="font-mono text-xs px-2 py-0.5 rounded bg-primary/10 text-primary font-bold">{crs?.code}</span>
                       <h3 className="font-heading text-lg font-bold text-foreground mt-1">{crs?.name}</h3>
                     </div>
-                    <span className="text-xs font-mono px-2.5 py-1 rounded-full bg-success/15 text-success font-bold">
-                      {bc.status}
-                    </span>
+                    <div className="flex items-center gap-1.5">
+                      <span className="text-xs font-mono px-2.5 py-1 rounded-full bg-success/15 text-success font-bold">
+                        {bc.status}
+                      </span>
+                      <Button 
+                        size="sm" 
+                        variant="ghost" 
+                        onClick={() => handleOpenEditBatchCourse(bc)} 
+                        className="h-8 w-8 p-0 text-muted-foreground hover:text-primary transition-colors"
+                      >
+                        <Edit2 className="h-3.5 w-3.5" />
+                      </Button>
+                      <Button 
+                        size="sm" 
+                        variant="ghost" 
+                        onClick={() => handleDeleteBatchCourse(bc.id, crs?.name || '')} 
+                        className="h-8 w-8 p-0 text-muted-foreground hover:text-destructive transition-colors"
+                      >
+                        <Trash2 className="h-3.5 w-3.5" />
+                      </Button>
+                    </div>
                   </div>
 
                   <div className="grid grid-cols-2 gap-2 text-xs font-mono bg-sunken p-3 rounded-xl">
@@ -831,23 +1055,53 @@ export default function BatchDetails() {
         <div className="space-y-6">
           {/* Attendance Header Controls */}
           <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 bg-card p-4 rounded-2xl border border-border">
-            <div className="flex items-center gap-3">
-              <label className="text-xs font-mono font-medium text-muted-foreground">Session Date:</label>
-              <Input
-                type="date"
-                value={attendanceDate}
-                onChange={(e) => setAttendanceDate(e.target.value)}
-                className="w-40 h-9 text-xs font-mono"
-              />
-              <label className="text-xs font-mono font-medium text-muted-foreground ml-2">Hour No:</label>
-              <Input
-                type="number"
-                min="1"
-                max="8"
-                value={attendanceHour}
-                onChange={(e) => setAttendanceHour(Number(e.target.value))}
-                className="w-20 h-9 text-xs font-mono"
-              />
+            <div className="flex items-center flex-wrap gap-3">
+              <select
+                value={attendanceReportMode}
+                onChange={(e) => setAttendanceReportMode(e.target.value as 'single' | 'range')}
+                className="bg-background border border-border rounded-xl px-2 py-1 text-xs text-foreground focus:outline-none focus:ring-1 focus:ring-primary h-9"
+              >
+                <option value="single">Single Date</option>
+                <option value="range">Custom Range</option>
+              </select>
+
+              {attendanceReportMode === 'single' ? (
+                <>
+                  <label className="text-xs font-mono font-medium text-muted-foreground">Session Date:</label>
+                  <Input
+                    type="date"
+                    value={attendanceDate}
+                    onChange={(e) => setAttendanceDate(e.target.value)}
+                    className="w-40 h-9 text-xs font-mono bg-background"
+                  />
+                  <label className="text-xs font-mono font-medium text-muted-foreground ml-2">Hour No:</label>
+                  <Input
+                    type="number"
+                    min="1"
+                    max="8"
+                    value={attendanceHour}
+                    onChange={(e) => setAttendanceHour(Number(e.target.value))}
+                    className="w-20 h-9 text-xs font-mono bg-background"
+                  />
+                </>
+              ) : (
+                <>
+                  <label className="text-xs font-mono font-medium text-muted-foreground">Start Date:</label>
+                  <Input
+                    type="date"
+                    value={attendanceStartDate}
+                    onChange={(e) => setAttendanceStartDate(e.target.value)}
+                    className="w-40 h-9 text-xs font-mono bg-background"
+                  />
+                  <label className="text-xs font-mono font-medium text-muted-foreground">End Date:</label>
+                  <Input
+                    type="date"
+                    value={attendanceEndDate}
+                    onChange={(e) => setAttendanceEndDate(e.target.value)}
+                    className="w-40 h-9 text-xs font-mono bg-background"
+                  />
+                </>
+              )}
             </div>
 
             <div className="flex items-center gap-2">
@@ -1242,7 +1496,7 @@ export default function BatchDetails() {
       {/* ABSENTEE EMAIL PREVIEW MODAL */}
       {showAbsenteeModal && absenteePreview && (
         <div className="fixed inset-0 z-50 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4">
-          <div className="bg-card border border-border rounded-2xl p-6 max-w-lg w-full shadow-2xl space-y-4">
+          <div className="bg-card border border-border rounded-2xl p-6 max-w-2xl w-full shadow-2xl space-y-4">
             <div className="flex items-center justify-between border-b border-border pb-3">
               <h3 className="text-lg font-bold font-heading text-foreground">Absentee Email Preview</h3>
               <span className="text-xs font-mono font-bold text-accent">Explicit Confirm</span>
@@ -1255,17 +1509,52 @@ export default function BatchDetails() {
                 <div>Subject: <span className="font-bold text-primary">Absentee Report - {absenteePreview.batch_code} ({absenteePreview.course_name}) - {absenteePreview.session_date}</span></div>
               </div>
 
-              <div className="border border-border rounded-xl p-3 space-y-2">
-                <div className="font-sans font-bold text-foreground">Absent Students List ({absenteePreview.absentees.length}):</div>
+              <div className="border border-border rounded-xl p-4 space-y-3 bg-card overflow-hidden">
+                <div className="font-sans font-bold text-foreground text-sm flex items-center justify-between">
+                  <span>Absentee Matrix Table ({absenteePreview.absentees.length} Students)</span>
+                  <span className="text-[10px] text-muted-foreground bg-muted px-2 py-0.5 rounded">Sorted by Class</span>
+                </div>
                 {absenteePreview.absentees.length === 0 ? (
-                  <div className="text-success">No absentees reported for this session!</div>
+                  <div className="text-success py-2 text-center font-sans text-xs">No absentees reported for this date!</div>
                 ) : (
-                  absenteePreview.absentees.map((a, idx) => (
-                    <div key={idx} className="flex justify-between items-center text-destructive">
-                      <span>{a.register_no} - {a.name} ({a.class})</span>
-                      <span>Hour {a.hours_absent.join(', ')}</span>
-                    </div>
-                  ))
+                  <div className="overflow-x-auto border border-border/85 rounded-xl">
+                    <table className="w-full text-left text-xs border-collapse">
+                      <thead className="bg-muted/60 border-b border-border text-muted-foreground font-mono text-[10px] uppercase">
+                        <tr>
+                          <th className="p-2.5">Register No</th>
+                          <th className="p-2.5">Name</th>
+                          <th className="p-2.5">Class (Division)</th>
+                          {getSessionHeaders().map((header, idx) => (
+                            <th key={idx} className="p-2.5 text-center whitespace-nowrap">{header}</th>
+                          ))}
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-border">
+                        {absenteePreview.absentees.map((a, idx) => {
+                          const sessionHeaders = getSessionHeaders();
+                          return (
+                            <tr key={idx} className="hover:bg-muted/30">
+                              <td className="p-2.5 font-mono font-bold text-accent">{a.register_no}</td>
+                              <td className="p-2.5 font-medium text-foreground">{a.name}</td>
+                              <td className="p-2.5 text-muted-foreground font-mono">{a.class}</td>
+                              {sessionHeaders.map((_, hIdx) => {
+                                const isAbsent = a.hours_absent.includes(hIdx);
+                                return (
+                                  <td key={hIdx} className="p-2.5 text-center">
+                                    <span className={`px-2 py-0.5 rounded text-[10px] font-bold ${
+                                      isAbsent ? 'bg-destructive/15 text-destructive' : 'bg-success/15 text-success'
+                                    }`}>
+                                      {isAbsent ? 'Absent' : 'Present'}
+                                    </span>
+                                  </td>
+                                );
+                              })}
+                            </tr>
+                          );
+                        })}
+                      </tbody>
+                    </table>
+                  </div>
                 )}
               </div>
             </div>
@@ -1319,13 +1608,13 @@ export default function BatchDetails() {
             <div className="space-y-3">
               <div>
                 <label className="text-xs font-mono font-medium text-muted-foreground">Course</label>
-                <select value={newCourseId} onChange={(e) => setNewCourseId(e.target.value)} className="w-full mt-1 bg-background border border-border rounded-xl p-2 text-sm">
+                <select value={newCourseId} onChange={(e) => setNewCourseId(e.target.value)} className="w-full mt-1 bg-background border border-border rounded-xl p-2 text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-primary">
                   {store.courses.map(c => <option key={c.id} value={c.id}>{c.name} ({c.code})</option>)}
                 </select>
               </div>
               <div>
                 <label className="text-xs font-mono font-medium text-muted-foreground">Assigned Trainer</label>
-                <select value={newTrainerId} onChange={(e) => setNewTrainerId(e.target.value)} className="w-full mt-1 bg-background border border-border rounded-xl p-2 text-sm">
+                <select value={newTrainerId} onChange={(e) => setNewTrainerId(e.target.value)} className="w-full mt-1 bg-background border border-border rounded-xl p-2 text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-primary">
                   {store.profiles.filter(p => p.role === 'trainer' || p.role === 'admin').map(p => <option key={p.id} value={p.id}>{p.full_name}</option>)}
                 </select>
               </div>
@@ -1337,6 +1626,62 @@ export default function BatchDetails() {
             <div className="flex justify-end gap-2 pt-2">
               <Button variant="outline" onClick={() => setShowAddCourseModal(false)}>Cancel</Button>
               <Button onClick={handleAddBatchCourse} className="bg-primary text-primary-foreground">Allocate Course</Button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* MODAL: EDIT ALLOCATED COURSE */}
+      {showEditCourseModal && editingBatchCourse && (
+        <div className="fixed inset-0 z-50 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4">
+          <div className="bg-card border border-border rounded-2xl p-6 max-w-md w-full shadow-2xl space-y-4">
+            <h3 className="text-lg font-bold font-heading">Edit Course Allocation</h3>
+            <div className="space-y-3">
+              <div>
+                <label className="text-xs font-mono font-medium text-muted-foreground">Course</label>
+                <Input 
+                  value={store.courses.find(c => c.id === editingBatchCourse.course_id)?.name || ''} 
+                  disabled 
+                  className="mt-1 bg-muted font-bold font-sans" 
+                />
+              </div>
+              <div>
+                <label className="text-xs font-mono font-medium text-muted-foreground">Assigned Trainer</label>
+                <select 
+                  value={editCourseTrainerId} 
+                  onChange={(e) => setEditCourseTrainerId(e.target.value)} 
+                  className="w-full mt-1 bg-background border border-border rounded-xl p-2 text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-primary"
+                >
+                  <option value="">Unassigned</option>
+                  {store.profiles.filter(p => p.role === 'trainer' || p.role === 'admin').map(p => (
+                    <option key={p.id} value={p.id}>{p.full_name}</option>
+                  ))}
+                </select>
+              </div>
+              <div>
+                <label className="text-xs font-mono font-medium text-muted-foreground">Planned Hours</label>
+                <Input 
+                  type="number" 
+                  value={editCoursePlannedHours} 
+                  onChange={(e) => setEditCoursePlannedHours(Number(e.target.value))} 
+                  className="mt-1 font-mono" 
+                />
+              </div>
+              <div>
+                <label className="text-xs font-mono font-medium text-muted-foreground">Status</label>
+                <select 
+                  value={editCourseStatus} 
+                  onChange={(e) => setEditCourseStatus(e.target.value as 'Active' | 'Completed')} 
+                  className="w-full mt-1 bg-background border border-border rounded-xl p-2 text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-primary"
+                >
+                  <option value="Active">Active</option>
+                  <option value="Completed">Completed</option>
+                </select>
+              </div>
+            </div>
+            <div className="flex justify-end gap-2 pt-2">
+              <Button variant="outline" onClick={() => setShowEditCourseModal(false)}>Cancel</Button>
+              <Button onClick={handleSaveEditBatchCourse} className="bg-primary text-primary-foreground">Save Changes</Button>
             </div>
           </div>
         </div>

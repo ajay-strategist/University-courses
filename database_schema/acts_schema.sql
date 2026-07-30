@@ -43,8 +43,8 @@ END $$;
 -- 2. MASTER DATA TABLES
 -- -------------------------------------------------------------------------------------
 
--- Assuming colleges already exists from another application.
-CREATE TABLE IF NOT EXISTS colleges (
+-- Assuming colleges already exists from another application (prefixed with uct_).
+CREATE TABLE IF NOT EXISTS uct_colleges (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     name VARCHAR(255) NOT NULL,
     code VARCHAR(50) UNIQUE NOT NULL,
@@ -59,7 +59,7 @@ CREATE TABLE IF NOT EXISTS uct_profiles (
     email VARCHAR(255) UNIQUE NOT NULL,
     full_name VARCHAR(255) NOT NULL,
     role uct_user_role NOT NULL,
-    college_id UUID REFERENCES colleges(id) ON DELETE CASCADE,
+    college_id UUID REFERENCES uct_colleges(id) ON DELETE CASCADE,
     phone VARCHAR(20),
     is_active BOOLEAN DEFAULT true,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
@@ -71,7 +71,7 @@ CREATE TABLE IF NOT EXISTS uct_academic_years (
     name VARCHAR(20) NOT NULL,
     start_date DATE NOT NULL,
     end_date DATE NOT NULL,
-    college_id UUID REFERENCES colleges(id) ON DELETE CASCADE,
+    college_id UUID REFERENCES uct_colleges(id) ON DELETE CASCADE,
     is_current BOOLEAN DEFAULT false,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
@@ -80,7 +80,7 @@ CREATE TABLE IF NOT EXISTS uct_programs (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     name VARCHAR(150) NOT NULL,
     code VARCHAR(50) NOT NULL,
-    college_id UUID REFERENCES colleges(id) ON DELETE CASCADE,
+    college_id UUID REFERENCES uct_colleges(id) ON DELETE CASCADE,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 
@@ -88,7 +88,7 @@ CREATE TABLE IF NOT EXISTS uct_departments (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     name VARCHAR(150) NOT NULL,
     code VARCHAR(50) NOT NULL,
-    college_id UUID REFERENCES colleges(id) ON DELETE CASCADE,
+    college_id UUID REFERENCES uct_colleges(id) ON DELETE CASCADE,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 
@@ -105,7 +105,7 @@ CREATE TABLE IF NOT EXISTS uct_batches (
     program_id UUID REFERENCES uct_programs(id) ON DELETE CASCADE,
     semester_id UUID REFERENCES uct_semesters(id),
     academic_year_id UUID REFERENCES uct_academic_years(id),
-    college_id UUID REFERENCES colleges(id) ON DELETE CASCADE,
+    college_id UUID REFERENCES uct_colleges(id) ON DELETE CASCADE,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 
@@ -126,7 +126,7 @@ CREATE TABLE IF NOT EXISTS uct_students (
     semester_id UUID REFERENCES uct_semesters(id),
     batch_id UUID REFERENCES uct_batches(id) ON DELETE CASCADE,
     academic_year_id UUID REFERENCES uct_academic_years(id),
-    college_id UUID REFERENCES colleges(id) ON DELETE CASCADE,
+    college_id UUID REFERENCES uct_colleges(id) ON DELETE CASCADE,
     section VARCHAR(20),
     status VARCHAR(50) DEFAULT 'active',
     guardian_contact VARCHAR(20),
@@ -144,7 +144,7 @@ CREATE TABLE IF NOT EXISTS uct_courses (
     semester_id UUID REFERENCES uct_semesters(id),
     trainer_id UUID REFERENCES uct_profiles(id),
     coordinator_id UUID REFERENCES uct_profiles(id),
-    college_id UUID REFERENCES colleges(id) ON DELETE CASCADE,
+    college_id UUID REFERENCES uct_colleges(id) ON DELETE CASCADE,
     start_date DATE,
     end_date DATE,
     total_sessions INT DEFAULT 0,

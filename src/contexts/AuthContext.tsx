@@ -11,6 +11,7 @@ interface AuthContextType {
   isLoading: boolean;
   setRole: (role: UserRole) => void;
   signOut: () => Promise<void>;
+  updateUserPassword: (password: string) => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType>({
@@ -20,6 +21,7 @@ const AuthContext = createContext<AuthContextType>({
   isLoading: true,
   setRole: () => {},
   signOut: async () => {},
+  updateUserPassword: async () => {},
 });
 
 export const useAuth = () => useContext(AuthContext);
@@ -74,7 +76,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       if (newSession?.user) {
         setSession(newSession);
         setUser(newSession.user);
-        const { data } = await supabase.from('profiles').select('*').eq('id', newSession.user.id).single();
+        const { data } = await supabase.from('uct_profiles').select('*').eq('id', newSession.user.id).single();
         if (data) setProfile(data as Profile);
       }
     });
@@ -102,8 +104,29 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     setProfile(null);
   };
 
+  const updateUserPassword = async (newPassword: string) => {
+    if (!user) throw new Error('No active user session');
+    
+    // 1. Update password in Supabase Auth
+    const { error: authError } = await supabase.auth.updateUser({
+      password: newPassword
+    });
+    if (authError) throw authError;
+
+    // 2. Clear must_change_password flag in uct_profiles
+    const { error: dbError } = await supabase
+      .from('uct_profiles')
+      .update({ must_change_password: false })
+      .eq('id', user.id);
+    
+    if (dbError) throw dbError;
+
+    // 3. Update local profile state
+    setProfile((prev) => (prev ? { ...prev, must_change_password: false } : null));
+  };
+
   return (
-    <AuthContext.Provider value={{ session, user, profile, isLoading, setRole, signOut }}>
+    <AuthContext.Provider value={{ session, user, profile, isLoading, setRole, signOut, updateUserPassword }}>
       {children}
     </AuthContext.Provider>
   );

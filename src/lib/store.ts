@@ -417,8 +417,12 @@ class DataStore {
   // STUDENTS
   // -------------------------
   async saveStudent(student: Partial<Student>): Promise<Student> {
+    const regNoUpper = student.register_no?.trim().toUpperCase();
+    const existing = this.students.find(
+      s => s.batch_id === student.batch_id && s.register_no?.trim().toUpperCase() === regNoUpper
+    );
     const item: Student = {
-      id: student.id || generateUUID(),
+      id: student.id || existing?.id || generateUUID(),
       batch_id: student.batch_id!,
       register_no: student.register_no!,
       name: student.name!,
@@ -469,6 +473,7 @@ class DataStore {
     };
 
     const idx = this.batchCourses.findIndex(b => b.id === item.id);
+    const isNew = idx < 0;
     if (idx >= 0) this.batchCourses[idx] = item;
     else this.batchCourses.push(item);
 
@@ -481,27 +486,43 @@ class DataStore {
       console.warn('Supabase batch course sync warning:', e);
     }
 
-    // Auto copy default syllabus if new
-    const defTopics = this.defaultSyllabus.filter(s => s.course_id === item.course_id);
-    for (const topic of defTopics) {
-      const sylItem: BatchCourseSyllabus = {
-        id: generateUUID(),
-        batch_course_id: item.id,
-        topic_no: topic.topic_no,
-        topic_name: topic.topic_name,
-        planned_hours: topic.planned_hours,
-        is_completed: false,
-      };
-      this.batchSyllabus.push(sylItem);
-      try {
-        await supabase.from('uct_batch_course_syllabus').upsert(sylItem);
-      } catch (e) {
-        console.warn('Supabase batch syllabus sync warning:', e);
+    if (isNew) {
+      // Auto copy default syllabus if new
+      const defTopics = this.defaultSyllabus.filter(s => s.course_id === item.course_id);
+      for (const topic of defTopics) {
+        const sylItem: BatchCourseSyllabus = {
+          id: generateUUID(),
+          batch_course_id: item.id,
+          topic_no: topic.topic_no,
+          topic_name: topic.topic_name,
+          planned_hours: topic.planned_hours,
+          is_completed: false,
+        };
+        this.batchSyllabus.push(sylItem);
+        try {
+          await supabase.from('uct_batch_course_syllabus').upsert(sylItem);
+        } catch (e) {
+          console.warn('Supabase batch syllabus sync warning:', e);
+        }
       }
     }
 
     this.saveLocalCache();
     return item;
+  }
+
+  async deleteBatchCourse(id: string): Promise<void> {
+    this.batchCourses = this.batchCourses.filter(bc => bc.id !== id);
+    this.batchSyllabus = this.batchSyllabus.filter(s => s.batch_course_id !== id);
+    this.saveLocalCache();
+
+    try {
+      await supabase.from('uct_batch_course_syllabus').delete().eq('batch_course_id', id);
+      const { error } = await supabase.from('uct_batch_courses').delete().eq('id', id);
+      if (error) console.error('Supabase deleteBatchCourse error:', error.message);
+    } catch (e) {
+      console.warn('Supabase delete batch course warning:', e);
+    }
   }
 
   async toggleBatchSyllabusTopic(id: string, isCompleted: boolean, completedDate?: string): Promise<void> {

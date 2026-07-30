@@ -25,6 +25,18 @@ export default function BatchesGrid() {
   });
 
   const [batches, setBatches] = useState<Batch[]>(filteredBatches);
+  const [selectedBatchIds, setSelectedBatchIds] = useState<string[]>([]);
+
+  const handleBulkDeleteBatches = async () => {
+    if (confirm(`Are you sure you want to delete the ${selectedBatchIds.length} selected batches? This will permanently delete all student rosters, course allocations, attendance registers, and marks for these batches.`)) {
+      for (const id of selectedBatchIds) {
+        await store.deleteBatch(id);
+      }
+      setBatches(store.batches.map(b => store.getBatchWithDetails(b.id)!));
+      setSelectedBatchIds([]);
+      toast.success('Selected batches deleted successfully');
+    }
+  };
 
   // New Batch Modal State
   const [showModal, setShowModal] = useState(false);
@@ -113,9 +125,20 @@ export default function BatchesGrid() {
           <h1 className="text-2xl font-bold font-heading text-foreground">Training Cohort Batches</h1>
           <p className="text-sm text-muted-foreground">Manage college training batches, course allocations, student rosters, and performance metrics.</p>
         </div>
-        <Button onClick={() => setShowModal(true)} className="bg-primary text-primary-foreground hover:bg-primary-hover shadow-sm">
-          <Plus className="h-4 w-4 mr-2" /> New Batch
-        </Button>
+        <div className="flex items-center gap-2">
+          {selectedBatchIds.length > 0 && (
+            <Button 
+              onClick={handleBulkDeleteBatches} 
+              variant="destructive"
+              className="bg-destructive hover:bg-destructive/90 text-destructive-foreground shadow-sm animate-in fade-in zoom-in duration-200"
+            >
+              <Trash2 className="h-4 w-4 mr-2" /> Delete Selected ({selectedBatchIds.length})
+            </Button>
+          )}
+          <Button onClick={() => setShowModal(true)} className="bg-primary text-primary-foreground hover:bg-primary-hover shadow-sm">
+            <Plus className="h-4 w-4 mr-2" /> New Batch
+          </Button>
+        </div>
       </div>
 
       {/* Batches Cards Grid */}
@@ -143,8 +166,27 @@ export default function BatchesGrid() {
                 )}
                 <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/30 to-transparent" />
                 
+                {/* Selection Checkbox */}
+                <div 
+                  className="absolute top-3.5 left-3.5 z-20 flex items-center justify-center bg-black/40 border border-white/20 rounded p-1 hover:bg-black/60 transition-colors"
+                  onClick={(e) => e.stopPropagation()}
+                >
+                  <input 
+                    type="checkbox" 
+                    checked={selectedBatchIds.includes(batch.id)}
+                    onChange={(e) => {
+                      if (e.target.checked) {
+                        setSelectedBatchIds(prev => [...prev, batch.id]);
+                      } else {
+                        setSelectedBatchIds(prev => prev.filter(id => id !== batch.id));
+                      }
+                    }}
+                    className="rounded border-white/40 bg-black/60 text-primary focus:ring-primary h-4.5 w-4.5 cursor-pointer"
+                  />
+                </div>
+
                 {/* College Logo Floating Badge */}
-                <div className="absolute top-3 left-3 flex items-center gap-2">
+                <div className="absolute top-3 left-12 flex items-center gap-2">
                   {batch.college?.logo_url ? (
                     <img 
                       src={batch.college.logo_url} 
@@ -156,7 +198,7 @@ export default function BatchesGrid() {
                       {batch.college?.code}
                     </div>
                   )}
-                  <span className="text-xs font-semibold text-white drop-shadow-sm truncate max-w-[170px]">
+                  <span className="text-xs font-semibold text-white drop-shadow-sm truncate max-w-[140px]">
                     {batch.college?.name}
                   </span>
                 </div>
