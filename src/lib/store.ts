@@ -456,6 +456,17 @@ class DataStore {
     }
   }
 
+  async deleteStudents(ids: string[]): Promise<void> {
+    this.students = this.students.filter(s => !ids.includes(s.id));
+    this.saveLocalCache();
+    try {
+      const { error } = await supabase.from('uct_students').delete().in('id', ids);
+      if (error) console.error('Supabase deleteStudents error:', error.message);
+    } catch (e) {
+      console.warn('Supabase student bulk delete warning:', e);
+    }
+  }
+
   // -------------------------
   // BATCH COURSES & SYLLABUS
   // -------------------------

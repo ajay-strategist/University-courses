@@ -149,18 +149,18 @@ export default function BatchDetails() {
     }
   };
 
-  const handleDeleteStudent = (stuId: string, stuName: string) => {
+  const handleDeleteStudent = async (stuId: string, stuName: string) => {
     if (confirm(`Are you sure you want to delete student "${stuName}"?`)) {
-      store.students = store.students.filter(s => s.id !== stuId);
+      await store.deleteStudent(stuId);
       setStudents(store.students.filter(s => s.batch_id === id));
       setSelectedStudentIds(prev => prev.filter(x => x !== stuId));
       toast.success(`Student ${stuName} deleted successfully`);
     }
   };
 
-  const handleBulkDeleteStudents = () => {
+  const handleBulkDeleteStudents = async () => {
     if (confirm(`Are you sure you want to delete the ${selectedStudentIds.length} selected students?`)) {
-      store.students = store.students.filter(s => !selectedStudentIds.includes(s.id));
+      await store.deleteStudents(selectedStudentIds);
       setStudents(store.students.filter(s => s.batch_id === id));
       setSelectedStudentIds([]);
       toast.success('Selected students deleted successfully');
