@@ -132,21 +132,49 @@ export default function ImportCenter() {
     const reader = new FileReader();
     reader.onload = (evt) => {
       try {
-        const wb = XLSX.read(evt.target?.result, { type: 'binary' });
+        const data = new Uint8Array(evt.target?.result as ArrayBuffer);
+        const wb = XLSX.read(data, { type: 'array' });
         const sheet = wb.Sheets[wb.SheetNames[0]];
         const rows = XLSX.utils.sheet_to_json<any>(sheet);
 
         const validRows: any[] = [];
         const errorRows: any[] = [];
 
+        const getRowVal = (row: any, searchKeys: string[], defaultVal = '') => {
+          const keys = Object.keys(row);
+          // Try exact match first (case-insensitive)
+          for (const sk of searchKeys) {
+            const foundKey = keys.find(k => k.trim().toLowerCase() === sk.trim().toLowerCase());
+            if (foundKey && row[foundKey] !== undefined && row[foundKey] !== null) {
+              return row[foundKey];
+            }
+          }
+          // Try fuzzy substring match second (case-insensitive)
+          for (const sk of searchKeys) {
+            const foundKey = keys.find(k => k.toLowerCase().includes(sk.toLowerCase()));
+            if (foundKey && row[foundKey] !== undefined && row[foundKey] !== null) {
+              return row[foundKey];
+            }
+          }
+          return defaultVal;
+        };
+
         rows.forEach((r, idx) => {
           if (importType === 'students') {
-            const regNo = r.register_no || r['Register No'];
-            const name = r.name || r['Student Name'];
+            const regNo = getRowVal(r, ['register no', 'register', 'reg', 'roll']);
+            const name = getRowVal(r, ['student name', 'name', 'student']);
+            const phone = getRowVal(r, ['phone number', 'phone', 'mobile', 'contact'], '');
+            const classVal = getRowVal(r, ['class (division)', 'class', 'division', 'div'], 'Div A');
+
             if (!regNo || !name) {
-              errorRows.push({ row: idx + 1, data: r, error: 'Missing register_no or student name' });
+              errorRows.push({ row: idx + 1, data: r, error: 'Missing register number or student name' });
             } else {
-              validRows.push({ register_no: String(regNo), name: String(name), class: r.class || 'Div A', phone: String(r.phone || '') });
+              validRows.push({ 
+                register_no: String(regNo).trim().toUpperCase(), 
+                name: String(name).trim(), 
+                class: String(classVal).trim(), 
+                phone: String(phone).trim() 
+              });
             }
           } else if (importType === 'marks') {
             const regNo = r['Register Number'] || r['Register No'] || r.register_no;
@@ -170,25 +198,24 @@ export default function ImportCenter() {
         toast.error('Failed to parse file');
       }
     };
-    reader.readAsBinaryString(file);
+    reader.readAsArrayBuffer(file);
   };
 
-  const handleCommit = () => {
+  const handleCommit = async () => {
     if (!previewData) return;
     if (importType === 'students') {
-      previewData.validRows.forEach(r => {
-        store.students.push({
-          id: `stu-center-${Date.now()}-${Math.random()}`,
+      for (const r of previewData.validRows) {
+        await store.saveStudent({
           batch_id: selectedBatchId,
           register_no: r.register_no,
           name: r.name,
           class: r.class,
           phone: r.phone,
         });
-      });
+      }
     }
     setPreviewData(null);
-    toast.success(`Import committed successfully! ${previewData.validRows.length} rows imported.`);
+    toast.success(`Import committed successfully! ${previewData.validRows.length} rows imported/updated.`);
   };
 
   return (

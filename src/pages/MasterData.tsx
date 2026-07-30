@@ -134,7 +134,6 @@ export default function MasterData() {
     toast.success('Topic saved to default syllabus');
   };
 
-  // CSV/Excel Import for Syllabus Topics
   const handleImportTopics = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file || !selectedCourseId) return;
@@ -142,12 +141,13 @@ export default function MasterData() {
     const reader = new FileReader();
     reader.onload = (event) => {
       try {
-        const wb = XLSX.read(event.target?.result, { type: 'binary' });
+        const data = new Uint8Array(event.target?.result as ArrayBuffer);
+        const wb = XLSX.read(data, { type: 'array' });
         const sheet = wb.Sheets[wb.SheetNames[0]];
-        const data = XLSX.utils.sheet_to_json<any>(sheet);
+        const parsed = XLSX.utils.sheet_to_json<any>(sheet);
         
         let count = 0;
-        data.forEach((row: any, idx: number) => {
+        parsed.forEach((row: any, idx: number) => {
           const topic_name = row.topic_name || row['Topic Name'] || row.topic || row.Topic;
           if (topic_name) {
             const topic_no = Number(row.topic_no || row['Topic No'] || (idx + 1));
@@ -168,7 +168,7 @@ export default function MasterData() {
         toast.error('Failed to parse file. Please upload a valid CSV/Excel file.');
       }
     };
-    reader.readAsBinaryString(file);
+    reader.readAsArrayBuffer(file);
   };
 
   const handleExportDefaultSyllabus = () => {

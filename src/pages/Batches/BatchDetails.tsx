@@ -246,7 +246,8 @@ export default function BatchDetails() {
     const reader = new FileReader();
     reader.onload = async (evt) => {
       try {
-        const wb = XLSX.read(evt.target?.result, { type: 'binary' });
+        const data = new Uint8Array(evt.target?.result as ArrayBuffer);
+        const wb = XLSX.read(data, { type: 'array' });
         const sheet = wb.Sheets[wb.SheetNames[0]];
         const rows = XLSX.utils.sheet_to_json<any>(sheet);
         let added = 0;
@@ -293,7 +294,7 @@ export default function BatchDetails() {
         toast.error('Failed to parse CSV/Excel file');
       }
     };
-    reader.readAsBinaryString(file);
+    reader.readAsArrayBuffer(file);
   };
 
   // -------------------------------------------------------------------------------------
@@ -582,7 +583,8 @@ export default function BatchDetails() {
     const reader = new FileReader();
     reader.onload = (evt) => {
       try {
-        const wb = XLSX.read(evt.target?.result, { type: 'binary' });
+        const data = new Uint8Array(evt.target?.result as ArrayBuffer);
+        const wb = XLSX.read(data, { type: 'array' });
         const sheet = wb.Sheets[wb.SheetNames[0]];
         const rows = XLSX.utils.sheet_to_json<any>(sheet);
 
@@ -617,7 +619,7 @@ export default function BatchDetails() {
         toast.error('Failed to parse Excel file');
       }
     };
-    reader.readAsBinaryString(file);
+    reader.readAsArrayBuffer(file);
   };
 
   const handleCommitMarksImport = () => {
