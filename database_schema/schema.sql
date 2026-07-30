@@ -11,6 +11,55 @@ CREATE EXTENSION IF NOT EXISTS "pgcrypto";
 CREATE SCHEMA IF NOT EXISTS reporting;
 
 -- -------------------------------------------------------------------------------------
+-- CLEANUP: DROP EXISTING VIEWS & TABLES IN REVERSE DEPENDENCY ORDER
+-- (Ensures clean application in Supabase SQL Editor if old/incomplete tables exist)
+-- -------------------------------------------------------------------------------------
+DROP VIEW IF EXISTS reporting.vw_course_coverage CASCADE;
+DROP VIEW IF EXISTS reporting.vw_attendance_summary CASCADE;
+DROP VIEW IF EXISTS reporting.vw_fact_marks CASCADE;
+DROP VIEW IF EXISTS reporting.vw_fact_attendance CASCADE;
+DROP VIEW IF EXISTS reporting.vw_dim_student CASCADE;
+DROP VIEW IF EXISTS reporting.vw_dim_course CASCADE;
+DROP VIEW IF EXISTS reporting.vw_dim_batch CASCADE;
+DROP VIEW IF EXISTS reporting.vw_dim_college CASCADE;
+
+-- Drop uct_ tables if they exist
+DROP TABLE IF EXISTS public.uct_notification_log CASCADE;
+DROP TABLE IF EXISTS public.uct_assessment_marks CASCADE;
+DROP TABLE IF EXISTS public.uct_assessments CASCADE;
+DROP TABLE IF EXISTS public.uct_attendance CASCADE;
+DROP TABLE IF EXISTS public.uct_sessions CASCADE;
+DROP TABLE IF EXISTS public.uct_batch_course_syllabus CASCADE;
+DROP TABLE IF EXISTS public.uct_batch_courses CASCADE;
+DROP TABLE IF EXISTS public.uct_students CASCADE;
+DROP TABLE IF EXISTS public.uct_batches CASCADE;
+DROP TABLE IF EXISTS public.uct_assessment_types CASCADE;
+DROP TABLE IF EXISTS public.uct_course_default_syllabus CASCADE;
+DROP TABLE IF EXISTS public.uct_courses CASCADE;
+DROP TABLE IF EXISTS public.uct_programs CASCADE;
+DROP TABLE IF EXISTS public.uct_colleges CASCADE;
+DROP TABLE IF EXISTS public.uct_user_email_config CASCADE;
+DROP TABLE IF EXISTS public.uct_profiles CASCADE;
+
+-- Drop legacy un-prefixed tables if they exist from previous runs
+DROP TABLE IF EXISTS public.notification_log CASCADE;
+DROP TABLE IF EXISTS public.assessment_marks CASCADE;
+DROP TABLE IF EXISTS public.assessments CASCADE;
+DROP TABLE IF EXISTS public.attendance CASCADE;
+DROP TABLE IF EXISTS public.sessions CASCADE;
+DROP TABLE IF EXISTS public.batch_course_syllabus CASCADE;
+DROP TABLE IF EXISTS public.batch_courses CASCADE;
+DROP TABLE IF EXISTS public.students CASCADE;
+DROP TABLE IF EXISTS public.batches CASCADE;
+DROP TABLE IF EXISTS public.assessment_types CASCADE;
+DROP TABLE IF EXISTS public.course_default_syllabus CASCADE;
+DROP TABLE IF EXISTS public.courses CASCADE;
+DROP TABLE IF EXISTS public.programs CASCADE;
+DROP TABLE IF EXISTS public.colleges CASCADE;
+DROP TABLE IF EXISTS public.user_email_config CASCADE;
+DROP TABLE IF EXISTS public.profiles CASCADE;
+
+-- -------------------------------------------------------------------------------------
 -- 1. ENUMS & TYPES
 -- -------------------------------------------------------------------------------------
 DO $$ BEGIN
@@ -28,7 +77,7 @@ EXCEPTION WHEN duplicate_object THEN null; END $$;
 -- -------------------------------------------------------------------------------------
 -- 2. USERS & PROFILES
 -- -------------------------------------------------------------------------------------
-CREATE TABLE IF NOT EXISTS public.uct_profiles (
+CREATE TABLE public.uct_profiles (
     id UUID PRIMARY KEY REFERENCES auth.users(id) ON DELETE CASCADE,
     full_name TEXT NOT NULL,
     email TEXT UNIQUE NOT NULL,
@@ -38,7 +87,7 @@ CREATE TABLE IF NOT EXISTS public.uct_profiles (
     updated_at TIMESTAMPTZ DEFAULT NOW()
 );
 
-CREATE TABLE IF NOT EXISTS public.uct_user_email_config (
+CREATE TABLE public.uct_user_email_config (
     user_id UUID PRIMARY KEY REFERENCES public.uct_profiles(id) ON DELETE CASCADE,
     smtp_host TEXT NOT NULL DEFAULT 'smtp.gmail.com',
     smtp_port INT NOT NULL DEFAULT 587,
@@ -53,7 +102,7 @@ CREATE TABLE IF NOT EXISTS public.uct_user_email_config (
 -- -------------------------------------------------------------------------------------
 -- 3. MASTERS
 -- -------------------------------------------------------------------------------------
-CREATE TABLE IF NOT EXISTS public.uct_colleges (
+CREATE TABLE public.uct_colleges (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     code TEXT UNIQUE NOT NULL, -- Short code e.g. MIM
     name TEXT NOT NULL,
@@ -64,7 +113,7 @@ CREATE TABLE IF NOT EXISTS public.uct_colleges (
     updated_at TIMESTAMPTZ DEFAULT NOW()
 );
 
-CREATE TABLE IF NOT EXISTS public.uct_programs (
+CREATE TABLE public.uct_programs (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     code TEXT UNIQUE NOT NULL, -- e.g. BBA
     name TEXT NOT NULL,
@@ -72,7 +121,7 @@ CREATE TABLE IF NOT EXISTS public.uct_programs (
     updated_at TIMESTAMPTZ DEFAULT NOW()
 );
 
-CREATE TABLE IF NOT EXISTS public.uct_courses (
+CREATE TABLE public.uct_courses (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     code TEXT UNIQUE NOT NULL, -- e.g. XL, PBI, R, PY, SQL
     name TEXT NOT NULL, -- Excel, Power BI, R, Python, SQL
@@ -80,7 +129,7 @@ CREATE TABLE IF NOT EXISTS public.uct_courses (
     updated_at TIMESTAMPTZ DEFAULT NOW()
 );
 
-CREATE TABLE IF NOT EXISTS public.uct_course_default_syllabus (
+CREATE TABLE public.uct_course_default_syllabus (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     course_id UUID NOT NULL REFERENCES public.uct_courses(id) ON DELETE CASCADE,
     topic_no INT NOT NULL,
@@ -91,7 +140,7 @@ CREATE TABLE IF NOT EXISTS public.uct_course_default_syllabus (
     UNIQUE(course_id, topic_no)
 );
 
-CREATE TABLE IF NOT EXISTS public.uct_assessment_types (
+CREATE TABLE public.uct_assessment_types (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     name TEXT NOT NULL, -- e.g. Assignment, Exam
     default_max_mark NUMERIC(5,2) NOT NULL DEFAULT 100.0,
@@ -102,7 +151,7 @@ CREATE TABLE IF NOT EXISTS public.uct_assessment_types (
 -- -------------------------------------------------------------------------------------
 -- 4. BATCH STRUCTURE
 -- -------------------------------------------------------------------------------------
-CREATE TABLE IF NOT EXISTS public.uct_batches (
+CREATE TABLE public.uct_batches (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     code TEXT UNIQUE NOT NULL, -- Auto built: college.code - program.code - academic_year (e.g. MIM-BBA-2026-29)
     college_id UUID NOT NULL REFERENCES public.uct_colleges(id) ON DELETE CASCADE,
@@ -118,7 +167,7 @@ CREATE TABLE IF NOT EXISTS public.uct_batches (
     updated_at TIMESTAMPTZ DEFAULT NOW()
 );
 
-CREATE TABLE IF NOT EXISTS public.uct_students (
+CREATE TABLE public.uct_students (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     batch_id UUID NOT NULL REFERENCES public.uct_batches(id) ON DELETE CASCADE,
     register_no TEXT NOT NULL, -- Primary import key, unique within batch
@@ -130,7 +179,7 @@ CREATE TABLE IF NOT EXISTS public.uct_students (
     UNIQUE(batch_id, register_no)
 );
 
-CREATE TABLE IF NOT EXISTS public.uct_batch_courses (
+CREATE TABLE public.uct_batch_courses (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     batch_id UUID NOT NULL REFERENCES public.uct_batches(id) ON DELETE CASCADE,
     course_id UUID NOT NULL REFERENCES public.uct_courses(id) ON DELETE CASCADE,
@@ -145,7 +194,7 @@ CREATE TABLE IF NOT EXISTS public.uct_batch_courses (
     UNIQUE(batch_id, course_id, semester)
 );
 
-CREATE TABLE IF NOT EXISTS public.uct_batch_course_syllabus (
+CREATE TABLE public.uct_batch_course_syllabus (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     batch_course_id UUID NOT NULL REFERENCES public.uct_batch_courses(id) ON DELETE CASCADE,
     topic_no INT NOT NULL,
@@ -161,7 +210,7 @@ CREATE TABLE IF NOT EXISTS public.uct_batch_course_syllabus (
 -- -------------------------------------------------------------------------------------
 -- 5. ATTENDANCE
 -- -------------------------------------------------------------------------------------
-CREATE TABLE IF NOT EXISTS public.uct_sessions (
+CREATE TABLE public.uct_sessions (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     batch_course_id UUID NOT NULL REFERENCES public.uct_batch_courses(id) ON DELETE CASCADE,
     session_date DATE NOT NULL,
@@ -171,7 +220,7 @@ CREATE TABLE IF NOT EXISTS public.uct_sessions (
     UNIQUE(batch_course_id, session_date, hour_no)
 );
 
-CREATE TABLE IF NOT EXISTS public.uct_attendance (
+CREATE TABLE public.uct_attendance (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     session_id UUID NOT NULL REFERENCES public.uct_sessions(id) ON DELETE CASCADE,
     student_id UUID NOT NULL REFERENCES public.uct_students(id) ON DELETE CASCADE,
@@ -184,7 +233,7 @@ CREATE TABLE IF NOT EXISTS public.uct_attendance (
 -- -------------------------------------------------------------------------------------
 -- 6. ASSESSMENTS & MARKS
 -- -------------------------------------------------------------------------------------
-CREATE TABLE IF NOT EXISTS public.uct_assessments (
+CREATE TABLE public.uct_assessments (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     batch_course_id UUID NOT NULL REFERENCES public.uct_batch_courses(id) ON DELETE CASCADE,
     name TEXT NOT NULL,
@@ -195,7 +244,7 @@ CREATE TABLE IF NOT EXISTS public.uct_assessments (
     updated_at TIMESTAMPTZ DEFAULT NOW()
 );
 
-CREATE TABLE IF NOT EXISTS public.uct_assessment_marks (
+CREATE TABLE public.uct_assessment_marks (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     assessment_id UUID NOT NULL REFERENCES public.uct_assessments(id) ON DELETE CASCADE,
     student_id UUID NOT NULL REFERENCES public.uct_students(id) ON DELETE CASCADE,
@@ -209,7 +258,7 @@ CREATE TABLE IF NOT EXISTS public.uct_assessment_marks (
 -- -------------------------------------------------------------------------------------
 -- 7. NOTIFICATIONS LOG
 -- -------------------------------------------------------------------------------------
-CREATE TABLE IF NOT EXISTS public.uct_notification_log (
+CREATE TABLE public.uct_notification_log (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     batch_course_id UUID REFERENCES public.uct_batch_courses(id) ON DELETE SET NULL,
     session_date DATE NOT NULL,
@@ -226,16 +275,16 @@ CREATE TABLE IF NOT EXISTS public.uct_notification_log (
 -- -------------------------------------------------------------------------------------
 -- 8. INDEXES
 -- -------------------------------------------------------------------------------------
-CREATE INDEX IF NOT EXISTS idx_uct_students_batch_id ON public.uct_students(batch_id);
-CREATE INDEX IF NOT EXISTS idx_uct_students_register_no ON public.uct_students(register_no);
-CREATE INDEX IF NOT EXISTS idx_uct_batch_courses_batch_id ON public.uct_batch_courses(batch_id);
-CREATE INDEX IF NOT EXISTS idx_uct_batch_courses_trainer_id ON public.uct_batch_courses(trainer_id);
-CREATE INDEX IF NOT EXISTS idx_uct_sessions_batch_course_id ON public.uct_sessions(batch_course_id);
-CREATE INDEX IF NOT EXISTS idx_uct_sessions_date ON public.uct_sessions(session_date);
-CREATE INDEX IF NOT EXISTS idx_uct_attendance_session_id ON public.uct_attendance(session_id);
-CREATE INDEX IF NOT EXISTS idx_uct_attendance_student_id ON public.uct_attendance(student_id);
-CREATE INDEX IF NOT EXISTS idx_uct_assessments_batch_course_id ON public.uct_assessments(batch_course_id);
-CREATE INDEX IF NOT EXISTS idx_uct_assessment_marks_assessment_id ON public.uct_assessment_marks(assessment_id);
+CREATE INDEX idx_uct_students_batch_id ON public.uct_students(batch_id);
+CREATE INDEX idx_uct_students_register_no ON public.uct_students(register_no);
+CREATE INDEX idx_uct_batch_courses_batch_id ON public.uct_batch_courses(batch_id);
+CREATE INDEX idx_uct_batch_courses_trainer_id ON public.uct_batch_courses(trainer_id);
+CREATE INDEX idx_uct_sessions_batch_course_id ON public.uct_sessions(batch_course_id);
+CREATE INDEX idx_uct_sessions_date ON public.uct_sessions(session_date);
+CREATE INDEX idx_uct_attendance_session_id ON public.uct_attendance(session_id);
+CREATE INDEX idx_uct_attendance_student_id ON public.uct_attendance(student_id);
+CREATE INDEX idx_uct_assessments_batch_course_id ON public.uct_assessments(batch_course_id);
+CREATE INDEX idx_uct_assessment_marks_assessment_id ON public.uct_assessment_marks(assessment_id);
 
 -- -------------------------------------------------------------------------------------
 -- 9. ROW-LEVEL SECURITY (RLS) POLICIES
