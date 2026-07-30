@@ -604,6 +604,84 @@ class DataStore {
     const present = studentRecords.filter(a => a.status === 'present' || a.status === 'late').length;
     return Math.round((present / studentRecords.length) * 100);
   }
+
+  async saveAssessmentMark(mark: AssessmentMark): Promise<AssessmentMark> {
+    const idx = this.assessmentMarks.findIndex(
+      m => m.assessment_id === mark.assessment_id && m.student_id === mark.student_id
+    );
+    if (idx >= 0) {
+      this.assessmentMarks[idx] = mark;
+    } else {
+      this.assessmentMarks.push(mark);
+    }
+    this.saveLocalCache();
+
+    try {
+      const { error } = await supabase.from('uct_assessment_marks').upsert(mark);
+      if (error) console.error('Supabase saveAssessmentMark error:', error.message);
+    } catch (e) {
+      console.warn('Supabase assessment mark sync warning:', e);
+    }
+    return mark;
+  }
+
+  async saveAssessmentMarks(marks: AssessmentMark[]): Promise<void> {
+    marks.forEach(mark => {
+      const idx = this.assessmentMarks.findIndex(
+        m => m.assessment_id === mark.assessment_id && m.student_id === mark.student_id
+      );
+      if (idx >= 0) {
+        this.assessmentMarks[idx] = mark;
+      } else {
+        this.assessmentMarks.push(mark);
+      }
+    });
+    this.saveLocalCache();
+
+    try {
+      const { error } = await supabase.from('uct_assessment_marks').upsert(marks);
+      if (error) console.error('Supabase saveAssessmentMarks error:', error.message);
+    } catch (e) {
+      console.warn('Supabase assessment marks sync warning:', e);
+    }
+  }
+
+  async saveSession(session: Session): Promise<Session> {
+    const idx = this.sessions.findIndex(s => s.id === session.id);
+    if (idx >= 0) {
+      this.sessions[idx] = session;
+    } else {
+      this.sessions.push(session);
+    }
+    this.saveLocalCache();
+
+    try {
+      const { error } = await supabase.from('uct_sessions').upsert(session);
+      if (error) console.error('Supabase saveSession error:', error.message);
+    } catch (e) {
+      console.warn('Supabase session sync warning:', e);
+    }
+    return session;
+  }
+
+  async saveAttendanceRecords(records: Attendance[]): Promise<void> {
+    records.forEach(rec => {
+      const idx = this.attendance.findIndex(a => a.session_id === rec.session_id && a.student_id === rec.student_id);
+      if (idx >= 0) {
+        this.attendance[idx] = rec;
+      } else {
+        this.attendance.push(rec);
+      }
+    });
+    this.saveLocalCache();
+
+    try {
+      const { error } = await supabase.from('uct_attendance').upsert(records);
+      if (error) console.error('Supabase saveAttendanceRecords error:', error.message);
+    } catch (e) {
+      console.warn('Supabase attendance sync warning:', e);
+    }
+  }
 }
 
 export const store = new DataStore();

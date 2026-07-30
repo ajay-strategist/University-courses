@@ -180,7 +180,7 @@ export default function BatchDetails() {
     toast.success(`Batch ${batch.code} updated successfully!`);
   };
 
-  const handleUpdateSingleMark = (studentId: string, valStr: string) => {
+  const handleUpdateSingleMark = async (studentId: string, valStr: string) => {
     const curAsm = store.assessments.find(a => a.id === selectedAssessmentId);
     if (!curAsm) return;
     const num = Number(valStr);
@@ -193,17 +193,14 @@ export default function BatchDetails() {
       return;
     }
 
-    const idx = store.assessmentMarks.findIndex(m => m.assessment_id === curAsm.id && m.student_id === studentId);
-    if (idx >= 0) {
-      store.assessmentMarks[idx].mark = num;
-    } else {
-      store.assessmentMarks.push({
-        id: `mk-${Date.now()}-${studentId}`,
-        assessment_id: curAsm.id,
-        student_id: studentId,
-        mark: num,
-      });
-    }
+    const existingMark = store.assessmentMarks.find(m => m.assessment_id === curAsm.id && m.student_id === studentId);
+    await store.saveAssessmentMark({
+      id: existingMark?.id || `mk-${Date.now()}-${studentId}`,
+      assessment_id: curAsm.id,
+      student_id: studentId,
+      mark: num,
+    });
+
     setMarksState(prev => ({ ...prev, [studentId]: num }));
     toast.success('Mark saved');
   };
@@ -358,39 +355,39 @@ export default function BatchDetails() {
   // -------------------------------------------------------------------------------------
   // 7.3 ATTENDANCE REGISTER & MATRIX WORKFLOW
   // -------------------------------------------------------------------------------------
-  const handleSaveAttendanceRegister = () => {
+  const handleSaveAttendanceRegister = async () => {
     if (!selectedBatchCourseId) return;
 
     // Find or create session
     let session = store.sessions.find(
       s => s.batch_course_id === selectedBatchCourseId && s.session_date === attendanceDate && s.hour_no === attendanceHour
     );
-    if (!session) {
+    const isNew = !session;
+    if (isNew) {
       session = {
         id: `ses-${Date.now()}`,
         batch_course_id: selectedBatchCourseId,
         session_date: attendanceDate,
         hour_no: attendanceHour,
       };
-      store.sessions.push(session);
     }
 
+    const savedSession = await store.saveSession(session!);
+
     // Save attendance for every student in batch
+    const attendanceToSave: Attendance[] = [];
     students.forEach((stu) => {
       const status = registerStatusMap[stu.id] || 'present';
-      const existingIdx = store.attendance.findIndex(a => a.session_id === session!.id && a.student_id === stu.id);
-      if (existingIdx >= 0) {
-        store.attendance[existingIdx].status = status;
-      } else {
-        store.attendance.push({
-          id: `att-${Date.now()}-${stu.id}`,
-          session_id: session!.id,
-          student_id: stu.id,
-          status,
-        });
-      }
+      const existing = store.attendance.find(a => a.session_id === savedSession.id && a.student_id === stu.id);
+      attendanceToSave.push({
+        id: existing?.id || `att-${Date.now()}-${stu.id}`,
+        session_id: savedSession.id,
+        student_id: stu.id,
+        status,
+      });
     });
 
+    await store.saveAttendanceRecords(attendanceToSave);
     toast.success(`Attendance saved for ${attendanceDate} (Hour ${attendanceHour})!`);
   };
 
@@ -622,23 +619,21 @@ export default function BatchDetails() {
     reader.readAsArrayBuffer(file);
   };
 
-  const handleCommitMarksImport = () => {
+  const handleCommitMarksImport = async () => {
     if (!marksImportPreview || !currentAssessment) return;
 
+    const marksToSave: AssessmentMark[] = [];
     marksImportPreview.validRows.forEach(row => {
-      const idx = store.assessmentMarks.findIndex(m => m.assessment_id === currentAssessment.id && m.student_id === row.student_id);
-      if (idx >= 0) {
-        store.assessmentMarks[idx].mark = row.mark;
-      } else {
-        store.assessmentMarks.push({
-          id: `mk-${Date.now()}-${row.student_id}`,
-          assessment_id: currentAssessment.id,
-          student_id: row.student_id,
-          mark: row.mark,
-        });
-      }
+      const existing = store.assessmentMarks.find(m => m.assessment_id === currentAssessment.id && m.student_id === row.student_id);
+      marksToSave.push({
+        id: existing?.id || `mk-${Date.now()}-${row.student_id}`,
+        assessment_id: currentAssessment.id,
+        student_id: row.student_id,
+        mark: row.mark,
+      });
     });
 
+    await store.saveAssessmentMarks(marksToSave);
     setMarksImportPreview(null);
     toast.success(`Successfully committed marks for ${marksImportPreview.validRows.length} students!`);
   };
