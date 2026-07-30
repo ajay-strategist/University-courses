@@ -11,8 +11,8 @@ CREATE EXTENSION IF NOT EXISTS "pgcrypto";
 CREATE SCHEMA IF NOT EXISTS reporting;
 
 -- -------------------------------------------------------------------------------------
--- CLEANUP: DROP EXISTING VIEWS & TABLES IN REVERSE DEPENDENCY ORDER
--- (Ensures clean application in Supabase SQL Editor if old/incomplete tables exist)
+-- CLEANUP: DROP EXISTING VIEWS, TABLES & TYPES IN REVERSE DEPENDENCY ORDER
+-- (Ensures clean application in Supabase SQL Editor even if legacy schema elements exist)
 -- -------------------------------------------------------------------------------------
 DROP VIEW IF EXISTS reporting.vw_course_coverage CASCADE;
 DROP VIEW IF EXISTS reporting.vw_attendance_summary CASCADE;
@@ -59,20 +59,17 @@ DROP TABLE IF EXISTS public.colleges CASCADE;
 DROP TABLE IF EXISTS public.user_email_config CASCADE;
 DROP TABLE IF EXISTS public.profiles CASCADE;
 
+-- Drop ENUM types cleanly
+DROP TYPE IF EXISTS public.user_role CASCADE;
+DROP TYPE IF EXISTS public.attendance_status CASCADE;
+DROP TYPE IF EXISTS public.batch_status CASCADE;
+
 -- -------------------------------------------------------------------------------------
 -- 1. ENUMS & TYPES
 -- -------------------------------------------------------------------------------------
-DO $$ BEGIN
-    CREATE TYPE user_role AS ENUM ('admin', 'trainer', 'student_coordinator', 'college_coordinator');
-EXCEPTION WHEN duplicate_object THEN null; END $$;
-
-DO $$ BEGIN
-    CREATE TYPE attendance_status AS ENUM ('present', 'absent', 'late');
-EXCEPTION WHEN duplicate_object THEN null; END $$;
-
-DO $$ BEGIN
-    CREATE TYPE batch_status AS ENUM ('Active', 'Completed');
-EXCEPTION WHEN duplicate_object THEN null; END $$;
+CREATE TYPE public.user_role AS ENUM ('admin', 'trainer', 'student_coordinator', 'college_coordinator');
+CREATE TYPE public.attendance_status AS ENUM ('present', 'absent', 'late');
+CREATE TYPE public.batch_status AS ENUM ('Active', 'Completed');
 
 -- -------------------------------------------------------------------------------------
 -- 2. USERS & PROFILES
