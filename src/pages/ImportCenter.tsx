@@ -58,6 +58,72 @@ export default function ImportCenter() {
     toast.success(`Template ${filename} downloaded!`);
   };
 
+  // Export current entity data to Excel
+  const handleExportCurrentData = () => {
+    if (importType === 'students') {
+      const data = batchStudents.map(s => ({
+        'Register Number': s.register_no,
+        'Name': s.name,
+        'Class': s.class,
+        'Phone': s.phone || '',
+      }));
+      const ws = XLSX.utils.json_to_sheet(data);
+      const wb = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(wb, ws, 'Students');
+      XLSX.writeFile(wb, `${selectedBatch?.code || 'Batch'}_Students_Data.xlsx`);
+      toast.success('Exported Students Data (.xlsx)');
+    } else if (importType === 'marks') {
+      const bcs = store.batchCourses.filter(bc => bc.batch_id === selectedBatchId);
+      const bcsIds = bcs.map(b => b.id);
+      const assessments = store.assessments.filter(a => bcsIds.includes(a.batch_course_id));
+      const data = batchStudents.map(stu => {
+        const row: any = { 'Register Number': stu.register_no, 'Name': stu.name };
+        assessments.forEach(asm => {
+          const markObj = store.assessmentMarks.find(m => m.assessment_id === asm.id && m.student_id === stu.id);
+          row[asm.name] = markObj?.mark !== undefined ? markObj.mark : '';
+        });
+        return row;
+      });
+      const ws = XLSX.utils.json_to_sheet(data);
+      const wb = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(wb, ws, 'Marks');
+      XLSX.writeFile(wb, `${selectedBatch?.code || 'Batch'}_Marks_Data.xlsx`);
+      toast.success('Exported Marks Data (.xlsx)');
+    } else if (importType === 'attendance') {
+      const bcs = store.batchCourses.filter(bc => bc.batch_id === selectedBatchId);
+      const bcsIds = bcs.map(b => b.id);
+      const sessions = store.sessions.filter(s => bcsIds.includes(s.batch_course_id));
+      const data = batchStudents.map(stu => {
+        const row: any = { 'Register Number': stu.register_no, 'Name': stu.name };
+        sessions.forEach(sess => {
+          const rec = store.attendance.find(a => a.session_id === sess.id && a.student_id === stu.id);
+          row[`${sess.session_date} (H${sess.hour_no})`] = rec ? rec.status.toUpperCase() : 'PRESENT';
+        });
+        return row;
+      });
+      const ws = XLSX.utils.json_to_sheet(data);
+      const wb = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(wb, ws, 'Attendance');
+      XLSX.writeFile(wb, `${selectedBatch?.code || 'Batch'}_Attendance_Data.xlsx`);
+      toast.success('Exported Attendance Data (.xlsx)');
+    } else if (importType === 'syllabus') {
+      const bcs = store.batchCourses.filter(bc => bc.batch_id === selectedBatchId);
+      const bcsIds = bcs.map(b => b.id);
+      const syllabus = store.batchSyllabus.filter(s => bcsIds.includes(s.batch_course_id));
+      const data = syllabus.map(s => ({
+        'Topic No': s.topic_no,
+        'Topic Name': s.topic_name,
+        'Planned Hours': s.planned_hours,
+        'Status': s.is_completed ? 'Completed' : 'Pending',
+      }));
+      const ws = XLSX.utils.json_to_sheet(data);
+      const wb = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(wb, ws, 'Syllabus');
+      XLSX.writeFile(wb, `${selectedBatch?.code || 'Batch'}_Syllabus_Data.xlsx`);
+      toast.success('Exported Syllabus Data (.xlsx)');
+    }
+  };
+
   // Upload and parse preview
   const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];

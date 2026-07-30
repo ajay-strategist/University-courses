@@ -41,7 +41,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
         if (supaSession?.user && mounted) {
           setSession(supaSession);
           setUser(supaSession.user);
-          const { data } = await supabase.from('profiles').select('*').eq('id', supaSession.user.id).single();
+          const { data } = await supabase.from('uct_profiles').select('*').eq('id', supaSession.user.id).single();
           if (data && mounted) {
             setProfile(data as Profile);
           } else if (mounted) {

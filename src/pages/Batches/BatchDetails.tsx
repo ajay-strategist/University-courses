@@ -418,6 +418,95 @@ export default function BatchDetails() {
   };
 
   // -------------------------------------------------------------------------------------
+  // DATA EXPORT HANDLERS (EXCEL / CSV DOWNLOAD)
+  // -------------------------------------------------------------------------------------
+  const handleExportStudents = () => {
+    if (!batch || students.length === 0) {
+      toast.error('No student data available to export');
+      return;
+    }
+    const data = students.map(s => ({
+      'Register Number': s.register_no,
+      'Name': s.name,
+      'Class': s.class,
+      'Phone': s.phone || '',
+    }));
+    const ws = XLSX.utils.json_to_sheet(data);
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, 'Students Roster');
+    XLSX.writeFile(wb, `${batch.code}_Students_Roster.xlsx`);
+    toast.success('Exported Student Roster (.xlsx)');
+  };
+
+  const handleExportAttendance = () => {
+    if (!batch) return;
+    const courseSessions = store.sessions.filter(s => s.batch_course_id === selectedBatchCourseId);
+    if (students.length === 0) {
+      toast.error('No attendance data available to export');
+      return;
+    }
+    const data = students.map(stu => {
+      const row: any = {
+        'Register Number': stu.register_no,
+        'Name': stu.name,
+        'Class': stu.class,
+      };
+      courseSessions.forEach(sess => {
+        const rec = store.attendance.find(a => a.session_id === sess.id && a.student_id === stu.id);
+        const colHeader = `${sess.session_date} (H${sess.hour_no})`;
+        row[colHeader] = rec ? rec.status.toUpperCase() : 'PRESENT';
+      });
+      return row;
+    });
+    const ws = XLSX.utils.json_to_sheet(data);
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, 'Attendance Register');
+    XLSX.writeFile(wb, `${batch.code}_Attendance_Register.xlsx`);
+    toast.success('Exported Attendance Register (.xlsx)');
+  };
+
+  const handleExportMarks = () => {
+    if (!batch || !currentAssessment) {
+      toast.error('No assessment selected to export');
+      return;
+    }
+    const data = students.map(stu => {
+      const markObj = currentAssessmentMarks.find(m => m.student_id === stu.id);
+      return {
+        'Register Number': stu.register_no,
+        'Name': stu.name,
+        'Assessment': currentAssessment.name,
+        'Mark Obtained': markObj?.mark !== undefined ? markObj.mark : '',
+        'Max Mark': currentAssessment.max_mark,
+      };
+    });
+    const ws = XLSX.utils.json_to_sheet(data);
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, 'Assessment Marks');
+    XLSX.writeFile(wb, `${batch.code}_${currentAssessment.name.replace(/\s+/g, '_')}_Marks.xlsx`);
+    toast.success('Exported Assessment Marks (.xlsx)');
+  };
+
+  const handleExportSyllabus = () => {
+    if (!batch || currentSyllabus.length === 0) {
+      toast.error('No syllabus data available to export');
+      return;
+    }
+    const data = currentSyllabus.map(s => ({
+      'Topic No': s.topic_no,
+      'Topic Name': s.topic_name,
+      'Planned Hours': s.planned_hours,
+      'Completed Date': s.completed_date || 'N/A',
+      'Status': s.is_completed ? 'Completed' : 'Pending',
+    }));
+    const ws = XLSX.utils.json_to_sheet(data);
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, 'Syllabus Tracker');
+    XLSX.writeFile(wb, `${batch.code}_Syllabus_Tracker.xlsx`);
+    toast.success('Exported Batch Syllabus (.xlsx)');
+  };
+
+  // -------------------------------------------------------------------------------------
   // 7.7 SYLLABUS & COVERAGE COMPUTATIONS
   // -------------------------------------------------------------------------------------
   const currentSyllabus = store.batchSyllabus.filter(s => s.batch_course_id === selectedBatchCourseId);
@@ -588,6 +677,9 @@ export default function BatchDetails() {
           <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
             <h2 className="text-lg font-semibold font-heading">Student Roster</h2>
             <div className="flex items-center gap-2">
+              <Button size="sm" variant="outline" onClick={handleExportStudents} className="h-8 text-xs">
+                <Download className="h-3.5 w-3.5 mr-1" /> Export Roster (.xlsx)
+              </Button>
               <label className="cursor-pointer inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-secondary text-secondary-foreground text-xs font-medium hover:bg-secondary/80">
                 <Upload className="h-3.5 w-3.5" /> CSV Import
                 <input type="file" accept=".csv, .xlsx" onChange={handleStudentCSVImport} className="hidden" />
@@ -718,6 +810,9 @@ export default function BatchDetails() {
               >
                 Matrix View
               </Button>
+              <Button size="sm" variant="outline" onClick={handleExportAttendance} className="h-8 text-xs">
+                <Download className="h-3.5 w-3.5 mr-1" /> Export Attendance (.xlsx)
+              </Button>
               <Button size="sm" onClick={handleSaveAttendanceRegister} className="bg-primary text-primary-foreground h-8 text-xs">
                 Save Register
               </Button>
@@ -843,7 +938,10 @@ export default function BatchDetails() {
 
             <div className="flex items-center gap-2">
               <Button size="sm" variant="outline" onClick={handleDownloadMarksTemplate} className="h-8 text-xs">
-                <Download className="h-3.5 w-3.5 mr-1" /> Download .xlsx Template
+                <Download className="h-3.5 w-3.5 mr-1" /> Blank Template (.xlsx)
+              </Button>
+              <Button size="sm" variant="outline" onClick={handleExportMarks} className="h-8 text-xs">
+                <Download className="h-3.5 w-3.5 mr-1" /> Export Marks (.xlsx)
               </Button>
               <label className="cursor-pointer inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-primary text-primary-foreground text-xs font-medium hover:bg-primary-hover">
                 <Upload className="h-3.5 w-3.5" /> Upload & Validate Marks
@@ -968,9 +1066,14 @@ export default function BatchDetails() {
         <div className="space-y-4">
           <div className="flex justify-between items-center">
             <h2 className="text-lg font-semibold font-heading">Batch Course Syllabus Topic List</h2>
-            <Button size="sm" onClick={() => setShowAddTopicModal(true)} className="bg-primary text-primary-foreground">
-              <Plus className="h-3.5 w-3.5 mr-1" /> Add Custom Topic
-            </Button>
+            <div className="flex items-center gap-2">
+              <Button size="sm" variant="outline" onClick={handleExportSyllabus} className="h-8 text-xs">
+                <Download className="h-3.5 w-3.5 mr-1" /> Export Syllabus (.xlsx)
+              </Button>
+              <Button size="sm" onClick={() => setShowAddTopicModal(true)} className="bg-primary text-primary-foreground">
+                <Plus className="h-3.5 w-3.5 mr-1" /> Add Custom Topic
+              </Button>
+            </div>
           </div>
 
           <div className="bg-card rounded-2xl border border-border overflow-hidden shadow-sm">

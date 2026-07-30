@@ -5,7 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { toast } from 'sonner';
 import { 
-  Building2, BookOpen, GraduationCap, Award, Plus, Trash2, Edit2, Upload, FileText 
+  Building2, BookOpen, GraduationCap, Award, Plus, Trash2, Edit2, Upload, FileText, Download 
 } from 'lucide-react';
 import * as XLSX from 'xlsx';
 
@@ -189,6 +189,25 @@ export default function MasterData() {
     reader.readAsBinaryString(file);
   };
 
+  const handleExportDefaultSyllabus = () => {
+    const selectedCourse = courses.find(c => c.id === selectedCourseId);
+    const topics = defaultSyllabus.filter(s => s.course_id === selectedCourseId);
+    if (topics.length === 0) {
+      toast.error('No default syllabus topics to export');
+      return;
+    }
+    const data = topics.map(t => ({
+      'Topic No': t.topic_no,
+      'Topic Name': t.topic_name,
+      'Planned Hours': t.planned_hours,
+    }));
+    const ws = XLSX.utils.json_to_sheet(data);
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, 'Default Syllabus');
+    XLSX.writeFile(wb, `${selectedCourse?.code || 'Course'}_Default_Syllabus.xlsx`);
+    toast.success('Exported Default Syllabus (.xlsx)');
+  };
+
   const selectedCourse = courses.find(c => c.id === selectedCourseId);
   const currentCourseSyllabus = defaultSyllabus.filter(s => s.course_id === selectedCourseId).sort((a, b) => a.topic_no - b.topic_no);
 
@@ -367,6 +386,9 @@ export default function MasterData() {
                 <p className="text-xs text-muted-foreground">Template syllabus copied automatically when adding this course to a batch.</p>
               </div>
               <div className="flex items-center gap-2">
+                <Button size="sm" variant="outline" onClick={handleExportDefaultSyllabus} className="h-8 text-xs">
+                  <Download className="h-3.5 w-3.5 mr-1" /> Export Syllabus (.xlsx)
+                </Button>
                 <label className="cursor-pointer inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-secondary text-secondary-foreground text-xs font-medium hover:bg-secondary/80">
                   <Upload className="h-3.5 w-3.5" /> CSV Import
                   <input type="file" accept=".csv, .xlsx" onChange={handleImportTopics} className="hidden" />
