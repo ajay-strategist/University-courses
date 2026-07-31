@@ -35,6 +35,12 @@ export default function ImportCenter() {
         'Name': stu.name,
         'Mark': '',
       }));
+      if (rows.length === 0) {
+        rows = [
+          { 'Register Number': '2026BBA101', 'Name': 'Charlie Brown', 'Mark': 85 },
+          { 'Register Number': '2026BBA102', 'Name': 'Lucy van Pelt', 'Mark': 92 }
+        ];
+      }
       filename = `${selectedBatch?.code || 'Batch'}_Marks_Template.xlsx`;
     } else if (importType === 'attendance') {
       rows = batchStudents.map(stu => ({
@@ -44,6 +50,12 @@ export default function ImportCenter() {
         '2026-02-01 (H1)': 'P',
         '2026-02-01 (H2)': 'P',
       }));
+      if (rows.length === 0) {
+        rows = [
+          { 'Register No': '2026BBA101', 'Student Name': 'Charlie Brown', 'Class': 'CS-A', '2026-02-01 (H1)': 'P', '2026-02-01 (H2)': 'P' },
+          { 'Register No': '2026BBA102', 'Student Name': 'Lucy van Pelt', 'Class': 'CS-A', '2026-02-01 (H1)': 'A', '2026-02-01 (H2)': 'P' }
+        ];
+      }
       filename = `${selectedBatch?.code || 'Batch'}_Attendance_Template.xlsx`;
     } else if (importType === 'syllabus') {
       rows = [

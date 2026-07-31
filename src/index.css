@@ -6,7 +6,7 @@
 @import "@fontsource/jetbrains-mono/400.css";
 @import "@fontsource/jetbrains-mono/600.css";
 
-@custom-variant dark (&:is(.dark *, .desert-teal *));
+@custom-variant dark (&:is(.dark *));
 
 @theme {
   --color-background: hsl(var(--background));
@@ -28,7 +28,15 @@
   --color-destructive: hsl(var(--destructive));
   --color-destructive-foreground: hsl(var(--destructive-foreground));
   --color-success: hsl(var(--success));
+  --color-success-tint: hsl(var(--success-tint));
+  --color-success-text: hsl(var(--success-text-on-tint));
   --color-warning: hsl(var(--warning));
+  --color-warning-tint: hsl(var(--warning-tint));
+  --color-warning-text: hsl(var(--warning-text-on-tint));
+  --color-danger-tint: hsl(var(--danger-tint));
+  --color-danger-text: hsl(var(--danger-text-on-tint));
+  --color-info-tint: hsl(var(--info-tint));
+  --color-info-text: hsl(var(--info-text-on-tint));
   --color-border: hsl(var(--border));
   --color-input: hsl(var(--input));
   --color-ring: hsl(var(--ring));
@@ -40,45 +48,112 @@
 
   --radius-xl: 0.75rem;
   --radius-2xl: 1rem;
+  --radius-card: 16px;
+  --radius-control: 12px;
+  --radius-input: 10px;
 }
 
 @layer base {
   :root {
-    --background: 197 100% 5%; /* #001219 very dark teal */
-    --foreground: 45 61% 78%; /* #E9D8A6 warm sand/cream */
+    /* Porcelain base light neutral */
+    --background: 150 5% 96%; /* #F4F6F5 */
+    --foreground: 164 14% 17%; /* #26332F text */
+    
+    --surface: 0 0% 100%; /* #FFFFFF */
+    --surface-sunken: 160 11% 93%; /* #EAEFED */
 
-    --surface: 190 100% 12%; /* #00313C deep dark teal for cards */
-    --surface-sunken: 197 100% 3%; /* darker than background */
+    --card: 0 0% 100%;
+    --card-foreground: 170 20% 11%; /* #16211E ink */
 
-    --card: 190 100% 12%;
-    --card-foreground: 45 61% 78%;
+    --popover: 0 0% 100%;
+    --popover-foreground: 170 20% 11%;
 
-    --popover: 190 100% 12%;
-    --popover-foreground: 45 61% 78%;
+    --primary: 171 42% 20%; /* #1C4A43 evergreen-700 */
+    --primary-foreground: 0 0% 100%;
+    --primary-hover: 171 41% 25%; /* #245A52 evergreen-600 */
+    --primary-tint: 165 24% 91%; /* #E3EFEC evergreen-100 */
 
-    --primary: 181 88% 31%; /* #0A9396 primary teal */
-    --primary-foreground: 197 100% 5%; /* dark background for primary text */
-    --primary-hover: 181 88% 25%;
-    --primary-tint: 181 30% 16%;
+    --accent: 39 62% 48%; /* #C8912E brass-500 */
+    --accent-foreground: 170 20% 11%; /* #16211E ink */
 
-    --accent: 30 98% 40%; /* #CA6702 rust orange */
-    --accent-foreground: 197 100% 5%;
+    --secondary: 160 11% 93%; /* #EAEFED sunken */
+    --secondary-foreground: 170 20% 11%;
 
-    --secondary: 190 100% 16%; /* #005F73 deep teal */
-    --secondary-foreground: 45 61% 78%;
+    --muted: 160 11% 93%;
+    --muted-foreground: 164 8% 39%; /* #5C6B66 text-muted */
 
-    --muted: 190 60% 15%;
-    --muted-foreground: 160 42% 70%; /* #94D2BD sage green */
-
-    --destructive: 5 81% 38%; /* #AE2012 crimson */
+    --destructive: 8 51% 50%; /* #C0503F danger */
     --destructive-foreground: 0 0% 100%;
 
-    --success: 160 42% 40%; /* adjusted mint */
-    --warning: 39 100% 47%; /* #EE9B00 amber */
+    --success: 158 50% 37%; /* #2F8F6B success */
+    --success-tint: 150 33% 91%; /* #E1F0E9 */
+    --success-text-on-tint: 155 43% 25%; /* #245A44 */
 
-    --border: 190 80% 18%; /* deep teal borders */
-    --input: 190 80% 18%;
-    --ring: 181 88% 31%;
+    --warning: 39 67% 53%; /* #D9A036 */
+    --warning-tint: 40 71% 90%; /* #F7ECD3 */
+    --warning-text-on-tint: 40 72% 31%; /* #8A6316 */
+
+    --danger-tint: 9 53% 92%; /* #F6E1DD */
+    --danger-text-on-tint: 5 59% 34%; /* #8A3123 */
+
+    --info: 185 81% 29%; /* #0E7C86 */
+    --info-tint: 187 40% 90%; /* #DCEEF0 */
+    --info-text-on-tint: 186 79% 19%; /* #0A5158 */
+
+    --border: 165 11% 85%; /* #D4DEDB border */
+    --input: 165 11% 85%;
+    --ring: 39 62% 48%; /* #C8912E brass-500 */
+  }
+
+  .dark {
+    /* Verdant Dark */
+    --background: 170 34% 8%; /* #0D1A17 canvas */
+    --foreground: 150 14% 92%; /* #E7EEEB ink */
+
+    --surface: 160 33% 11%; /* #12241F surface */
+    --surface-sunken: 165 31% 9%; /* #0F1E1A sunken */
+
+    --card: 160 33% 11%;
+    --card-foreground: 150 14% 92%;
+
+    --popover: 160 33% 11%;
+    --popover-foreground: 150 14% 92%;
+
+    --primary: 171 49% 42%; /* #37A08F primary */
+    --primary-foreground: 170 34% 8%;
+    --primary-hover: 171 49% 38%;
+    --primary-tint: 165 31% 14%;
+
+    --accent: 38 72% 58%; /* #E0A94A accent */
+    --accent-foreground: 170 34% 8%;
+
+    --secondary: 165 31% 9%; /* #0F1E1A sunken */
+    --secondary-foreground: 150 14% 92%;
+
+    --muted: 165 31% 9%;
+    --muted-foreground: 158 11% 60%; /* #8FA39C text-muted */
+
+    --destructive: 8 70% 61%; /* #E06A57 danger */
+    --destructive-foreground: 0 0% 100%;
+
+    --success: 156 43% 48%; /* #46B085 */
+    --success-tint: 156 49% 15%; /* #133829 */
+    --success-text-on-tint: 156 43% 48%;
+
+    --warning: 39 77% 60%; /* #E6B24E */
+    --warning-tint: 38 49% 15%; /* #382A13 */
+    --warning-text-on-tint: 39 77% 60%;
+
+    --danger-tint: 8 47% 16%; /* #3D1B16 */
+    --danger-text-on-tint: 8 70% 61%;
+
+    --info: 185 50% 46%; /* #3BA9B2 */
+    --info-tint: 187 48% 12%; /* #102B2E */
+    --info-text-on-tint: 185 50% 46%;
+
+    --border: 163 26% 18%; /* #223A33 border */
+    --input: 163 26% 18%;
+    --ring: 38 72% 58%; /* #E0A94A accent */
   }
 }
 

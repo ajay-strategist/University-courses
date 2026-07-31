@@ -151,8 +151,15 @@ export default function BatchesGrid() {
             <div
               key={batch.id}
               onClick={() => navigate(`/batches/${batch.id}`)}
-              className="card-meridian relative overflow-hidden cursor-pointer hover:shadow-xl transition-all group border-l-[5px] border-l-accent flex flex-col justify-between"
+              className="card-meridian relative overflow-hidden cursor-pointer hover:shadow-xl transition-all group pl-[5px] flex flex-col justify-between"
             >
+              {/* Left Spine Fill Height Tracking Overall Coverage */}
+              <div className="absolute left-0 top-0 bottom-0 w-[5px] bg-muted/40 z-20 flex flex-col justify-end">
+                <div 
+                  className="bg-accent w-full transition-all duration-500" 
+                  style={{ height: `${coveragePct}%` }}
+                />
+              </div>
               {/* College Campus Banner Image */}
               <div className="relative h-28 w-full overflow-hidden bg-muted">
                 {batch.college?.image_url ? (

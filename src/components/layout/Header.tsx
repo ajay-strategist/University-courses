@@ -54,7 +54,21 @@ export function Header() {
       </div>
       
       <div className="flex items-center gap-3 ml-auto">
-
+        {mounted && (
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
+            className="rounded-full h-9 w-9 text-muted-foreground hover:text-foreground cursor-pointer"
+          >
+            {theme === 'dark' ? (
+              <Sun className="h-4 w-4 text-accent" />
+            ) : (
+              <Moon className="h-4 w-4" />
+            )}
+            <span className="sr-only">Toggle theme</span>
+          </Button>
+        )}
 
         <Button variant="ghost" size="icon" className="relative rounded-full h-9 w-9 text-muted-foreground hover:text-foreground">
           <Bell className="h-4 w-4" />
