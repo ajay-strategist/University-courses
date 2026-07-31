@@ -42,7 +42,7 @@ export default function Users() {
         must_change_password: true,
       };
 
-      store.profiles.push(newUser);
+      await store.saveProfile(newUser);
       setProfiles([...store.profiles]);
       setShowModal(false);
       setForm({ full_name: '', email: '', phone: '', role: 'trainer' });
@@ -58,7 +58,7 @@ export default function Users() {
         role: form.role,
         must_change_password: true,
       };
-      store.profiles.push(newUser);
+      await store.saveProfile(newUser);
       setProfiles([...store.profiles]);
       setShowModal(false);
       setForm({ full_name: '', email: '', phone: '', role: 'trainer' });
@@ -138,20 +138,12 @@ export default function Users() {
                     className="h-8 w-8 text-destructive hover:bg-destructive/10"
                     onClick={async () => {
                       try {
-                        const { error } = await supabase.rpc('admin_delete_user', {
-                          target_user_id: p.id
-                        });
-                        if (error) throw error;
-
-                        store.profiles = store.profiles.filter(u => u.id !== p.id);
+                        await store.deleteProfile(p.id);
                         setProfiles([...store.profiles]);
                         toast.success('User removed');
                       } catch (err: any) {
-                        console.warn('Failed to delete user on Supabase:', err);
-                        // Fallback delete for local demo users
-                        store.profiles = store.profiles.filter(u => u.id !== p.id);
-                        setProfiles([...store.profiles]);
-                        toast.success('User removed locally');
+                        console.warn('Failed to delete user:', err);
+                        toast.error('Failed to delete user');
                       }
                     }}
                   >

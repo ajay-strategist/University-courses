@@ -6,7 +6,7 @@
 @import "@fontsource/jetbrains-mono/400.css";
 @import "@fontsource/jetbrains-mono/600.css";
 
-@custom-variant dark (&:is(.dark *));
+@custom-variant dark (&:is(.dark *, .desert-teal *));
 
 @theme {
   --color-background: hsl(var(--background));
@@ -114,6 +114,44 @@
     --border: 189 28% 16%; /* #1E3236 */
     --input: 189 28% 16%;
     --ring: 174 60% 44%;
+  }
+
+  .desert-teal {
+    --background: 197 100% 5%; /* #001219 very dark teal */
+    --foreground: 45 61% 78%; /* #E9D8A6 warm sand/cream */
+
+    --surface: 190 100% 12%; /* #00313C deep dark teal for cards */
+    --surface-sunken: 197 100% 3%; /* darker than background */
+
+    --card: 190 100% 12%;
+    --card-foreground: 45 61% 78%;
+
+    --popover: 190 100% 12%;
+    --popover-foreground: 45 61% 78%;
+
+    --primary: 181 88% 31%; /* #0A9396 primary teal */
+    --primary-foreground: 197 100% 5%; /* dark background for primary text */
+    --primary-hover: 181 88% 25%;
+    --primary-tint: 181 30% 16%;
+
+    --accent: 30 98% 40%; /* #CA6702 rust orange */
+    --accent-foreground: 197 100% 5%;
+
+    --secondary: 190 100% 16%; /* #005F73 deep teal */
+    --secondary-foreground: 45 61% 78%;
+
+    --muted: 190 60% 15%;
+    --muted-foreground: 160 42% 70%; /* #94D2BD sage green */
+
+    --destructive: 5 81% 38%; /* #AE2012 crimson */
+    --destructive-foreground: 0 0% 100%;
+
+    --success: 160 42% 40%; /* adjusted mint */
+    --warning: 39 100% 47%; /* #EE9B00 amber */
+
+    --border: 190 80% 18%; /* deep teal borders */
+    --input: 190 80% 18%;
+    --ring: 181 88% 31%;
   }
 }
 

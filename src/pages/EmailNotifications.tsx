@@ -34,18 +34,17 @@ University Training Tracker`);
 
   const [logs, setLogs] = useState<NotificationLog[]>([...store.notificationLogs]);
 
-  const handleSaveSmtpConfig = () => {
-    const idx = store.emailConfigs.findIndex(c => c.user_id === smtpConfig.user_id);
-    if (idx >= 0) {
-      store.emailConfigs[idx] = { ...smtpConfig, is_verified: true };
-    } else {
-      store.emailConfigs.push({ ...smtpConfig, is_verified: true });
+  const handleSaveSmtpConfig = async () => {
+    try {
+      await store.saveEmailConfig({ ...smtpConfig, is_verified: true });
+      toast.success('SMTP configuration saved and verified!');
+    } catch (e) {
+      toast.error('Failed to save SMTP configuration');
     }
-    toast.success('SMTP configuration saved and verified!');
   };
 
-  const handleSendTestEmail = () => {
-    store.notificationLogs.unshift({
+  const handleSendTestEmail = async () => {
+    const newLog: NotificationLog = {
       id: `log-test-${Date.now()}`,
       session_date: new Date().toISOString().split('T')[0],
       sender_id: profile?.id,
@@ -53,7 +52,8 @@ University Training Tracker`);
       absentee_count: 0,
       status: 'sent',
       sent_at: new Date().toISOString(),
-    });
+    };
+    await store.saveNotificationLog(newLog);
     setLogs([...store.notificationLogs]);
     toast.success(`Test email successfully delivered to ${smtpConfig.smtp_user} via custom SMTP!`);
   };

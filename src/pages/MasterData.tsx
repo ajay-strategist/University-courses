@@ -139,7 +139,7 @@ export default function MasterData() {
     if (!file || !selectedCourseId) return;
 
     const reader = new FileReader();
-    reader.onload = (event) => {
+    reader.onload = async (event) => {
       try {
         const data = new Uint8Array(event.target?.result as ArrayBuffer);
         const wb = XLSX.read(data, { type: 'array' });
@@ -147,13 +147,12 @@ export default function MasterData() {
         const parsed = XLSX.utils.sheet_to_json<any>(sheet);
         
         let count = 0;
-        parsed.forEach((row: any, idx: number) => {
+        for (const [idx, row] of parsed.entries()) {
           const topic_name = row.topic_name || row['Topic Name'] || row.topic || row.Topic;
           if (topic_name) {
             const topic_no = Number(row.topic_no || row['Topic No'] || (idx + 1));
             const planned_hours = Number(row.planned_hours || row['Planned Hours'] || 2);
-            store.defaultSyllabus.push({
-              id: `sy-imp-${Date.now()}-${idx}`,
+            await store.saveDefaultSyllabusTopic({
               course_id: selectedCourseId,
               topic_no,
               topic_name,
@@ -161,7 +160,7 @@ export default function MasterData() {
             });
             count++;
           }
-        });
+        }
         setDefaultSyllabus([...store.defaultSyllabus]);
         toast.success(`Imported ${count} syllabus topics!`);
       } catch (err) {

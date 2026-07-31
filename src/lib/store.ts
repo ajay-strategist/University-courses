@@ -82,6 +82,15 @@ class DataStore {
 
       const cMarks = localStorage.getItem('uct_assessment_marks');
       if (cMarks) this.assessmentMarks = JSON.parse(cMarks);
+
+      const cProfs = localStorage.getItem('uct_profiles');
+      if (cProfs) this.profiles = JSON.parse(cProfs);
+
+      const cEmailConfigs = localStorage.getItem('uct_user_email_config');
+      if (cEmailConfigs) this.emailConfigs = JSON.parse(cEmailConfigs);
+
+      const cNotificationLogs = localStorage.getItem('uct_notification_logs');
+      if (cNotificationLogs) this.notificationLogs = JSON.parse(cNotificationLogs);
     } catch (e) {
       console.warn('LocalStorage load warning:', e);
     }
@@ -102,6 +111,9 @@ class DataStore {
       localStorage.setItem('uct_attendance', JSON.stringify(this.attendance));
       localStorage.setItem('uct_assessments', JSON.stringify(this.assessments));
       localStorage.setItem('uct_assessment_marks', JSON.stringify(this.assessmentMarks));
+      localStorage.setItem('uct_profiles', JSON.stringify(this.profiles));
+      localStorage.setItem('uct_user_email_config', JSON.stringify(this.emailConfigs));
+      localStorage.setItem('uct_notification_logs', JSON.stringify(this.notificationLogs));
     } catch (e) {
       console.warn('LocalStorage save warning:', e);
     }
@@ -128,6 +140,8 @@ class DataStore {
         { data: atts, error: eAtts },
         { data: asms, error: eAsms },
         { data: marks, error: eMarks },
+        { data: emails, error: eEmails },
+        { data: logs, error: eLogs },
       ] = await Promise.all([
         supabase.from('uct_profiles').select('*'),
         supabase.from('uct_colleges').select('*'),
@@ -143,6 +157,8 @@ class DataStore {
         supabase.from('uct_attendance').select('*'),
         supabase.from('uct_assessments').select('*'),
         supabase.from('uct_assessment_marks').select('*'),
+        supabase.from('uct_user_email_config').select('*'),
+        supabase.from('uct_notification_log').select('*'),
       ]);
 
       if (profs && profs.length > 0) this.profiles = profs as Profile[];
@@ -159,9 +175,11 @@ class DataStore {
       if (atts && atts.length > 0) this.attendance = atts as Attendance[];
       if (asms && asms.length > 0) this.assessments = asms as Assessment[];
       if (marks && marks.length > 0) this.assessmentMarks = marks as AssessmentMark[];
+      if (emails && emails.length > 0) this.emailConfigs = emails as UserEmailConfig[];
+      if (logs && logs.length > 0) this.notificationLogs = logs as NotificationLog[];
 
-      if (eCols || eBts || eStds || eCrses) {
-        console.warn('Supabase fetch returned RLS or table warnings:', { eCols, eBts, eStds, eCrses });
+      if (eCols || eBts || eStds || eCrses || eProfs || eEmails || eLogs) {
+        console.warn('Supabase fetch returned RLS or table warnings:', { eCols, eBts, eStds, eCrses, eProfs, eEmails, eLogs });
       }
 
       this.saveLocalCache();
@@ -681,6 +699,102 @@ class DataStore {
     } catch (e) {
       console.warn('Supabase attendance sync warning:', e);
     }
+  }
+
+  // -------------------------
+  // PROFILES
+  // -------------------------
+  async saveProfile(profile: Profile): Promise<Profile> {
+    const idx = this.profiles.findIndex(p => p.id === profile.id);
+    if (idx >= 0) this.profiles[idx] = profile;
+    else this.profiles.push(profile);
+
+    this.saveLocalCache();
+
+    if (!profile.id.startsWith('usr-')) {
+      try {
+        const { error } = await supabase.from('uct_profiles').upsert(profile);
+        if (error) console.error('Supabase saveProfile error:', error.message);
+      } catch (e) {
+        console.warn('Supabase profile sync warning:', e);
+      }
+    }
+    return profile;
+  }
+
+  async deleteProfile(id: string): Promise<void> {
+    this.profiles = this.profiles.filter(p => p.id !== id);
+    this.saveLocalCache();
+
+    if (!id.startsWith('usr-')) {
+      try {
+        const { error } = await supabase.rpc('admin_delete_user', { target_user_id: id });
+        if (error) console.error('Supabase deleteProfile error:', error.message);
+      } catch (e) {
+        console.warn('Supabase profile delete warning:', e);
+      }
+    }
+  }
+
+  // -------------------------
+  // EMAIL CONFIGURATION
+  // -------------------------
+  async saveEmailConfig(config: UserEmailConfig): Promise<UserEmailConfig> {
+    const idx = this.emailConfigs.findIndex(c => c.user_id === config.user_id);
+    if (idx >= 0) this.emailConfigs[idx] = config;
+    else this.emailConfigs.push(config);
+
+    this.saveLocalCache();
+
+    if (!config.user_id.startsWith('usr-')) {
+      try {
+        const { error } = await supabase.from('uct_user_email_config').upsert(config);
+        if (error) console.error('Supabase saveEmailConfig error:', error.message);
+      } catch (e) {
+        console.warn('Supabase email config sync warning:', e);
+      }
+    }
+    return config;
+  }
+
+  // -------------------------
+  // NOTIFICATION LOGS
+  // -------------------------
+  async saveNotificationLog(log: NotificationLog): Promise<NotificationLog> {
+    const idx = this.notificationLogs.findIndex(l => l.id === log.id);
+    if (idx >= 0) this.notificationLogs[idx] = log;
+    else this.notificationLogs.unshift(log);
+
+    this.saveLocalCache();
+
+    if (log.id && !log.id.startsWith('log-test-') && !log.id.startsWith('log-')) {
+      try {
+        const { error } = await supabase.from('uct_notification_log').upsert(log);
+        if (error) console.error('Supabase saveNotificationLog error:', error.message);
+      } catch (e) {
+        console.warn('Supabase notification log sync warning:', e);
+      }
+    }
+    return log;
+  }
+
+  // -------------------------
+  // ASSESSMENTS
+  // -------------------------
+  async saveAssessment(assessment: Assessment): Promise<Assessment> {
+    const idx = this.assessments.findIndex(a => a.id === assessment.id);
+    if (idx >= 0) this.assessments[idx] = assessment;
+    else this.assessments.push(assessment);
+
+    this.saveLocalCache();
+
+    try {
+      const { error } = await supabase.from('uct_assessments').upsert(assessment);
+      if (error) console.error('Supabase saveAssessment error:', error.message);
+    } catch (e) {
+      console.warn('Supabase assessment sync warning:', e);
+    }
+    return assessment;
   }
 }
 

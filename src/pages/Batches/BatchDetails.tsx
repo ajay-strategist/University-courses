@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { store } from '@/lib/store';
+import { store, generateUUID } from '@/lib/store';
 import { useAuth } from '@/contexts/AuthContext';
 import type { 
   Student, BatchCourse, BatchCourseSyllabus, Session, Attendance, 
@@ -126,7 +126,7 @@ export default function BatchDetails() {
     setShowEditStudentModal(true);
   };
 
-  const handleSaveEditStudent = () => {
+  const handleSaveEditStudent = async () => {
     if (!editingStudent) return;
     if (!studentEditForm.register_no || !studentEditForm.name || !studentEditForm.class) {
       toast.error('Register number, name, and class are required');
@@ -134,13 +134,13 @@ export default function BatchDetails() {
     }
     const idx = store.students.findIndex(s => s.id === editingStudent.id);
     if (idx !== -1) {
-      store.students[idx] = {
+      await store.saveStudent({
         ...store.students[idx],
         register_no: studentEditForm.register_no,
         name: studentEditForm.name,
         class: studentEditForm.class,
         phone: studentEditForm.phone,
-      };
+      });
       setStudents(store.students.filter(s => s.batch_id === id));
       setShowEditStudentModal(false);
       toast.success('Student details updated successfully!');
@@ -195,7 +195,7 @@ export default function BatchDetails() {
 
     const existingMark = store.assessmentMarks.find(m => m.assessment_id === curAsm.id && m.student_id === studentId);
     await store.saveAssessmentMark({
-      id: existingMark?.id || `mk-${Date.now()}-${studentId}`,
+      id: existingMark?.id || generateUUID(),
       assessment_id: curAsm.id,
       student_id: studentId,
       mark: num,
@@ -365,7 +365,7 @@ export default function BatchDetails() {
     const isNew = !session;
     if (isNew) {
       session = {
-        id: `ses-${Date.now()}`,
+        id: generateUUID(),
         batch_course_id: selectedBatchCourseId,
         session_date: attendanceDate,
         hour_no: attendanceHour,
@@ -380,7 +380,7 @@ export default function BatchDetails() {
       const status = registerStatusMap[stu.id] || 'present';
       const existing = store.attendance.find(a => a.session_id === savedSession.id && a.student_id === stu.id);
       attendanceToSave.push({
-        id: existing?.id || `att-${Date.now()}-${stu.id}`,
+        id: existing?.id || generateUUID(),
         session_id: savedSession.id,
         student_id: stu.id,
         status,
@@ -533,10 +533,10 @@ export default function BatchDetails() {
     setShowAbsenteeModal(true);
   };
 
-  const handleConfirmSendAbsenteeEmail = () => {
+  const handleConfirmSendAbsenteeEmail = async () => {
     if (!absenteePreview) return;
-    store.notificationLogs.push({
-      id: `log-${Date.now()}`,
+    await store.saveNotificationLog({
+      id: generateUUID(),
       batch_course_id: selectedBatchCourseId,
       session_date: absenteePreview.session_date,
       sender_id: store.profiles[0].id,
@@ -626,7 +626,7 @@ export default function BatchDetails() {
     marksImportPreview.validRows.forEach(row => {
       const existing = store.assessmentMarks.find(m => m.assessment_id === currentAssessment.id && m.student_id === row.student_id);
       marksToSave.push({
-        id: existing?.id || `mk-${Date.now()}-${row.student_id}`,
+        id: existing?.id || generateUUID(),
         assessment_id: currentAssessment.id,
         student_id: row.student_id,
         mark: row.mark,
@@ -1725,16 +1725,16 @@ export default function BatchDetails() {
             </div>
             <div className="flex justify-end gap-2 pt-2">
               <Button variant="outline" onClick={() => setShowAddAssessmentModal(false)}>Cancel</Button>
-              <Button onClick={() => {
+              <Button onClick={async () => {
                 if (!assessmentForm.name) return;
                 const newAsm: Assessment = {
-                  id: `asm-${Date.now()}`,
+                  id: generateUUID(),
                   batch_course_id: selectedBatchCourseId,
                   name: assessmentForm.name,
                   type_id: assessmentForm.type_id,
                   max_mark: assessmentForm.max_mark,
                 };
-                store.assessments.push(newAsm);
+                await store.saveAssessment(newAsm);
                 setSelectedAssessmentId(newAsm.id);
                 setShowAddAssessmentModal(false);
                 toast.success('Assessment created!');
