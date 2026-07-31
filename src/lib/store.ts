@@ -153,6 +153,8 @@ class DataStore {
         { data: marks, error: eMarks },
         { data: emails, error: eEmails },
         { data: logs, error: eLogs },
+        { data: runs, error: eRuns },
+        { data: mappings, error: eMappings },
       ] = await Promise.all([
         supabase.from('uct_profiles').select('*'),
         supabase.from('uct_colleges').select('*'),
@@ -174,27 +176,35 @@ class DataStore {
         supabase.from('uct_migration_mappings').select('*').order('created_at', { ascending: false }),
       ]);
 
-      if (profs && profs.length > 0) this.profiles = profs as Profile[];
-      if (cols && cols.length > 0) this.colleges = cols as College[];
-      if (progs && progs.length > 0) this.programs = progs as Program[];
-      if (crses && crses.length > 0) this.courses = crses as Course[];
-      if (defSyl && defSyl.length > 0) this.defaultSyllabus = defSyl as CourseDefaultSyllabus[];
-      if (assTypes && assTypes.length > 0) this.assessmentTypes = assTypes as AssessmentType[];
-      if (bts && bts.length > 0) this.batches = bts as Batch[];
-      if (stds && stds.length > 0) this.students = stds as Student[];
-      if (bCrs && bCrs.length > 0) this.batchCourses = bCrs as BatchCourse[];
-      if (bSyl && bSyl.length > 0) this.batchSyllabus = bSyl as BatchCourseSyllabus[];
-      if (sess && sess.length > 0) this.sessions = sess as Session[];
-      if (atts && atts.length > 0) this.attendance = atts as Attendance[];
-      if (asms && asms.length > 0) this.assessments = asms as Assessment[];
-      if (marks && marks.length > 0) this.assessmentMarks = marks as AssessmentMark[];
-      if (emails && emails.length > 0) this.emailConfigs = emails as UserEmailConfig[];
-      if (logs && logs.length > 0) this.notificationLogs = logs as NotificationLog[];
-      
-      const { data: runs } = await supabase.from('uct_migration_runs').select('*').order('created_at', { ascending: false });
-      const { data: maps } = await supabase.from('uct_migration_mappings').select('*').order('created_at', { ascending: false });
-      if (runs && runs.length > 0) this.migrationRuns = runs as MigrationRun[];
-      if (maps && maps.length > 0) this.migrationMappings = maps as MigrationMapping[];
+      const mergeArrays = <T extends { id?: string; user_id?: string }>(local: T[], remote: T[]): T[] => {
+        const merged = [...remote];
+        local.forEach(l => {
+          const lKey = l.id || l.user_id;
+          if (lKey && !merged.some(r => (r.id || r.user_id) === lKey)) {
+            merged.push(l);
+          }
+        });
+        return merged;
+      };
+
+      if (profs && profs.length > 0) this.profiles = mergeArrays(this.profiles, profs as Profile[]);
+      if (cols && cols.length > 0) this.colleges = mergeArrays(this.colleges, cols as College[]);
+      if (progs && progs.length > 0) this.programs = mergeArrays(this.programs, progs as Program[]);
+      if (crses && crses.length > 0) this.courses = mergeArrays(this.courses, crses as Course[]);
+      if (defSyl && defSyl.length > 0) this.defaultSyllabus = mergeArrays(this.defaultSyllabus, defSyl as CourseDefaultSyllabus[]);
+      if (assTypes && assTypes.length > 0) this.assessmentTypes = mergeArrays(this.assessmentTypes, assTypes as AssessmentType[]);
+      if (bts && bts.length > 0) this.batches = mergeArrays(this.batches, bts as Batch[]);
+      if (stds && stds.length > 0) this.students = mergeArrays(this.students, stds as Student[]);
+      if (bCrs && bCrs.length > 0) this.batchCourses = mergeArrays(this.batchCourses, bCrs as BatchCourse[]);
+      if (bSyl && bSyl.length > 0) this.batchSyllabus = mergeArrays(this.batchSyllabus, bSyl as BatchCourseSyllabus[]);
+      if (sess && sess.length > 0) this.sessions = mergeArrays(this.sessions, sess as Session[]);
+      if (atts && atts.length > 0) this.attendance = mergeArrays(this.attendance, atts as Attendance[]);
+      if (asms && asms.length > 0) this.assessments = mergeArrays(this.assessments, asms as Assessment[]);
+      if (marks && marks.length > 0) this.assessmentMarks = mergeArrays(this.assessmentMarks, marks as AssessmentMark[]);
+      if (emails && emails.length > 0) this.emailConfigs = mergeArrays(this.emailConfigs, emails as UserEmailConfig[]);
+      if (logs && logs.length > 0) this.notificationLogs = mergeArrays(this.notificationLogs, logs as NotificationLog[]);
+      if (runs && runs.length > 0) this.migrationRuns = mergeArrays(this.migrationRuns, runs as MigrationRun[]);
+      if (mappings && mappings.length > 0) this.migrationMappings = mergeArrays(this.migrationMappings, mappings as MigrationMapping[]);
 
       if (eCols || eBts || eStds || eCrses || eProfs || eEmails || eLogs) {
         console.warn('Supabase fetch returned RLS or table warnings:', { eCols, eBts, eStds, eCrses, eProfs, eEmails, eLogs });

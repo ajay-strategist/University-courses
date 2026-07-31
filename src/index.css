@@ -44,41 +44,41 @@
 
 @layer base {
   :root {
-    --background: 156 12% 91%; /* #E4EBE8 soft mint/sage grey */
-    --foreground: 182 23% 14%; /* #1B2A2B dark slate green */
+    --background: 197 100% 5%; /* #001219 very dark teal */
+    --foreground: 45 61% 78%; /* #E9D8A6 warm sand/cream */
 
-    --surface: 0 0% 100%; /* #FFFFFF */
-    --surface-sunken: 158 10% 88%; /* #DDE4E1 */
+    --surface: 190 100% 12%; /* #00313C deep dark teal for cards */
+    --surface-sunken: 197 100% 3%; /* darker than background */
 
-    --card: 0 0% 100%;
-    --card-foreground: 182 23% 14%;
+    --card: 190 100% 12%;
+    --card-foreground: 45 61% 78%;
 
-    --popover: 0 0% 100%;
-    --popover-foreground: 182 23% 14%;
+    --popover: 190 100% 12%;
+    --popover-foreground: 45 61% 78%;
 
-    --primary: 182 21% 22%; /* #2D4546 dark slate green */
-    --primary-foreground: 0 0% 100%;
-    --primary-hover: 182 22% 29%; /* #395859 */
-    --primary-tint: 160 12% 92%; /* #E8EEEC */
+    --primary: 181 88% 31%; /* #0A9396 primary teal */
+    --primary-foreground: 197 100% 5%; /* dark background for primary text */
+    --primary-hover: 181 88% 25%;
+    --primary-tint: 181 30% 16%;
 
-    --accent: 41 64% 47%; /* #C5942B rich gold */
-    --accent-foreground: 0 0% 100%;
+    --accent: 30 98% 40%; /* #CA6702 rust orange */
+    --accent-foreground: 197 100% 5%;
 
-    --secondary: 160 12% 92%;
-    --secondary-foreground: 182 21% 22%;
+    --secondary: 190 100% 16%; /* #005F73 deep teal */
+    --secondary-foreground: 45 61% 78%;
 
-    --muted: 158 10% 88%;
-    --muted-foreground: 183 8% 50%; /* #758788 */
+    --muted: 190 60% 15%;
+    --muted-foreground: 160 42% 70%; /* #94D2BD sage green */
 
-    --destructive: 0 61% 48%; /* #C53030 */
+    --destructive: 5 81% 38%; /* #AE2012 crimson */
     --destructive-foreground: 0 0% 100%;
 
-    --success: 150 48% 35%; /* #2F855A */
-    --warning: 36 71% 42%; /* #B7791F */
+    --success: 160 42% 40%; /* adjusted mint */
+    --warning: 39 100% 47%; /* #EE9B00 amber */
 
-    --border: 162 12% 85%; /* #D2DFDB */
-    --input: 162 12% 85%;
-    --ring: 41 64% 47%;
+    --border: 190 80% 18%; /* deep teal borders */
+    --input: 190 80% 18%;
+    --ring: 181 88% 31%;
   }
 }
 

@@ -84,14 +84,14 @@ export function Sidebar() {
   };
 
   return (
-    <div className="flex h-full w-[280px] flex-col border-r border-[#243738] bg-[#2D4546] text-[#E3EAE7] shadow-sm">
+    <div className="flex h-full w-[280px] flex-col border-r border-border bg-card text-card-foreground shadow-sm">
       {/* Brand Header */}
-      <div className="flex h-16 items-center px-6 border-b border-[#243738] bg-[#243738]/50">
+      <div className="flex h-16 items-center px-6 border-b border-border bg-background/50">
         <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-accent text-accent-foreground shadow-sm mr-3">
           <GraduationCap className="h-5 w-5" />
         </div>
         <div className="flex flex-col">
-          <span className="font-heading text-base font-bold tracking-tight text-white leading-tight">
+          <span className="font-heading text-base font-bold tracking-tight text-foreground leading-tight">
             Training Tracker
           </span>
           <span className="text-[11px] text-accent font-mono font-bold uppercase tracking-wider">
@@ -101,7 +101,7 @@ export function Sidebar() {
       </div>
       
       {/* Role Switcher Banner (for testing & demonstration) */}
-      <div className="p-3 mx-3 mt-3 rounded-xl bg-white/5 border border-white/10 text-xs">
+      <div className="p-3 mx-3 mt-3 rounded-xl bg-muted/30 border border-border text-xs">
         <div className="flex items-center justify-between mb-1.5 font-semibold text-accent">
           <span className="flex items-center gap-1">
             <Sparkles className="h-3.5 w-3.5" /> Active Role Simulator
@@ -110,7 +110,7 @@ export function Sidebar() {
         <select 
           value={profile?.role || 'admin'} 
           onChange={(e) => setRole(e.target.value as UserRole)}
-          className="w-full bg-[#243738] border border-white/15 rounded-lg px-2 py-1 text-xs font-medium text-white focus:outline-none focus:ring-1 focus:ring-accent"
+          className="w-full bg-background border border-border rounded-lg px-2 py-1 text-xs font-medium text-foreground focus:outline-none focus:ring-1 focus:ring-accent"
         >
           <option value="admin">Admin (Full Access)</option>
           <option value="trainer">Trainer (Assigned Courses & Marks)</option>
@@ -121,7 +121,7 @@ export function Sidebar() {
 
       {/* Navigation Menu */}
       <div className="flex-1 py-4 overflow-y-auto px-3">
-        <div className="mb-2 px-3 text-[11px] font-semibold uppercase tracking-wider text-[#9fb0b1]/80 font-mono">
+        <div className="mb-2 px-3 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground/80 font-mono">
           Main Navigation
         </div>
         <nav className="grid gap-1">
@@ -134,15 +134,15 @@ export function Sidebar() {
                 className={cn(
                   "group flex items-center justify-between rounded-xl px-3 py-2.5 text-sm font-medium transition-all duration-200",
                   isActive 
-                    ? "bg-white text-[#2D4546] font-bold shadow-md" 
-                    : "text-[#9fb0b1] hover:bg-white/5 hover:text-white"
+                    ? "bg-accent text-accent-foreground font-bold shadow-md" 
+                    : "text-muted-foreground hover:bg-muted/30 hover:text-foreground"
                 )}
               >
                 <div className="flex items-center gap-3">
-                  <item.icon className={cn("h-4 w-4 transition-colors", isActive ? "text-accent" : "text-accent group-hover:text-white")} />
+                  <item.icon className={cn("h-4 w-4 transition-colors", isActive ? "text-accent-foreground" : "text-accent group-hover:text-foreground")} />
                   {item.name}
                 </div>
-                {isActive && <ChevronRight className="h-4 w-4 text-[#2D4546]/70" />}
+                {isActive && <ChevronRight className="h-4 w-4 text-accent-foreground/70" />}
               </Link>
             );
           })}
@@ -150,15 +150,15 @@ export function Sidebar() {
       </div>
 
       {/* User Profile Footer */}
-      <div className="border-t border-[#243738] p-4 bg-[#243738]/30">
-        <div className="flex items-center gap-3 px-2 py-2 mb-2 rounded-xl bg-white/5 border border-white/10 shadow-sm">
+      <div className="border-t border-border p-4 bg-muted/20">
+        <div className="flex items-center gap-3 px-2 py-2 mb-2 rounded-xl bg-muted/30 border border-border shadow-sm">
           <Avatar className="h-9 w-9 border border-accent/30">
-            <AvatarFallback className="bg-white/10 text-white font-bold">
+            <AvatarFallback className="bg-primary text-primary-foreground font-bold">
               {getInitials(profile?.full_name || 'User')}
             </AvatarFallback>
           </Avatar>
           <div className="flex flex-col flex-1 overflow-hidden">
-            <span className="text-sm font-semibold truncate leading-tight text-white">{profile?.full_name || 'User'}</span>
+            <span className="text-sm font-semibold truncate leading-tight text-foreground">{profile?.full_name || 'User'}</span>
             <span className="text-xs text-accent truncate flex items-center gap-1 mt-0.5 font-mono font-bold">
               <Shield className="h-3 w-3" />
               {profile?.role ? roleLabels[profile.role] : 'Guest'}
