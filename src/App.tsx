@@ -8,6 +8,7 @@ import Users from './pages/Users';
 import Batches from './pages/Batches';
 import BatchDetails from './pages/Batches/BatchDetails';
 import ImportCenter from './pages/ImportCenter';
+import BulkUpload from './pages/BulkUpload';
 import EmailNotifications from './pages/EmailNotifications';
 import Reports from './pages/Reports';
 import { AppLayout } from './components/layout/AppLayout';
@@ -50,6 +51,7 @@ function App() {
             <Route path="batches" element={<Batches />} />
             <Route path="batches/:id" element={<BatchDetails />} />
             <Route path="import-center" element={<ImportCenter />} />
+            <Route path="import-center/bulk" element={<BulkUpload />} />
             <Route path="notifications" element={<EmailNotifications />} />
             <Route path="reports" element={<Reports />} />
           </Route>

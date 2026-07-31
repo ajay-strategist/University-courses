@@ -54,33 +54,7 @@ export function Header() {
       </div>
       
       <div className="flex items-center gap-3 ml-auto">
-        {mounted && (
-          <DropdownMenu>
-            <DropdownMenuTrigger className="relative flex h-9 w-9 items-center justify-center rounded-full text-muted-foreground hover:text-foreground hover:bg-muted/50 cursor-pointer focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-primary/50">
-              {theme === 'dark' ? (
-                <Moon className="h-4 w-4" />
-              ) : theme === 'desert-teal' ? (
-                <Palette className="h-4 w-4 text-primary" />
-              ) : (
-                <Sun className="h-4 w-4" />
-              )}
-              <span className="sr-only">Toggle Theme</span>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent className="w-40" align="end">
-              <DropdownMenuLabel className="text-xs font-mono font-medium text-muted-foreground">Select Theme</DropdownMenuLabel>
-              <DropdownMenuSeparator />
-              <DropdownMenuItem onClick={() => setTheme('light')} className={`cursor-pointer ${theme === 'light' ? 'font-bold text-primary bg-muted/40' : ''}`}>
-                <Sun className="h-4 w-4 mr-2" /> Light Theme
-              </DropdownMenuItem>
-              <DropdownMenuItem onClick={() => setTheme('dark')} className={`cursor-pointer ${theme === 'dark' ? 'font-bold text-primary bg-muted/40' : ''}`}>
-                <Moon className="h-4 w-4 mr-2" /> Dark Theme
-              </DropdownMenuItem>
-              <DropdownMenuItem onClick={() => setTheme('desert-teal')} className={`cursor-pointer ${theme === 'desert-teal' ? 'font-bold text-primary bg-muted/40' : ''}`}>
-                <Palette className="h-4 w-4 mr-2 text-primary" /> Desert Teal
-              </DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
-        )}
+
 
         <Button variant="ghost" size="icon" className="relative rounded-full h-9 w-9 text-muted-foreground hover:text-foreground">
           <Bell className="h-4 w-4" />

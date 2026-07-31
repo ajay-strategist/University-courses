@@ -180,3 +180,29 @@ export interface AbsenteePreview {
     hours_absent: number[];
   }[];
 }
+
+export interface MigrationRunSummary {
+  [sheetName: string]: {
+    new: number;
+    updated: number;
+    errored: number;
+  };
+}
+
+export interface MigrationRun {
+  id: string;
+  uploaded_by?: string;
+  file_path: string;
+  mode: 'master' | 'mapped';
+  status: 'dry_run' | 'committed' | 'failed';
+  summary: MigrationRunSummary;
+  created_at?: string;
+}
+
+export interface MigrationMapping {
+  id: string;
+  name: string;
+  owner_id: string;
+  mapping: any;
+  created_at?: string;
+}

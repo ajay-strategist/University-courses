@@ -677,3 +677,32 @@ $$;
 GRANT EXECUTE ON FUNCTION public.admin_create_user(TEXT, TEXT, TEXT, public.uct_user_role) TO authenticated;
 GRANT EXECUTE ON FUNCTION public.admin_delete_user(UUID) TO authenticated;
 GRANT EXECUTE ON FUNCTION public.reset_user_password(UUID) TO authenticated;
+
+-- -------------------------------------------------------------------------------------
+-- 13. MIGRATION RUNS & COLUMN MAPPINGS
+-- -------------------------------------------------------------------------------------
+
+CREATE TABLE public.uct_migration_runs (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    uploaded_by UUID REFERENCES public.uct_profiles(id) ON DELETE SET NULL,
+    file_path TEXT NOT NULL,
+    mode TEXT NOT NULL CHECK (mode IN ('master', 'mapped')),
+    status TEXT NOT NULL CHECK (status IN ('dry_run', 'committed', 'failed')),
+    summary JSONB NOT NULL,
+    created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+CREATE TABLE public.uct_migration_mappings (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    name TEXT NOT NULL,
+    owner_id UUID REFERENCES public.uct_profiles(id) ON DELETE CASCADE,
+    mapping JSONB NOT NULL,
+    created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- Disable RLS
+ALTER TABLE public.uct_migration_runs DISABLE ROW LEVEL SECURITY;
+ALTER TABLE public.uct_migration_mappings DISABLE ROW LEVEL SECURITY;
+
+GRANT ALL ON public.uct_migration_runs TO anon, authenticated, service_role;
+GRANT ALL ON public.uct_migration_mappings TO anon, authenticated, service_role;

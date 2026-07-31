@@ -4,8 +4,10 @@ import { Button } from '@/components/ui/button';
 import { toast } from 'sonner';
 import { Download, Upload, FileSpreadsheet, CheckCircle2, AlertTriangle, ArrowRight } from 'lucide-react';
 import * as XLSX from 'xlsx';
+import { useNavigate } from 'react-router-dom';
 
 export default function ImportCenter() {
+  const navigate = useNavigate();
   const [importType, setImportType] = useState<'students' | 'attendance' | 'marks' | 'syllabus'>('students');
   const [selectedBatchId, setSelectedBatchId] = useState<string>(store.batches[0]?.id || '');
   const [previewData, setPreviewData] = useState<{
@@ -225,6 +227,23 @@ export default function ImportCenter() {
         <h1 className="text-2xl font-bold font-heading text-foreground">Import Center</h1>
         <p className="text-sm text-muted-foreground">Unified hub for downloading pre-filled templates and running validate-before-commit data imports.</p>
       </div>
+
+      {/* Bulk Upload Banner for Admin users */}
+      {store.profiles.find(p => p.email === store.profiles[0]?.email)?.role === 'admin' && (
+        <div className="bg-primary/5 border border-primary/20 rounded-xl p-5 flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
+          <div className="space-y-1">
+            <h4 className="font-heading font-bold text-base text-foreground flex items-center gap-2">
+              <FileSpreadsheet className="h-5 w-5 text-accent" /> Bulk Data Migration
+            </h4>
+            <p className="text-xs text-muted-foreground max-w-2xl">
+              Are you setting up a new semester or importing historical sheets? Use the Bulk Data Upload system to upload all colleges, programs, users, courses, batches, and records via a single workbook.
+            </p>
+          </div>
+          <Button onClick={() => navigate('/import-center/bulk')} className="text-xs shrink-0 self-stretch md:self-auto bg-accent hover:bg-accent/90 text-accent-foreground font-semibold">
+            Go to Bulk Upload <ArrowRight className="h-3.5 w-3.5 ml-2" />
+          </Button>
+        </div>
+      )}
 
       {/* Target Selection Card */}
       <div className="card-meridian p-6 space-y-4">

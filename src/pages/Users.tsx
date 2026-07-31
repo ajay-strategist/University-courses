@@ -4,10 +4,12 @@ import type { Profile, UserRole } from '@/types';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { toast } from 'sonner';
-import { Shield, Plus, Trash2, Mail, Phone, UserCheck, KeyRound } from 'lucide-react';
+import { Shield, Plus, Trash2, Mail, Phone, UserCheck, KeyRound, FileSpreadsheet } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
+import { useNavigate } from 'react-router-dom';
 
 export default function Users() {
+  const navigate = useNavigate();
   const [profiles, setProfiles] = useState<Profile[]>([...store.profiles]);
   const [showModal, setShowModal] = useState(false);
   const [form, setForm] = useState<{ full_name: string; email: string; phone: string; role: UserRole }>({
@@ -81,9 +83,14 @@ export default function Users() {
           <h1 className="text-2xl font-bold font-heading text-foreground">Users & Role Administration</h1>
           <p className="text-sm text-muted-foreground">Manage user accounts and assign permissions for Admins, Trainers, Student Coordinators, and College Coordinators.</p>
         </div>
-        <Button onClick={() => setShowModal(true)} className="bg-primary text-primary-foreground">
-          <Plus className="h-4 w-4 mr-2" /> Add User Account
-        </Button>
+        <div className="flex flex-wrap gap-3">
+          <Button onClick={() => navigate('/import-center/bulk')} variant="outline" className="text-xs">
+            <FileSpreadsheet className="h-4 w-4 mr-2 text-primary" /> Bulk Data Migration
+          </Button>
+          <Button onClick={() => setShowModal(true)} className="bg-primary text-primary-foreground">
+            <Plus className="h-4 w-4 mr-2" /> Add User Account
+          </Button>
+        </div>
       </div>
 
       {/* Users Table */}
