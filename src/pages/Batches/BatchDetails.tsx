@@ -26,7 +26,7 @@ export default function BatchDetails() {
   const isStudentCoordinator = profile?.role === 'student_coordinator';
 
   const [activeTab, setActiveTab] = useState<
-    'students' | 'courses' | 'attendance' | 'marks' | 'assessment_types' | 'syllabus' | 'coverage'
+    'students' | 'courses' | 'attendance' | 'marks' | 'assessment_types' | 'syllabus' | 'coverage' | 'trainer_log'
   >(isStudentCoordinator ? 'attendance' : 'students');
 
   // Local reactive states for this batch
@@ -50,12 +50,22 @@ export default function BatchDetails() {
   // Syllabus Topic Editing State
   const [editingTopicId, setEditingTopicId] = useState<string | null>(null);
   const [topicEditForm, setTopicEditForm] = useState<{
-    topic_no: number; topic_name: string; planned_hours: string; trainer_duration: string;
-  }>({ topic_no: 1, topic_name: '', planned_hours: '', trainer_duration: '' });
+    topic_no: number; topic_name: string; planned_hours: string;
+  }>({ topic_no: 1, topic_name: '', planned_hours: '' });
   const [newTopicForm, setNewTopicForm] = useState<{
-    topic_no: number; topic_name: string; planned_hours: string; trainer_duration: string;
-  }>({ topic_no: 1, topic_name: '', planned_hours: '', trainer_duration: '' });
+    topic_no: number; topic_name: string; planned_hours: string;
+  }>({ topic_no: 1, topic_name: '', planned_hours: '' });
 
+  // Trainer Log Tab State
+  const today = new Date().toISOString().split('T')[0];
+  const [trainerLogForm, setTrainerLogForm] = useState({
+    log_date: today,
+    trainer_id: '',
+    start_time: '',
+    end_time: '',
+    notes: '',
+  });
+  const [trainerLogTopics, setTrainerLogTopics] = useState<string[]>([]); // selected topic IDs
 
   // Student Form Inputs
   const [studentForm, setStudentForm] = useState({ register_no: '', name: '', class: 'Div A', phone: '' });
@@ -1010,9 +1020,18 @@ export default function BatchDetails() {
             >
               <CheckCircle2 className="h-3.5 w-3.5" /> 7.7 Course Coverage ({coveragePct}%)
             </button>
+            <button
+              onClick={() => setActiveTab('trainer_log')}
+              className={`flex items-center gap-2 px-4 py-2 text-xs font-semibold rounded-xl transition-all whitespace-nowrap ${
+                activeTab === 'trainer_log' ? 'bg-primary text-primary-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground'
+              }`}
+            >
+              <Clock className="h-3.5 w-3.5" /> 7.8 Trainer Log
+            </button>
           </>
         )}
       </div>
+
 
       {/* TAB 7.1: STUDENTS */}
       {activeTab === 'students' && (
@@ -1611,7 +1630,7 @@ export default function BatchDetails() {
               </Button>
               <Button size="sm" onClick={() => {
                 const nextNo = currentSyllabus.length > 0 ? Math.max(...currentSyllabus.map(s => s.topic_no)) + 1 : 1;
-                setNewTopicForm({ topic_no: nextNo, topic_name: '', planned_hours: '', trainer_duration: '' });
+                setNewTopicForm({ topic_no: nextNo, topic_name: '', planned_hours: '' });
                 setShowAddTopicModal(true);
               }} className="bg-primary text-primary-foreground">
                 <Plus className="h-3.5 w-3.5 mr-1" /> Add Custom Topic
@@ -1626,7 +1645,6 @@ export default function BatchDetails() {
                   <th className="p-3 w-14 text-center">#</th>
                   <th className="p-3">Topic Title</th>
                   <th className="p-3 text-center w-28">Planned Hrs</th>
-                  <th className="p-3 text-center w-32">Trainer Duration</th>
                   <th className="p-3 text-center w-28">Status</th>
                   <th className="p-3 text-center w-24">Actions</th>
                 </tr>
@@ -1634,7 +1652,7 @@ export default function BatchDetails() {
               <tbody className="divide-y divide-border">
                 {currentSyllabus.length === 0 && (
                   <tr>
-                    <td colSpan={6} className="p-6 text-center text-muted-foreground text-xs font-mono">
+                    <td colSpan={5} className="p-6 text-center text-muted-foreground text-xs font-mono">
                       No topics found. Use "Sync from Default Syllabus" or "Add Custom Topic".
                     </td>
                   </tr>
@@ -1674,17 +1692,6 @@ export default function BatchDetails() {
                           />
                         ) : (topic.planned_hours ? `${topic.planned_hours} hrs` : '')}
                       </td>
-                      <td className="p-2 text-center font-mono text-xs">
-                        {isEditing ? (
-                          <Input
-                            type="number"
-                            value={topicEditForm.trainer_duration}
-                            onChange={e => setTopicEditForm({ ...topicEditForm, trainer_duration: e.target.value })}
-                            className="h-7 w-24 text-center text-xs font-mono px-1"
-                            placeholder="mins/hrs"
-                          />
-                        ) : (topic.trainer_duration != null && topic.trainer_duration !== 0 ? `${topic.trainer_duration}` : <span className="text-muted-foreground/40">—</span>)}
-                      </td>
                       <td className="p-2 text-center">
                         <span className={`font-mono text-xs font-bold px-2 py-0.5 rounded-full ${
                           topic.is_completed ? 'bg-success/15 text-success' : 'bg-muted text-muted-foreground'
@@ -1708,7 +1715,6 @@ export default function BatchDetails() {
                                   topic_no: topicEditForm.topic_no,
                                   topic_name: topicEditForm.topic_name.trim(),
                                   planned_hours: topicEditForm.planned_hours !== '' ? Number(topicEditForm.planned_hours) : 0,
-                                  trainer_duration: topicEditForm.trainer_duration !== '' ? Number(topicEditForm.trainer_duration) : undefined,
                                 });
                                 setEditingTopicId(null);
                                 setRefreshTrigger(r => r + 1);
@@ -1738,7 +1744,6 @@ export default function BatchDetails() {
                                   topic_no: topic.topic_no,
                                   topic_name: topic.topic_name,
                                   planned_hours: topic.planned_hours ? String(topic.planned_hours) : '',
-                                  trainer_duration: topic.trainer_duration != null ? String(topic.trainer_duration) : '',
                                 });
                               }}
                             >
@@ -1846,7 +1851,289 @@ export default function BatchDetails() {
         </div>
       )}
 
+      {/* TAB 7.8: TRAINER LOG */}
+      {activeTab === 'trainer_log' && (() => {
+        const pendingTopics = currentSyllabus.filter(s => !s.is_completed);
+        const batchTrainerId = store.batchCourses.find(bc => bc.id === selectedBatchCourseId)?.trainer_id || '';
+        const courseTrainerLogs = store.trainerLogs
+          .filter(l => l.batch_course_id === selectedBatchCourseId)
+          .sort((a, b) => b.log_date.localeCompare(a.log_date));
+
+        const calcDuration = (start: string, end: string): number => {
+          if (!start || !end) return 0;
+          const [sh, sm] = start.split(':').map(Number);
+          const [eh, em] = end.split(':').map(Number);
+          return Math.max(0, (eh * 60 + em) - (sh * 60 + sm));
+        };
+
+        const durationMins = calcDuration(trainerLogForm.start_time, trainerLogForm.end_time);
+
+        const handleLogSession = async () => {
+          if (!trainerLogForm.log_date || !trainerLogForm.start_time || !trainerLogForm.end_time) {
+            toast.error('Date, Start Time, and End Time are required');
+            return;
+          }
+          if (durationMins <= 0) {
+            toast.error('End time must be after start time');
+            return;
+          }
+          await store.saveTrainerLog({
+            batch_course_id: selectedBatchCourseId,
+            trainer_id: trainerLogForm.trainer_id || batchTrainerId || undefined,
+            log_date: trainerLogForm.log_date,
+            start_time: trainerLogForm.start_time,
+            end_time: trainerLogForm.end_time,
+            duration_minutes: durationMins,
+            topics_covered: trainerLogTopics,
+            notes: trainerLogForm.notes || undefined,
+          });
+          setTrainerLogForm({ log_date: today, trainer_id: '', start_time: '', end_time: '', notes: '' });
+          setTrainerLogTopics([]);
+          setRefreshTrigger(r => r + 1);
+          const coveredCount = trainerLogTopics.length;
+          toast.success(`Session logged! ${coveredCount > 0 ? `${coveredCount} topic(s) marked as completed.` : 'No topics marked.'}`);
+        };
+
+        return (
+          <div className="space-y-6">
+            {/* LOG SESSION FORM */}
+            <div className="bg-card rounded-2xl border border-border p-5 space-y-4">
+              <div className="flex items-center gap-2 border-b border-border pb-3">
+                <Clock className="h-4 w-4 text-primary" />
+                <h2 className="text-base font-semibold font-heading">Log Training Session</h2>
+                <span className="ml-auto text-xs font-mono text-muted-foreground">
+                  {activeCourse?.name || 'Course'}
+                </span>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                {/* Date */}
+                <div>
+                  <label className="text-xs font-mono font-medium text-muted-foreground">Date <span className="text-destructive">*</span></label>
+                  <Input
+                    type="date"
+                    value={trainerLogForm.log_date}
+                    onChange={e => setTrainerLogForm({ ...trainerLogForm, log_date: e.target.value })}
+                    className="mt-1 font-mono text-sm"
+                  />
+                </div>
+                {/* Trainer */}
+                <div>
+                  <label className="text-xs font-mono font-medium text-muted-foreground">Trainer</label>
+                  <select
+                    value={trainerLogForm.trainer_id || batchTrainerId}
+                    onChange={e => setTrainerLogForm({ ...trainerLogForm, trainer_id: e.target.value })}
+                    className="w-full mt-1 bg-background border border-border rounded-xl p-2.5 text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-primary"
+                  >
+                    <option value="">Select Trainer</option>
+                    {store.profiles.filter(p => p.role === 'trainer' || p.role === 'admin').map(p => (
+                      <option key={p.id} value={p.id}>{p.full_name}</option>
+                    ))}
+                  </select>
+                </div>
+                {/* Start Time */}
+                <div>
+                  <label className="text-xs font-mono font-medium text-muted-foreground">Start Time <span className="text-destructive">*</span></label>
+                  <Input
+                    type="time"
+                    value={trainerLogForm.start_time}
+                    onChange={e => setTrainerLogForm({ ...trainerLogForm, start_time: e.target.value })}
+                    className="mt-1 font-mono text-sm"
+                  />
+                </div>
+                {/* End Time */}
+                <div>
+                  <label className="text-xs font-mono font-medium text-muted-foreground">End Time <span className="text-destructive">*</span></label>
+                  <Input
+                    type="time"
+                    value={trainerLogForm.end_time}
+                    onChange={e => setTrainerLogForm({ ...trainerLogForm, end_time: e.target.value })}
+                    className="mt-1 font-mono text-sm"
+                  />
+                </div>
+              </div>
+
+              {/* Duration Badge */}
+              {durationMins > 0 && (
+                <div className="flex items-center gap-2">
+                  <span className="text-xs font-mono text-muted-foreground">Auto-computed duration:</span>
+                  <span className="bg-primary/10 text-primary font-mono font-bold text-xs px-3 py-1 rounded-full">
+                    {Math.floor(durationMins / 60) > 0 ? `${Math.floor(durationMins / 60)}h ` : ''}{durationMins % 60}m ({durationMins} mins)
+                  </span>
+                </div>
+              )}
+
+              {/* Notes */}
+              <div>
+                <label className="text-xs font-mono font-medium text-muted-foreground">Notes (optional)</label>
+                <textarea
+                  value={trainerLogForm.notes}
+                  onChange={e => setTrainerLogForm({ ...trainerLogForm, notes: e.target.value })}
+                  placeholder="Any remarks, observations, or session notes..."
+                  rows={2}
+                  className="w-full mt-1 bg-background border border-border rounded-xl p-2.5 text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-primary resize-none"
+                />
+              </div>
+
+              {/* Pending Topics Checklist */}
+              <div>
+                <div className="flex items-center justify-between mb-2">
+                  <label className="text-xs font-mono font-medium text-muted-foreground">
+                    Topics Covered in this Session
+                  </label>
+                  {pendingTopics.length > 0 && (
+                    <button
+                      className="text-xs font-mono text-primary hover:underline"
+                      onClick={() => setTrainerLogTopics(
+                        trainerLogTopics.length === pendingTopics.length
+                          ? []
+                          : pendingTopics.map(t => t.id)
+                      )}
+                    >
+                      {trainerLogTopics.length === pendingTopics.length ? 'Deselect All' : 'Select All Pending'}
+                    </button>
+                  )}
+                </div>
+
+                {pendingTopics.length === 0 ? (
+                  <div className="bg-success/10 border border-success/30 rounded-xl p-4 text-center">
+                    <CheckCircle2 className="h-5 w-5 text-success mx-auto mb-1" />
+                    <p className="text-xs font-mono text-success font-bold">All topics completed! 🎉</p>
+                  </div>
+                ) : (
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 max-h-64 overflow-y-auto pr-1">
+                    {pendingTopics.map(topic => {
+                      const isChecked = trainerLogTopics.includes(topic.id);
+                      return (
+                        <div
+                          key={topic.id}
+                          onClick={() => setTrainerLogTopics(prev =>
+                            isChecked ? prev.filter(id => id !== topic.id) : [...prev, topic.id]
+                          )}
+                          className={`flex items-center gap-3 p-3 rounded-xl border cursor-pointer transition-all select-none ${
+                            isChecked
+                              ? 'bg-primary/10 border-primary/40 text-foreground'
+                              : 'bg-sunken border-border/80 text-muted-foreground hover:border-primary/30'
+                          }`}
+                        >
+                          <div className={`flex-shrink-0 h-5 w-5 rounded-md flex items-center justify-center border ${
+                            isChecked ? 'bg-primary text-primary-foreground border-primary' : 'border-border bg-background'
+                          }`}>
+                            {isChecked && <Check className="h-3 w-3" />}
+                          </div>
+                          <div className="min-w-0">
+                            <div className="text-xs font-mono text-muted-foreground">{topic.topic_no}.</div>
+                            <div className="text-sm font-medium text-foreground leading-tight truncate">{topic.topic_name}</div>
+                            {topic.planned_hours > 0 && (
+                              <div className="text-xs font-mono text-muted-foreground/70">{topic.planned_hours} hrs planned</div>
+                            )}
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
+
+              <div className="flex items-center justify-between pt-2 border-t border-border">
+                <div className="text-xs font-mono text-muted-foreground">
+                  {trainerLogTopics.length > 0 ? (
+                    <span className="text-primary font-bold">{trainerLogTopics.length} topic(s) selected to mark as covered</span>
+                  ) : (
+                    <span>No topics selected (session only, no topics marked)</span>
+                  )}
+                </div>
+                <Button onClick={handleLogSession} className="bg-primary text-primary-foreground">
+                  <Check className="h-3.5 w-3.5 mr-1" /> Save Session Log
+                </Button>
+              </div>
+            </div>
+
+            {/* SESSION HISTORY */}
+            <div className="bg-card rounded-2xl border border-border overflow-hidden shadow-sm">
+              <div className="flex items-center justify-between px-5 py-3 border-b border-border bg-muted/30">
+                <h3 className="text-sm font-semibold font-heading">Session History</h3>
+                <span className="text-xs font-mono text-muted-foreground">{courseTrainerLogs.length} session(s) logged</span>
+              </div>
+              {courseTrainerLogs.length === 0 ? (
+                <div className="p-8 text-center text-muted-foreground text-xs font-mono">
+                  No sessions logged yet. Log your first session above.
+                </div>
+              ) : (
+                <table className="w-full text-sm">
+                  <thead className="bg-muted/50 border-b border-border text-muted-foreground font-mono text-xs uppercase">
+                    <tr>
+                      <th className="p-3 text-left">Date</th>
+                      <th className="p-3 text-left">Trainer</th>
+                      <th className="p-3 text-center">Time</th>
+                      <th className="p-3 text-center">Duration</th>
+                      <th className="p-3 text-center">Topics Covered</th>
+                      <th className="p-3 text-left">Notes</th>
+                      <th className="p-3 text-center w-16">Del</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-border">
+                    {courseTrainerLogs.map(log => {
+                      const trainer = store.profiles.find(p => p.id === log.trainer_id);
+                      const topicNames = log.topics_covered
+                        .map(tid => currentSyllabus.find(s => s.id === tid)?.topic_name || tid)
+                        .join(', ');
+                      return (
+                        <tr key={log.id} className="hover:bg-muted/20">
+                          <td className="p-3 font-mono text-xs font-bold">{log.log_date}</td>
+                          <td className="p-3 text-sm">{trainer?.full_name || <span className="text-muted-foreground/50 italic">—</span>}</td>
+                          <td className="p-3 text-center font-mono text-xs">
+                            {log.start_time} – {log.end_time}
+                          </td>
+                          <td className="p-3 text-center">
+                            <span className="bg-primary/10 text-primary font-mono text-xs font-bold px-2 py-0.5 rounded-full">
+                              {Math.floor(log.duration_minutes / 60) > 0 ? `${Math.floor(log.duration_minutes / 60)}h ` : ''}{log.duration_minutes % 60}m
+                            </span>
+                          </td>
+                          <td className="p-3 text-center">
+                            {log.topics_covered.length > 0 ? (
+                              <span
+                                title={topicNames}
+                                className="bg-success/10 text-success font-mono text-xs font-bold px-2 py-0.5 rounded-full cursor-help"
+                              >
+                                {log.topics_covered.length} topic(s)
+                              </span>
+                            ) : (
+                              <span className="text-muted-foreground/40 text-xs font-mono">—</span>
+                            )}
+                          </td>
+                          <td className="p-3 text-xs text-muted-foreground max-w-[200px] truncate" title={log.notes}>
+                            {log.notes || <span className="text-muted-foreground/40 italic">—</span>}
+                          </td>
+                          <td className="p-3 text-center">
+                            <Button
+                              size="icon"
+                              variant="ghost"
+                              className="h-7 w-7 text-muted-foreground hover:text-destructive"
+                              onClick={async () => {
+                                if (confirm('Delete this session log? Note: completed topics will NOT be un-marked.')) {
+                                  await store.deleteTrainerLog(log.id);
+                                  setRefreshTrigger(r => r + 1);
+                                  toast.success('Session log deleted');
+                                }
+                              }}
+                            >
+                              <Trash2 className="h-3.5 w-3.5" />
+                            </Button>
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              )}
+            </div>
+          </div>
+        );
+      })()}
+
       {/* ABSENTEE EMAIL PREVIEW MODAL */}
+
       {showAbsenteeModal && absenteePreview && (
         <div className="fixed inset-0 z-50 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4">
           <div className="bg-card border border-border rounded-2xl p-6 max-w-2xl w-full shadow-2xl space-y-4">
@@ -2120,16 +2407,6 @@ export default function BatchDetails() {
                   className="mt-1 font-mono"
                 />
               </div>
-              <div>
-                <label className="text-xs font-mono font-medium text-muted-foreground">Trainer Duration <span className="text-muted-foreground/60">(optional)</span></label>
-                <Input
-                  type="number"
-                  value={newTopicForm.trainer_duration}
-                  onChange={e => setNewTopicForm({ ...newTopicForm, trainer_duration: e.target.value })}
-                  placeholder="e.g. 90 (mins)"
-                  className="mt-1 font-mono"
-                />
-              </div>
             </div>
             <div className="flex justify-end gap-2 pt-2 border-t border-border">
               <Button variant="outline" onClick={() => setShowAddTopicModal(false)}>Cancel</Button>
@@ -2144,7 +2421,6 @@ export default function BatchDetails() {
                     topic_no: newTopicForm.topic_no,
                     topic_name: newTopicForm.topic_name.trim(),
                     planned_hours: newTopicForm.planned_hours !== '' ? Number(newTopicForm.planned_hours) : 0,
-                    trainer_duration: newTopicForm.trainer_duration !== '' ? Number(newTopicForm.trainer_duration) : undefined,
                     is_completed: false,
                   });
                   setShowAddTopicModal(false);
@@ -2159,6 +2435,7 @@ export default function BatchDetails() {
           </div>
         </div>
       )}
+
 
       {/* MODAL: EDIT BATCH DETAILS */}
 

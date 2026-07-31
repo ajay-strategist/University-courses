@@ -130,7 +130,6 @@ export interface BatchCourseSyllabus {
   topic_no: number;
   topic_name: string;
   planned_hours: number;
-  trainer_duration?: number;
   is_completed: boolean;
   completed_date?: string;
 }
@@ -140,6 +139,19 @@ export interface Session {
   batch_course_id: string;
   session_date: string;
   hour_no: number;
+}
+
+export interface TrainerLog {
+  id: string;
+  batch_course_id: string;
+  trainer_id?: string;
+  log_date: string;        // YYYY-MM-DD
+  start_time: string;      // HH:MM
+  end_time: string;        // HH:MM
+  duration_minutes: number; // auto-computed
+  topics_covered: string[]; // array of BatchCourseSyllabus IDs
+  notes?: string;
+  created_at?: string;
 }
 
 export interface Attendance {

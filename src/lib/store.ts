@@ -1,6 +1,6 @@
 import type { 
   College, Program, Course, CourseDefaultSyllabus, AssessmentType, 
-  Batch, Student, BatchCourse, BatchCourseSyllabus, Session, 
+  Batch, Student, BatchCourse, BatchCourseSyllabus, Session, TrainerLog,
   Attendance, Assessment, AssessmentMark, Profile, UserEmailConfig, NotificationLog,
   MigrationRun, MigrationMapping
 } from '@/types';
@@ -41,6 +41,7 @@ class DataStore {
   notificationLogs: NotificationLog[] = [];
   migrationRuns: MigrationRun[] = [];
   migrationMappings: MigrationMapping[] = [];
+  trainerLogs: TrainerLog[] = [];
 
   powerBiUrl = "https://app.powerbi.com/view?r=eyJrIjoiZXhhbXBsZS1wb3dlci1iaS1yZXBvcnQtaWQiLCJ0IjoiZGVtbyJ9";
   isInitialized = false;
@@ -100,6 +101,9 @@ class DataStore {
 
       const cMigrationMappings = localStorage.getItem('uct_migration_mappings');
       if (cMigrationMappings) this.migrationMappings = JSON.parse(cMigrationMappings);
+
+      const cTrainerLogs = localStorage.getItem('uct_trainer_logs');
+      if (cTrainerLogs) this.trainerLogs = JSON.parse(cTrainerLogs);
     } catch (e) {
       console.warn('LocalStorage load warning:', e);
     }
@@ -112,7 +116,7 @@ class DataStore {
       'uct_assessment_types', 'uct_batches', 'uct_students', 'uct_batch_courses',
       'uct_batch_syllabus', 'uct_sessions', 'uct_attendance', 'uct_assessments',
       'uct_assessment_marks', 'uct_profiles', 'uct_user_email_config',
-      'uct_notification_logs', 'uct_migration_runs', 'uct_migration_mappings',
+      'uct_notification_logs', 'uct_migration_runs', 'uct_migration_mappings', 'uct_trainer_logs',
     ];
     cacheKeys.forEach(k => localStorage.removeItem(k));
     window.location.reload();
@@ -138,6 +142,7 @@ class DataStore {
       localStorage.setItem('uct_notification_logs', JSON.stringify(this.notificationLogs));
       localStorage.setItem('uct_migration_runs', JSON.stringify(this.migrationRuns));
       localStorage.setItem('uct_migration_mappings', JSON.stringify(this.migrationMappings));
+      localStorage.setItem('uct_trainer_logs', JSON.stringify(this.trainerLogs));
     } catch (e) {
       console.warn('LocalStorage save warning:', e);
     }
@@ -168,6 +173,7 @@ class DataStore {
         { data: logs, error: eLogs },
         { data: runs, error: eRuns },
         { data: mappings, error: eMappings },
+        { data: tLogs, error: eTLogs },
       ] = await Promise.all([
         supabase.from('uct_profiles').select('*'),
         supabase.from('uct_colleges').select('*'),
@@ -187,6 +193,7 @@ class DataStore {
         supabase.from('uct_notification_log').select('*'),
         supabase.from('uct_migration_runs').select('*').order('created_at', { ascending: false }),
         supabase.from('uct_migration_mappings').select('*').order('created_at', { ascending: false }),
+        supabase.from('uct_trainer_logs').select('*').order('log_date', { ascending: false }),
       ]);
 
       // Sync local-only/modified data to Supabase
@@ -226,6 +233,10 @@ class DataStore {
             ...mapping,
             owner_id: mapping.owner_id && !mapping.owner_id.startsWith('usr-') ? mapping.owner_id : null,
           })),
+          this.syncTable('uct_trainer_logs', this.trainerLogs, tLogs || [], (tl) => ({
+            ...tl,
+            trainer_id: tl.trainer_id && !tl.trainer_id.startsWith('usr-') ? tl.trainer_id : null,
+          })),
         ]);
       } catch (syncErr) {
         console.warn('Background sync failed:', syncErr);
@@ -260,6 +271,8 @@ class DataStore {
       if (logs && logs.length > 0) this.notificationLogs = mergeArrays(this.notificationLogs, logs as NotificationLog[]);
       if (runs && runs.length > 0) this.migrationRuns = mergeArrays(this.migrationRuns, runs as MigrationRun[]);
       if (mappings && mappings.length > 0) this.migrationMappings = mergeArrays(this.migrationMappings, mappings as MigrationMapping[]);
+      if (tLogs && tLogs.length > 0) this.trainerLogs = mergeArrays(this.trainerLogs, tLogs as TrainerLog[]);
+      if (eTLogs) console.warn('Supabase uct_trainer_logs warning:', eTLogs);
 
       if (eCols || eBts || eStds || eCrses || eProfs || eEmails || eLogs) {
         console.warn('Supabase fetch returned RLS or table warnings:', { eCols, eBts, eStds, eCrses, eProfs, eEmails, eLogs });
@@ -269,6 +282,72 @@ class DataStore {
       this.isInitialized = true;
     } catch (err) {
       console.warn('Failed to load initial data from Supabase:', err);
+    }
+  }
+
+  // -------------------------
+  // TRAINER LOGS
+  // -------------------------
+  async saveTrainerLog(log: Partial<TrainerLog>): Promise<TrainerLog> {
+    const item: TrainerLog = {
+      id: log.id || generateUUID(),
+      batch_course_id: log.batch_course_id!,
+      trainer_id: log.trainer_id,
+      log_date: log.log_date!,
+      start_time: log.start_time!,
+      end_time: log.end_time!,
+      duration_minutes: log.duration_minutes ?? 0,
+      topics_covered: log.topics_covered ?? [],
+      notes: log.notes,
+      created_at: log.created_at || new Date().toISOString(),
+    };
+
+    const idx = this.trainerLogs.findIndex(l => l.id === item.id);
+    if (idx >= 0) this.trainerLogs[idx] = item;
+    else this.trainerLogs.push(item);
+    this.saveLocalCache();
+
+    // Auto-mark covered topics as completed in the batch syllabus
+    const today = item.log_date;
+    for (const topicId of item.topics_covered) {
+      const sylIdx = this.batchSyllabus.findIndex(s => s.id === topicId);
+      if (sylIdx >= 0 && !this.batchSyllabus[sylIdx].is_completed) {
+        this.batchSyllabus[sylIdx].is_completed = true;
+        this.batchSyllabus[sylIdx].completed_date = today;
+        try {
+          await supabase.from('uct_batch_course_syllabus').update({
+            is_completed: true,
+            completed_date: today,
+          }).eq('id', topicId);
+        } catch (e) {
+          console.warn('Auto-complete topic warning:', e);
+        }
+      }
+    }
+    this.saveLocalCache();
+
+    try {
+      const dbItem = {
+        ...item,
+        trainer_id: item.trainer_id && !item.trainer_id.startsWith('usr-') ? item.trainer_id : null,
+        topics_covered: item.topics_covered, // stored as jsonb array
+      };
+      const { error } = await supabase.from('uct_trainer_logs').upsert(dbItem);
+      if (error) console.error('Supabase saveTrainerLog error:', error.message);
+    } catch (e) {
+      console.warn('Supabase trainer log sync warning:', e);
+    }
+    return item;
+  }
+
+  async deleteTrainerLog(id: string): Promise<void> {
+    this.trainerLogs = this.trainerLogs.filter(l => l.id !== id);
+    this.saveLocalCache();
+    try {
+      const { error } = await supabase.from('uct_trainer_logs').delete().eq('id', id);
+      if (error) console.error('Supabase deleteTrainerLog error:', error.message);
+    } catch (e) {
+      console.warn('Supabase trainer log delete warning:', e);
     }
   }
 
@@ -666,7 +745,6 @@ class DataStore {
       topic_no: topic.topic_no ?? 1,
       topic_name: topic.topic_name!,
       planned_hours: topic.planned_hours ?? 0,
-      trainer_duration: topic.trainer_duration,
       is_completed: topic.is_completed ?? false,
       completed_date: topic.completed_date,
     };
