@@ -898,19 +898,45 @@ class DataStore {
   // ASSESSMENTS
   // -------------------------
   async saveAssessment(assessment: Assessment): Promise<Assessment> {
-    const idx = this.assessments.findIndex(a => a.id === assessment.id);
-    if (idx >= 0) this.assessments[idx] = assessment;
-    else this.assessments.push(assessment);
+    let typeId = assessment.type_id;
+    if (!typeId) {
+      // Find or create default assessment type
+      let defaultType = this.assessmentTypes.find(t => t.name.toLowerCase() === 'default' || t.name.toLowerCase() === 'assignment');
+      if (!defaultType) {
+        defaultType = {
+          id: generateUUID(),
+          name: 'Default',
+          default_max_mark: 100,
+        };
+        this.assessmentTypes.push(defaultType);
+        this.saveLocalCache();
+        try {
+          await supabase.from('uct_assessment_types').upsert(defaultType);
+        } catch (e) {
+          console.warn('Failed to save default assessment type:', e);
+        }
+      }
+      typeId = defaultType.id;
+    }
+
+    const item: Assessment = {
+      ...assessment,
+      type_id: typeId,
+    };
+
+    const idx = this.assessments.findIndex(a => a.id === item.id);
+    if (idx >= 0) this.assessments[idx] = item;
+    else this.assessments.push(item);
 
     this.saveLocalCache();
 
     try {
-      const { error } = await supabase.from('uct_assessments').upsert(assessment);
+      const { error } = await supabase.from('uct_assessments').upsert(item);
       if (error) console.error('Supabase saveAssessment error:', error.message);
     } catch (e) {
       console.warn('Supabase assessment sync warning:', e);
     }
-    return assessment;
+    return item;
   }
 
   // -------------------------

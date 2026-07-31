@@ -75,9 +75,31 @@ export default function BatchDetails() {
   const [attendanceEndDate, setAttendanceEndDate] = useState(new Date().toISOString().split('T')[0]);
 
   // Marks State
+  const initialAssessments = store.assessments.filter(a => a.batch_course_id === selectedBatchCourseId);
   const [selectedAssessmentId, setSelectedAssessmentId] = useState<string>(
-    store.assessments.filter(a => a.batch_course_id === selectedBatchCourseId)[0]?.id || ''
+    initialAssessments[0]?.id || 'new'
   );
+  const [assessmentName, setAssessmentName] = useState<string>(
+    initialAssessments[0]?.name || ''
+  );
+  const [assessmentMaxMark, setAssessmentMaxMark] = useState<number>(
+    initialAssessments[0]?.max_mark || 100
+  );
+
+  const changeSelectedAssessment = (id: string) => {
+    setSelectedAssessmentId(id);
+    if (id === 'new') {
+      setAssessmentName('');
+      setAssessmentMaxMark(100);
+    } else {
+      const ass = store.assessments.find(a => a.id === id);
+      if (ass) {
+        setAssessmentName(ass.name);
+        setAssessmentMaxMark(ass.max_mark);
+      }
+    }
+  };
+
   const [marksState, setMarksState] = useState<Record<string, number>>({});
   const [marksImportPreview, setMarksImportPreview] = useState<{
     validRows: { student_id: string; register_no: string; name: string; mark: number }[];
@@ -181,7 +203,24 @@ export default function BatchDetails() {
   };
 
   const handleUpdateSingleMark = async (studentId: string, valStr: string) => {
-    const curAsm = store.assessments.find(a => a.id === selectedAssessmentId);
+    let targetAssessmentId = selectedAssessmentId;
+    if (selectedAssessmentId === 'new') {
+      if (!assessmentName.trim()) {
+        toast.error('Please enter an Assessment Name first');
+        return;
+      }
+      const newAsm: Assessment = {
+        id: generateUUID(),
+        batch_course_id: selectedBatchCourseId,
+        name: assessmentName.trim(),
+        max_mark: assessmentMaxMark,
+      };
+      const saved = await store.saveAssessment(newAsm);
+      targetAssessmentId = saved.id;
+      setSelectedAssessmentId(saved.id);
+    }
+
+    const curAsm = store.assessments.find(a => a.id === targetAssessmentId);
     if (!curAsm) return;
     const num = Number(valStr);
     if (isNaN(num) || num < 0) {
@@ -313,6 +352,8 @@ export default function BatchDetails() {
 
     setBatchCourses(store.batchCourses.filter(bc => bc.batch_id === batch.id));
     setSelectedBatchCourseId(newBC.id);
+    const firstAss = store.assessments.find(a => a.batch_course_id === newBC.id);
+    changeSelectedAssessment(firstAss?.id || 'new');
     setShowAddCourseModal(false);
     toast.success(`Course ${targetCourse.name} added to batch with auto-seeded syllabus!`);
   };
@@ -346,7 +387,10 @@ export default function BatchDetails() {
       setBatchCourses(store.batchCourses.filter(bc => bc.batch_id === batch.id));
       const remaining = store.batchCourses.filter(bc => bc.batch_id === batch.id);
       if (selectedBatchCourseId === bcId) {
-        setSelectedBatchCourseId(remaining[0]?.id || '');
+        const nextBcId = remaining[0]?.id || '';
+        setSelectedBatchCourseId(nextBcId);
+        const nextAss = store.assessments.find(a => a.batch_course_id === nextBcId);
+        changeSelectedAssessment(nextAss?.id || 'new');
       }
       toast.success(`Course ${courseName} removed from batch successfully`);
     }
@@ -568,10 +612,7 @@ export default function BatchDetails() {
   const currentAssessmentMarks = store.assessmentMarks.filter(m => m.assessment_id === selectedAssessmentId);
 
   const handleDownloadMarksTemplate = () => {
-    if (!currentAssessment) {
-      toast.error('Please select or create an assessment first');
-      return;
-    }
+    const nameToUse = selectedAssessmentId === 'new' ? (assessmentName.trim() || 'New_Assessment') : (currentAssessment?.name || 'Assessment');
     const excelData = students.map(stu => ({
       'Register Number': stu.register_no,
       'Name': stu.name,
@@ -581,13 +622,21 @@ export default function BatchDetails() {
     const ws = XLSX.utils.json_to_sheet(excelData);
     const wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, ws, 'Marks Roster');
-    XLSX.writeFile(wb, `${batch.code}_${activeCourse?.code || 'Tool'}_${currentAssessment.name.replace(/\s+/g, '_')}_Template.xlsx`);
+    XLSX.writeFile(wb, `${batch.code}_${activeCourse?.code || 'Tool'}_${nameToUse.replace(/\s+/g, '_')}_Template.xlsx`);
     toast.success('Downloaded 3-column Excel template (Register Number, Name, Mark)!');
   };
 
   const handleUploadMarksFile = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
-    if (!file || !currentAssessment) return;
+    if (!file) return;
+
+    const limitMark = selectedAssessmentId === 'new' ? assessmentMaxMark : (currentAssessment?.max_mark || 100);
+
+    if (selectedAssessmentId === 'new' && !assessmentName.trim()) {
+      toast.error('Please enter an Assessment Name first');
+      e.target.value = '';
+      return;
+    }
 
     const reader = new FileReader();
     reader.onload = (evt) => {
@@ -611,12 +660,12 @@ export default function BatchDetails() {
             errorRows.push({ register_no: regNo || 'N/A', name: name || 'Unknown', mark: markVal, error: 'Register Number not found in batch roster' });
           } else if (isNaN(markVal) || markVal < 0) {
             errorRows.push({ register_no: student.register_no, name: student.name, mark: markVal, error: 'Invalid mark value (must be >= 0)' });
-          } else if (markVal > currentAssessment.max_mark) {
+          } else if (markVal > limitMark) {
             errorRows.push({ 
               register_no: student.register_no, 
               name: student.name, 
               mark: markVal, 
-              error: `Mark (${markVal}) exceeds assessment max mark limit of ${currentAssessment.max_mark}` 
+              error: `Mark (${markVal}) exceeds assessment max mark limit of ${limitMark}` 
             });
           } else {
             validRows.push({ student_id: student.id, register_no: student.register_no, name: student.name, mark: markVal });
@@ -632,14 +681,37 @@ export default function BatchDetails() {
   };
 
   const handleCommitMarksImport = async () => {
-    if (!marksImportPreview || !currentAssessment) return;
+    if (!marksImportPreview) return;
+
+    let targetAssessmentId = selectedAssessmentId;
+
+    if (selectedAssessmentId === 'new') {
+      const newAsm: Assessment = {
+        id: generateUUID(),
+        batch_course_id: selectedBatchCourseId,
+        name: assessmentName.trim() || 'New Assessment',
+        max_mark: assessmentMaxMark,
+      };
+      const savedAsm = await store.saveAssessment(newAsm);
+      targetAssessmentId = savedAsm.id;
+      setSelectedAssessmentId(savedAsm.id);
+    } else if (currentAssessment) {
+      if (currentAssessment.name !== assessmentName.trim() || currentAssessment.max_mark !== assessmentMaxMark) {
+        const updatedAsm: Assessment = {
+          ...currentAssessment,
+          name: assessmentName.trim(),
+          max_mark: assessmentMaxMark,
+        };
+        await store.saveAssessment(updatedAsm);
+      }
+    }
 
     const marksToSave: AssessmentMark[] = [];
     marksImportPreview.validRows.forEach(row => {
-      const existing = store.assessmentMarks.find(m => m.assessment_id === currentAssessment.id && m.student_id === row.student_id);
+      const existing = store.assessmentMarks.find(m => m.assessment_id === targetAssessmentId && m.student_id === row.student_id);
       marksToSave.push({
         id: existing?.id || generateUUID(),
-        assessment_id: currentAssessment.id,
+        assessment_id: targetAssessmentId,
         student_id: row.student_id,
         mark: row.mark,
       });
@@ -833,7 +905,12 @@ export default function BatchDetails() {
               <span className="text-xs font-mono text-muted-foreground uppercase font-medium px-1">Active Tool Course:</span>
               <select
                 value={selectedBatchCourseId}
-                onChange={(e) => setSelectedBatchCourseId(e.target.value)}
+                onChange={(e) => {
+                  const bcId = e.target.value;
+                  setSelectedBatchCourseId(bcId);
+                  const firstAss = store.assessments.find(a => a.batch_course_id === bcId);
+                  changeSelectedAssessment(firstAss?.id || 'new');
+                }}
                 className="bg-background border border-border rounded-lg px-3 py-1.5 text-sm font-semibold text-primary focus:outline-none"
               >
                 {batchCourses.map((bc) => {
@@ -1291,18 +1368,66 @@ export default function BatchDetails() {
       {/* TAB 7.4: ASSIGNMENT / EXAM MARKS */}
       {activeTab === 'marks' && (
         <div className="space-y-6">
-          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 bg-card p-4 rounded-2xl border border-border">
-            <div className="flex items-center gap-3">
-              <label className="text-xs font-mono font-medium text-muted-foreground">Select Assessment:</label>
-              <select
-                value={selectedAssessmentId}
-                onChange={(e) => setSelectedAssessmentId(e.target.value)}
-                className="bg-background border border-border rounded-xl px-3 py-1.5 text-sm font-semibold text-foreground focus:outline-none"
-              >
-                {store.assessments.filter(a => a.batch_course_id === selectedBatchCourseId).map(a => (
-                  <option key={a.id} value={a.id}>{a.name} (Max Mark: {a.max_mark})</option>
-                ))}
-              </select>
+          <div className="flex flex-col xl:flex-row xl:items-center xl:justify-between gap-4 bg-card p-4 rounded-2xl border border-border">
+            <div className="flex flex-wrap items-center gap-4">
+              <div className="flex items-center gap-2">
+                <label className="text-xs font-mono font-medium text-muted-foreground whitespace-nowrap">Select Assessment:</label>
+                <select
+                  value={selectedAssessmentId}
+                  onChange={(e) => changeSelectedAssessment(e.target.value)}
+                  className="bg-background border border-border rounded-xl px-3 py-1.5 text-sm font-semibold text-foreground focus:outline-none"
+                >
+                  {store.assessments.filter(a => a.batch_course_id === selectedBatchCourseId).map(a => (
+                    <option key={a.id} value={a.id}>{a.name} (Max Mark: {a.max_mark})</option>
+                  ))}
+                  <option value="new">+ Create New Assessment</option>
+                </select>
+              </div>
+
+              <div className="flex items-center gap-2">
+                <label className="text-xs font-mono font-medium text-muted-foreground whitespace-nowrap">Name:</label>
+                <Input
+                  value={assessmentName}
+                  onChange={(e) => setAssessmentName(e.target.value)}
+                  placeholder="e.g. Assignment 1"
+                  className="w-40 h-8 text-sm"
+                />
+              </div>
+
+              <div className="flex items-center gap-2">
+                <label className="text-xs font-mono font-medium text-muted-foreground whitespace-nowrap">Max Mark:</label>
+                <Input
+                  type="number"
+                  value={assessmentMaxMark}
+                  onChange={(e) => setAssessmentMaxMark(Number(e.target.value) || 0)}
+                  className="w-16 h-8 text-center font-mono text-sm"
+                />
+              </div>
+
+              {selectedAssessmentId !== 'new' && (
+                <Button
+                  size="sm"
+                  onClick={async () => {
+                    if (!assessmentName.trim()) {
+                      toast.error('Assessment Name cannot be empty');
+                      return;
+                    }
+                    const existing = store.assessments.find(a => a.id === selectedAssessmentId);
+                    if (existing) {
+                      const updated = {
+                        ...existing,
+                        name: assessmentName.trim(),
+                        max_mark: assessmentMaxMark
+                      };
+                      await store.saveAssessment(updated);
+                      toast.success('Assessment details updated successfully!');
+                    }
+                  }}
+                  className="h-8 px-3 bg-secondary text-secondary-foreground hover:bg-secondary/80 text-xs font-semibold"
+                >
+                  Save Details
+                </Button>
+              )}
             </div>
 
             <div className="flex items-center gap-2">

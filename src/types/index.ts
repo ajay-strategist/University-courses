@@ -152,7 +152,7 @@ export interface Assessment {
   id: string;
   batch_course_id: string;
   name: string;
-  type_id: string;
+  type_id?: string;
   max_mark: number;
   assessment_date?: string;
   type?: AssessmentType;
