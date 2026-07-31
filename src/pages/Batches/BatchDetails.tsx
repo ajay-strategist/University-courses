@@ -391,6 +391,18 @@ export default function BatchDetails() {
     toast.success(`Attendance saved for ${attendanceDate} (Hour ${attendanceHour})!`);
   };
 
+  const handleDeleteSession = async (sessionId: string, sessionDate: string, hourNo: number) => {
+    if (!confirm(`Delete the entire session for ${sessionDate} (Hour ${hourNo})? This will remove all attendance records for this session.`)) return;
+    await store.deleteSession(sessionId);
+    toast.success(`Session ${sessionDate} (Hour ${hourNo}) deleted.`);
+  };
+
+  const handleDeleteAttendanceRecord = async (attendanceId: string, studentName: string) => {
+    if (!confirm(`Delete attendance record for ${studentName} in this session?`)) return;
+    await store.deleteAttendanceRecord(attendanceId);
+    toast.success(`Attendance record for ${studentName} deleted.`);
+  };
+
   const getSessionHeaders = () => {
     if (!absenteePreview) return [];
     
@@ -1162,11 +1174,19 @@ export default function BatchDetails() {
                     <th className="p-3">Student Name</th>
                     <th className="p-3">Class</th>
                     <th className="p-3 text-center">Status Action</th>
+                    <th className="p-3 text-center">Delete</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-border">
                   {students.map((stu) => {
                     const status = registerStatusMap[stu.id] || 'present';
+                    // Find existing saved attendance record for this student in current session
+                    const currentSession = store.sessions.find(
+                      s => s.batch_course_id === selectedBatchCourseId && s.session_date === attendanceDate && s.hour_no === attendanceHour
+                    );
+                    const savedRecord = currentSession
+                      ? store.attendance.find(a => a.session_id === currentSession.id && a.student_id === stu.id)
+                      : undefined;
                     return (
                       <tr key={stu.id} className="hover:bg-muted/30">
                         <td className="p-3 font-mono font-bold text-accent">{stu.register_no}</td>
@@ -1200,6 +1220,18 @@ export default function BatchDetails() {
                             </button>
                           </div>
                         </td>
+                        <td className="p-3 text-center">
+                          {savedRecord ? (
+                            <button
+                              onClick={() => handleDeleteAttendanceRecord(savedRecord.id, stu.name)}
+                              title="Delete this student's attendance record for this session"
+                              className="text-destructive hover:text-destructive/70 p-1 rounded transition-colors">
+                              <Trash2 className="h-4 w-4" />
+                            </button>
+                          ) : (
+                            <span className="text-muted-foreground/40 text-xs font-mono">not saved</span>
+                          )}
+                        </td>
                       </tr>
                     );
                   })}
@@ -1218,7 +1250,18 @@ export default function BatchDetails() {
                     <th className="p-2">Reg No</th>
                     <th className="p-2">Name</th>
                     {store.sessions.filter(s => s.batch_course_id === selectedBatchCourseId).map(s => (
-                      <th key={s.id} className="p-2 text-center">{s.session_date} (H{s.hour_no})</th>
+                      <th key={s.id} className="p-2 text-center min-w-[100px]">
+                        <div className="flex flex-col items-center gap-1">
+                          <span>{s.session_date}</span>
+                          <span className="text-muted-foreground">H{s.hour_no}</span>
+                          <button
+                            onClick={() => handleDeleteSession(s.id, s.session_date, s.hour_no)}
+                            title="Delete entire session"
+                            className="text-destructive hover:text-destructive/70 p-0.5 rounded transition-colors">
+                            <Trash2 className="h-3 w-3" />
+                          </button>
+                        </div>
+                      </th>
                     ))}
                   </tr>
                 </thead>

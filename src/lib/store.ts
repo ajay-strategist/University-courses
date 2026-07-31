@@ -729,6 +729,31 @@ class DataStore {
     }
   }
 
+  // Deletes a session + all its attendance rows (ON DELETE CASCADE handles DB side)
+  async deleteSession(id: string): Promise<void> {
+    this.attendance = this.attendance.filter(a => a.session_id !== id);
+    this.sessions = this.sessions.filter(s => s.id !== id);
+    this.saveLocalCache();
+    try {
+      const { error } = await supabase.from('uct_sessions').delete().eq('id', id);
+      if (error) console.error('Supabase deleteSession error:', error.message);
+    } catch (e) {
+      console.warn('Supabase session delete warning:', e);
+    }
+  }
+
+  // Deletes a single student attendance record (leaves the session intact)
+  async deleteAttendanceRecord(id: string): Promise<void> {
+    this.attendance = this.attendance.filter(a => a.id !== id);
+    this.saveLocalCache();
+    try {
+      const { error } = await supabase.from('uct_attendance').delete().eq('id', id);
+      if (error) console.error('Supabase deleteAttendanceRecord error:', error.message);
+    } catch (e) {
+      console.warn('Supabase attendance record delete warning:', e);
+    }
+  }
+
   // -------------------------
   // PROFILES
   // -------------------------
