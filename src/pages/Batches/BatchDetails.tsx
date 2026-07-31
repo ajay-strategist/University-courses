@@ -112,9 +112,12 @@ export default function BatchDetails() {
   // Absentee Email Preview Modal State
   const [absenteePreview, setAbsenteePreview] = useState<AbsenteePreview | null>(null);
 
+  const [refreshTrigger, setRefreshTrigger] = useState(0);
+
   // Edit Batch Modal State
   const [showEditBatchModal, setShowEditBatchModal] = useState(false);
   const [editBatchForm, setEditBatchForm] = useState({
+    code: '',
     current_semester: batch?.current_semester || 1,
     status: batch?.status || 'Active',
     college_coordinator_id: batch?.college_coordinator_id || '',
@@ -187,19 +190,28 @@ export default function BatchDetails() {
     }
   };
 
-  const handleSaveBatchEdit = () => {
+  const handleSaveBatchEdit = async () => {
     if (!batch) return;
+    if (!editBatchForm.code.trim()) {
+      toast.error('Batch Name cannot be empty');
+      return;
+    }
     const targetBatch = store.batches.find(b => b.id === batch.id);
     if (targetBatch) {
-      targetBatch.current_semester = Number(editBatchForm.current_semester);
-      targetBatch.status = editBatchForm.status as 'Active' | 'Completed';
-      targetBatch.college_coordinator_id = editBatchForm.college_coordinator_id;
-      targetBatch.student_coordinator_id = editBatchForm.student_coordinator_id;
-      targetBatch.start_date = editBatchForm.start_date;
-      targetBatch.end_date = editBatchForm.end_date;
+      await store.saveBatch({
+        ...targetBatch,
+        code: editBatchForm.code.toUpperCase().trim(),
+        current_semester: Number(editBatchForm.current_semester),
+        status: editBatchForm.status as 'Active' | 'Completed',
+        college_coordinator_id: editBatchForm.college_coordinator_id || undefined,
+        student_coordinator_id: editBatchForm.student_coordinator_id || undefined,
+        start_date: editBatchForm.start_date,
+        end_date: editBatchForm.end_date,
+      });
+      setRefreshTrigger(prev => prev + 1);
     }
     setShowEditBatchModal(false);
-    toast.success(`Batch ${batch.code} updated successfully!`);
+    toast.success('Batch details updated successfully!');
   };
 
   const handleUpdateSingleMark = async (studentId: string, valStr: string) => {
@@ -869,6 +881,7 @@ export default function BatchDetails() {
                       variant="outline" 
                       onClick={() => {
                         setEditBatchForm({
+                          code: batch.code,
                           current_semester: batch.current_semester,
                           status: batch.status,
                           college_coordinator_id: batch.college_coordinator_id || '',
@@ -1924,6 +1937,16 @@ export default function BatchDetails() {
             </div>
 
             <div className="space-y-3 text-xs font-mono">
+              <div>
+                <label className="font-medium text-muted-foreground">Batch Name / Code</label>
+                <Input
+                  value={editBatchForm.code}
+                  onChange={(e) => setEditBatchForm({ ...editBatchForm, code: e.target.value })}
+                  placeholder="MIM-BBA-2026-29"
+                  className="mt-1 font-sans text-sm font-semibold"
+                />
+              </div>
+
               <div>
                 <label className="font-medium text-muted-foreground">Current Semester</label>
                 <select 

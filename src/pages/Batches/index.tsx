@@ -53,6 +53,7 @@ export default function BatchesGrid() {
   const [editingBatchId, setEditingBatchId] = useState<string | null>(null);
   const [showEditModal, setShowEditModal] = useState(false);
   const [editForm, setEditForm] = useState({
+    code: '',
     current_semester: 1,
     status: 'Active' as 'Active' | 'Completed',
     college_coordinator_id: '',
@@ -73,8 +74,13 @@ export default function BatchesGrid() {
     if (!editingBatchId) return;
     const target = store.batches.find(b => b.id === editingBatchId);
     if (target) {
+      if (!editForm.code.trim()) {
+        toast.error('Batch Name cannot be empty');
+        return;
+      }
       await store.saveBatch({
         ...target,
+        code: editForm.code.toUpperCase().trim(),
         current_semester: editForm.current_semester,
         status: editForm.status,
         college_coordinator_id: editForm.college_coordinator_id || undefined,
@@ -269,6 +275,7 @@ export default function BatchesGrid() {
                         e.stopPropagation();
                         setEditingBatchId(batch.id);
                         setEditForm({
+                          code: batch.code,
                           current_semester: batch.current_semester,
                           status: batch.status,
                           college_coordinator_id: batch.college_coordinator_id || '',
@@ -432,6 +439,16 @@ export default function BatchesGrid() {
             </div>
 
             <div className="space-y-3 text-xs font-mono">
+              <div>
+                <label className="font-medium text-muted-foreground">Batch Name / Code</label>
+                <Input
+                  value={editForm.code}
+                  onChange={(e) => setEditForm({ ...editForm, code: e.target.value })}
+                  placeholder="MIM-BBA-2026-29"
+                  className="mt-1 font-sans text-sm font-semibold"
+                />
+              </div>
+
               <div>
                 <label className="font-medium text-muted-foreground">Current Semester</label>
                 <select 
