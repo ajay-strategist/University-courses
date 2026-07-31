@@ -105,6 +105,19 @@ class DataStore {
     }
   }
 
+  // Clears the local cache and reloads the page — forces a fresh sync from Supabase
+  clearCacheAndReload() {
+    const cacheKeys = [
+      'uct_colleges', 'uct_programs', 'uct_courses', 'uct_default_syllabus',
+      'uct_assessment_types', 'uct_batches', 'uct_students', 'uct_batch_courses',
+      'uct_batch_syllabus', 'uct_sessions', 'uct_attendance', 'uct_assessments',
+      'uct_assessment_marks', 'uct_profiles', 'uct_user_email_config',
+      'uct_notification_logs', 'uct_migration_runs', 'uct_migration_mappings',
+    ];
+    cacheKeys.forEach(k => localStorage.removeItem(k));
+    window.location.reload();
+  }
+
   private saveLocalCache() {
     try {
       localStorage.setItem('uct_colleges', JSON.stringify(this.colleges));

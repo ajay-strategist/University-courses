@@ -1,6 +1,7 @@
 import { useAuth } from '@/contexts/AuthContext';
 import { Button } from '@/components/ui/button';
-import { Menu, Bell, Search, Sun, Moon, Palette } from 'lucide-react';
+import { store } from '@/lib/store';
+import { Menu, Bell, Search, Sun, Moon, RefreshCw } from 'lucide-react';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -69,6 +70,18 @@ export function Header() {
             <span className="sr-only">Toggle theme</span>
           </Button>
         )}
+
+        <Button variant="ghost" size="icon" className="relative rounded-full h-9 w-9 text-muted-foreground hover:text-foreground"
+          title="Sync from Database — clears local cache and reloads fresh data from Supabase"
+          onClick={() => {
+            if (confirm('Sync from database? This will clear the local cache and reload all data fresh from Supabase.')) {
+              store.clearCacheAndReload();
+            }
+          }}
+        >
+          <RefreshCw className="h-4 w-4" />
+          <span className="sr-only">Sync from Database</span>
+        </Button>
 
         <Button variant="ghost" size="icon" className="relative rounded-full h-9 w-9 text-muted-foreground hover:text-foreground">
           <Bell className="h-4 w-4" />
