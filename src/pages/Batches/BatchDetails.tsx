@@ -47,6 +47,16 @@ export default function BatchDetails() {
   const [showAddTopicModal, setShowAddTopicModal] = useState(false);
   const [showAbsenteeModal, setShowAbsenteeModal] = useState(false);
 
+  // Syllabus Topic Editing State
+  const [editingTopicId, setEditingTopicId] = useState<string | null>(null);
+  const [topicEditForm, setTopicEditForm] = useState<{
+    topic_no: number; topic_name: string; planned_hours: string; trainer_duration: string;
+  }>({ topic_no: 1, topic_name: '', planned_hours: '', trainer_duration: '' });
+  const [newTopicForm, setNewTopicForm] = useState<{
+    topic_no: number; topic_name: string; planned_hours: string; trainer_duration: string;
+  }>({ topic_no: 1, topic_name: '', planned_hours: '', trainer_duration: '' });
+
+
   // Student Form Inputs
   const [studentForm, setStudentForm] = useState({ register_no: '', name: '', class: 'Div A', phone: '' });
 
@@ -826,7 +836,7 @@ export default function BatchDetails() {
   // -------------------------------------------------------------------------------------
   // 7.7 SYLLABUS & COVERAGE COMPUTATIONS
   // -------------------------------------------------------------------------------------
-  const currentSyllabus = store.batchSyllabus.filter(s => s.batch_course_id === selectedBatchCourseId);
+  const currentSyllabus = store.batchSyllabus.filter(s => s.batch_course_id === selectedBatchCourseId).sort((a, b) => a.topic_no - b.topic_no);
   const totalTopics = currentSyllabus.length;
   const completedTopics = currentSyllabus.filter(s => s.is_completed).length;
   const coveragePct = totalTopics > 0 ? Math.round((completedTopics / totalTopics) * 100) : 0;
@@ -1575,48 +1585,191 @@ export default function BatchDetails() {
       {/* TAB 7.6: SYLLABUS */}
       {activeTab === 'syllabus' && (
         <div className="space-y-4">
-          <div className="flex justify-between items-center">
+          <div className="flex flex-wrap justify-between items-center gap-2">
             <h2 className="text-lg font-semibold font-heading">Batch Course Syllabus Topic List</h2>
-            <div className="flex items-center gap-2">
-              <Button size="sm" variant="outline" onClick={handleExportSyllabus} className="h-8 text-xs">
-                <Download className="h-3.5 w-3.5 mr-1" /> Export Syllabus (.xlsx)
+            <div className="flex flex-wrap items-center gap-2">
+              <Button
+                size="sm"
+                variant="outline"
+                className="h-8 text-xs"
+                onClick={async () => {
+                  const bc = store.batchCourses.find(b => b.id === selectedBatchCourseId);
+                  if (!bc) return;
+                  const added = await store.syncBatchSyllabusFromDefault(selectedBatchCourseId, bc.course_id);
+                  if (added > 0) {
+                    setRefreshTrigger(r => r + 1);
+                    toast.success(`Synced ${added} new topic(s) from default syllabus!`);
+                  } else {
+                    toast.info('All default topics already present — no new topics to sync.');
+                  }
+                }}
+              >
+                <CheckCircle2 className="h-3.5 w-3.5 mr-1" /> Sync from Default Syllabus
               </Button>
-              <Button size="sm" onClick={() => setShowAddTopicModal(true)} className="bg-primary text-primary-foreground">
+              <Button size="sm" variant="outline" onClick={handleExportSyllabus} className="h-8 text-xs">
+                <Download className="h-3.5 w-3.5 mr-1" /> Export (.xlsx)
+              </Button>
+              <Button size="sm" onClick={() => {
+                const nextNo = currentSyllabus.length > 0 ? Math.max(...currentSyllabus.map(s => s.topic_no)) + 1 : 1;
+                setNewTopicForm({ topic_no: nextNo, topic_name: '', planned_hours: '', trainer_duration: '' });
+                setShowAddTopicModal(true);
+              }} className="bg-primary text-primary-foreground">
                 <Plus className="h-3.5 w-3.5 mr-1" /> Add Custom Topic
               </Button>
             </div>
           </div>
 
-          <div className="bg-card rounded-2xl border border-border overflow-hidden shadow-sm">
+          <div className="bg-card rounded-2xl border border-border overflow-x-auto shadow-sm">
             <table className="w-full text-left text-sm">
               <thead className="bg-muted/50 border-b border-border text-muted-foreground font-mono text-xs uppercase">
                 <tr>
-                  <th className="p-3 w-16 text-center">#</th>
+                  <th className="p-3 w-14 text-center">#</th>
                   <th className="p-3">Topic Title</th>
-                  <th className="p-3 text-center">Planned Hours</th>
-                  <th className="p-3 text-center">Status</th>
+                  <th className="p-3 text-center w-28">Planned Hrs</th>
+                  <th className="p-3 text-center w-32">Trainer Duration</th>
+                  <th className="p-3 text-center w-28">Status</th>
+                  <th className="p-3 text-center w-24">Actions</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-border">
-                {currentSyllabus.map((topic) => (
-                  <tr key={topic.id} className="hover:bg-muted/30">
-                    <td className="p-3 text-center font-mono font-bold text-muted-foreground">{topic.topic_no}</td>
-                    <td className="p-3 font-medium text-foreground">{topic.topic_name}</td>
-                    <td className="p-3 text-center font-mono text-xs">{topic.planned_hours} hrs</td>
-                    <td className="p-3 text-center">
-                      <span className={`font-mono text-xs font-bold px-2 py-0.5 rounded-full ${
-                        topic.is_completed ? 'bg-success/15 text-success' : 'bg-muted text-muted-foreground'
-                      }`}>
-                        {topic.is_completed ? 'Completed' : 'Pending'}
-                      </span>
+                {currentSyllabus.length === 0 && (
+                  <tr>
+                    <td colSpan={6} className="p-6 text-center text-muted-foreground text-xs font-mono">
+                      No topics found. Use "Sync from Default Syllabus" or "Add Custom Topic".
                     </td>
                   </tr>
-                ))}
+                )}
+                {currentSyllabus.map((topic) => {
+                  const isEditing = editingTopicId === topic.id;
+                  return (
+                    <tr key={topic.id} className={`${isEditing ? 'bg-primary/5' : 'hover:bg-muted/30'}`}>
+                      <td className="p-2 text-center font-mono font-bold text-muted-foreground text-xs">
+                        {isEditing ? (
+                          <Input
+                            type="number"
+                            value={topicEditForm.topic_no}
+                            onChange={e => setTopicEditForm({ ...topicEditForm, topic_no: Number(e.target.value) })}
+                            className="h-7 w-14 text-center text-xs font-mono px-1"
+                          />
+                        ) : topic.topic_no}
+                      </td>
+                      <td className="p-2 font-medium text-foreground">
+                        {isEditing ? (
+                          <Input
+                            value={topicEditForm.topic_name}
+                            onChange={e => setTopicEditForm({ ...topicEditForm, topic_name: e.target.value })}
+                            className="h-7 text-sm"
+                            placeholder="Topic name..."
+                          />
+                        ) : topic.topic_name}
+                      </td>
+                      <td className="p-2 text-center font-mono text-xs">
+                        {isEditing ? (
+                          <Input
+                            type="number"
+                            value={topicEditForm.planned_hours}
+                            onChange={e => setTopicEditForm({ ...topicEditForm, planned_hours: e.target.value })}
+                            className="h-7 w-20 text-center text-xs font-mono px-1"
+                            placeholder="hrs"
+                          />
+                        ) : (topic.planned_hours ? `${topic.planned_hours} hrs` : '')}
+                      </td>
+                      <td className="p-2 text-center font-mono text-xs">
+                        {isEditing ? (
+                          <Input
+                            type="number"
+                            value={topicEditForm.trainer_duration}
+                            onChange={e => setTopicEditForm({ ...topicEditForm, trainer_duration: e.target.value })}
+                            className="h-7 w-24 text-center text-xs font-mono px-1"
+                            placeholder="mins/hrs"
+                          />
+                        ) : (topic.trainer_duration != null && topic.trainer_duration !== 0 ? `${topic.trainer_duration}` : <span className="text-muted-foreground/40">—</span>)}
+                      </td>
+                      <td className="p-2 text-center">
+                        <span className={`font-mono text-xs font-bold px-2 py-0.5 rounded-full ${
+                          topic.is_completed ? 'bg-success/15 text-success' : 'bg-muted text-muted-foreground'
+                        }`}>
+                          {topic.is_completed ? 'Completed' : 'Pending'}
+                        </span>
+                      </td>
+                      <td className="p-2 text-center">
+                        {isEditing ? (
+                          <div className="flex items-center justify-center gap-1">
+                            <Button
+                              size="icon"
+                              className="h-7 w-7 bg-primary text-primary-foreground"
+                              onClick={async () => {
+                                if (!topicEditForm.topic_name.trim()) {
+                                  toast.error('Topic name is required');
+                                  return;
+                                }
+                                await store.saveBatchSyllabusTopic({
+                                  ...topic,
+                                  topic_no: topicEditForm.topic_no,
+                                  topic_name: topicEditForm.topic_name.trim(),
+                                  planned_hours: topicEditForm.planned_hours !== '' ? Number(topicEditForm.planned_hours) : 0,
+                                  trainer_duration: topicEditForm.trainer_duration !== '' ? Number(topicEditForm.trainer_duration) : undefined,
+                                });
+                                setEditingTopicId(null);
+                                setRefreshTrigger(r => r + 1);
+                                toast.success('Topic updated!');
+                              }}
+                            >
+                              <Check className="h-3.5 w-3.5" />
+                            </Button>
+                            <Button
+                              size="icon"
+                              variant="ghost"
+                              className="h-7 w-7"
+                              onClick={() => setEditingTopicId(null)}
+                            >
+                              <X className="h-3.5 w-3.5" />
+                            </Button>
+                          </div>
+                        ) : (
+                          <div className="flex items-center justify-center gap-1">
+                            <Button
+                              size="icon"
+                              variant="ghost"
+                              className="h-7 w-7 text-muted-foreground hover:text-primary"
+                              onClick={() => {
+                                setEditingTopicId(topic.id);
+                                setTopicEditForm({
+                                  topic_no: topic.topic_no,
+                                  topic_name: topic.topic_name,
+                                  planned_hours: topic.planned_hours ? String(topic.planned_hours) : '',
+                                  trainer_duration: topic.trainer_duration != null ? String(topic.trainer_duration) : '',
+                                });
+                              }}
+                            >
+                              <Edit2 className="h-3.5 w-3.5" />
+                            </Button>
+                            <Button
+                              size="icon"
+                              variant="ghost"
+                              className="h-7 w-7 text-muted-foreground hover:text-destructive"
+                              onClick={async () => {
+                                if (confirm(`Delete topic "${topic.topic_name}"?`)) {
+                                  await store.deleteBatchSyllabusTopic(topic.id);
+                                  setRefreshTrigger(r => r + 1);
+                                  toast.success('Topic deleted');
+                                }
+                              }}
+                            >
+                              <Trash2 className="h-3.5 w-3.5" />
+                            </Button>
+                          </div>
+                        )}
+                      </td>
+                    </tr>
+                  );
+                })}
               </tbody>
             </table>
           </div>
         </div>
       )}
+
 
       {/* TAB 7.7: COURSE COVERAGE */}
       {activeTab === 'coverage' && (
@@ -1928,8 +2081,87 @@ export default function BatchDetails() {
           </div>
         </div>
       )}
+      {/* MODAL: ADD TOPIC */}
+      {showAddTopicModal && (
+        <div className="fixed inset-0 z-50 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4">
+          <div className="bg-card border border-border rounded-2xl p-6 max-w-md w-full shadow-2xl space-y-4">
+            <div className="flex justify-between items-center border-b border-border pb-3">
+              <h3 className="text-lg font-bold font-heading">Add Custom Topic</h3>
+              <Button variant="ghost" size="icon" onClick={() => setShowAddTopicModal(false)} className="h-8 w-8">
+                <X className="h-4 w-4" />
+              </Button>
+            </div>
+            <div className="space-y-3">
+              <div>
+                <label className="text-xs font-mono font-medium text-muted-foreground">Topic No</label>
+                <Input
+                  type="number"
+                  value={newTopicForm.topic_no}
+                  onChange={e => setNewTopicForm({ ...newTopicForm, topic_no: Number(e.target.value) })}
+                  className="mt-1 font-mono"
+                />
+              </div>
+              <div>
+                <label className="text-xs font-mono font-medium text-muted-foreground">Topic Name <span className="text-destructive">*</span></label>
+                <Input
+                  value={newTopicForm.topic_name}
+                  onChange={e => setNewTopicForm({ ...newTopicForm, topic_name: e.target.value })}
+                  placeholder="e.g. Introduction to Excel"
+                  className="mt-1"
+                />
+              </div>
+              <div>
+                <label className="text-xs font-mono font-medium text-muted-foreground">Planned Hours <span className="text-muted-foreground/60">(optional)</span></label>
+                <Input
+                  type="number"
+                  value={newTopicForm.planned_hours}
+                  onChange={e => setNewTopicForm({ ...newTopicForm, planned_hours: e.target.value })}
+                  placeholder="Leave blank if unknown"
+                  className="mt-1 font-mono"
+                />
+              </div>
+              <div>
+                <label className="text-xs font-mono font-medium text-muted-foreground">Trainer Duration <span className="text-muted-foreground/60">(optional)</span></label>
+                <Input
+                  type="number"
+                  value={newTopicForm.trainer_duration}
+                  onChange={e => setNewTopicForm({ ...newTopicForm, trainer_duration: e.target.value })}
+                  placeholder="e.g. 90 (mins)"
+                  className="mt-1 font-mono"
+                />
+              </div>
+            </div>
+            <div className="flex justify-end gap-2 pt-2 border-t border-border">
+              <Button variant="outline" onClick={() => setShowAddTopicModal(false)}>Cancel</Button>
+              <Button
+                onClick={async () => {
+                  if (!newTopicForm.topic_name.trim()) {
+                    toast.error('Topic name is required');
+                    return;
+                  }
+                  await store.saveBatchSyllabusTopic({
+                    batch_course_id: selectedBatchCourseId,
+                    topic_no: newTopicForm.topic_no,
+                    topic_name: newTopicForm.topic_name.trim(),
+                    planned_hours: newTopicForm.planned_hours !== '' ? Number(newTopicForm.planned_hours) : 0,
+                    trainer_duration: newTopicForm.trainer_duration !== '' ? Number(newTopicForm.trainer_duration) : undefined,
+                    is_completed: false,
+                  });
+                  setShowAddTopicModal(false);
+                  setRefreshTrigger(r => r + 1);
+                  toast.success('Topic added!');
+                }}
+                className="bg-primary text-primary-foreground"
+              >
+                <Plus className="h-3.5 w-3.5 mr-1" /> Add Topic
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* MODAL: EDIT BATCH DETAILS */}
+
       {showEditBatchModal && (
         <div className="fixed inset-0 z-50 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4">
           <div className="bg-card border border-border rounded-2xl p-6 max-w-md w-full shadow-2xl space-y-4">

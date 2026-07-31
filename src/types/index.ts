@@ -130,6 +130,7 @@ export interface BatchCourseSyllabus {
   topic_no: number;
   topic_name: string;
   planned_hours: number;
+  trainer_duration?: number;
   is_completed: boolean;
   completed_date?: string;
 }
