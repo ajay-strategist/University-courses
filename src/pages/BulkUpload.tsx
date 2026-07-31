@@ -126,15 +126,59 @@ export default function BulkUpload() {
     ];
     XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(instructions), 'Instructions');
 
-    // 2. Data Sheets (empty templates matching headers)
+    // 2. Sample Data Dictionary
+    const sampleDataDict: Record<string, any[]> = {
+      colleges: [
+        { code: 'COL-001', name: 'Harvard College', location: 'Cambridge, MA', contact_person: 'John Harvard', contact_email: 'john@harvard.edu', contact_phone: '1234567890' },
+        { code: 'COL-002', name: 'MIT', location: 'Cambridge, MA', contact_person: 'Jane Doe', contact_email: 'jane@mit.edu', contact_phone: '0987654321' }
+      ],
+      programs: [
+        { code: 'CS', name: 'Computer Science' },
+        { code: 'EE', name: 'Electrical Engineering' }
+      ],
+      courses: [
+        { code: 'CS101', name: 'Introduction to Computer Science' },
+        { code: 'EE101', name: 'Introduction to Circuits' }
+      ],
+      courseDefaultSyllabus: [
+        { course_code: 'CS101', topic_no: 1, topic_name: 'Introduction to Programming', planned_hours: 3 },
+        { course_code: 'CS101', topic_no: 2, topic_name: 'Conditionals & Loops', planned_hours: 4 }
+      ],
+      users: [
+        { full_name: 'Alice Smith', email: 'alice@univ.edu', phone: '1112223333', role: 'trainer' },
+        { full_name: 'Bob Jones', email: 'bob@univ.edu', phone: '4445556666', role: 'student_coordinator' }
+      ],
+      batches: [
+        { college_code: 'COL-001', program_code: 'CS', academic_year: '2026', current_semester: 1, college_coordinator_email: 'alice@univ.edu', student_coordinator_email: 'bob@univ.edu', start_date: '2026-01-15', end_date: '2026-06-15' }
+      ],
+      students: [
+        { batch_code: 'COL-001-CS-2026', register_no: '001', name: 'Charlie Brown', class: 'CS-A', phone: '5556667777' },
+        { batch_code: 'COL-001-CS-2026', register_no: '002', name: 'Lucy van Pelt', class: 'CS-A', phone: '8889990000' }
+      ],
+      batchCourses: [
+        { batch_code: 'COL-001-CS-2026', course_code: 'CS101', trainer_email: 'alice@univ.edu', semester: 1, planned_hours: 30, start_date: '2026-01-15', end_date: '2026-06-15' }
+      ],
+      batchSyllabus: [
+        { batch_code: 'COL-001-CS-2026', course_code: 'CS101', topic_no: 1, topic_name: 'Introduction to Programming', planned_hours: 3, is_completed: 'TRUE', completed_date: '2026-01-20' },
+        { batch_code: 'COL-001-CS-2026', course_code: 'CS101', topic_no: 2, topic_name: 'Conditionals & Loops', planned_hours: 4, is_completed: 'FALSE', completed_date: '' }
+      ],
+      assessments: [
+        { batch_code: 'COL-001-CS-2026', course_code: 'CS101', assessment_name: 'Midterm Exam', type: 'Exam', max_mark: 100, assessment_date: '2026-03-10' }
+      ],
+      assessmentMarks: [
+        { batch_code: 'COL-001-CS-2026', course_code: 'CS101', assessment_name: 'Midterm Exam', register_no: '001', mark: 85 },
+        { batch_code: 'COL-001-CS-2026', course_code: 'CS101', assessment_name: 'Midterm Exam', register_no: '002', mark: 92 }
+      ],
+      attendance: [
+        { batch_code: 'COL-001-CS-2026', course_code: 'CS101', register_no: '001', session_date: '2026-01-20', hour_no: 1, status: 'present' },
+        { batch_code: 'COL-001-CS-2026', course_code: 'CS101', register_no: '002', session_date: '2026-01-20', hour_no: 1, status: 'absent' }
+      ]
+    };
+
+    // 3. Data Sheets with Headers and Sample Data
     entities.forEach(ent => {
-      const dummyRow = ent.requiredFields.reduce((acc, f) => {
-        acc[f] = '';
-        return acc;
-      }, {} as any);
-      const ws = XLSX.utils.json_to_sheet([dummyRow]);
-      // Remove the dummy row's empty values but keep headers
-      XLSX.utils.sheet_add_json(ws, [], { skipHeader: false });
+      const sampleRows = sampleDataDict[ent.key] || [];
+      const ws = XLSX.utils.json_to_sheet(sampleRows, { header: ent.requiredFields });
       XLSX.utils.book_append_sheet(wb, ws, ent.label);
     });
 
