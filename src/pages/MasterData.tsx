@@ -41,6 +41,9 @@ export default function MasterData() {
   const [topicForm, setTopicForm] = useState<{ topic_no: number; topic_name: string; planned_hours: number }>({ topic_no: 1, topic_name: '', planned_hours: 2 });
 
   const [editingCollegeId, setEditingCollegeId] = useState<string | null>(null);
+  const [editingCourseId, setEditingCourseId] = useState<string | null>(null);
+  const [editingProgramId, setEditingProgramId] = useState<string | null>(null);
+  const [editingAssessmentTypeId, setEditingAssessmentTypeId] = useState<string | null>(null);
 
   // Add / Edit College
   const handleSaveCollege = async () => {
@@ -65,53 +68,59 @@ export default function MasterData() {
     toast.success(`College ${saved.code} saved successfully!`);
   };
 
-  // Add Course
+  // Add / Edit Course
   const handleSaveCourse = async () => {
     if (!courseForm.code || !courseForm.name) {
       toast.error('Course Code and Name are required');
       return;
     }
     const saved = await store.saveCourse({
+      id: editingCourseId || undefined,
       code: courseForm.code.toUpperCase(),
       name: courseForm.name,
     });
     setCourses([...store.courses]);
-    if (!selectedCourseId) {
+    if (!selectedCourseId || editingCourseId === selectedCourseId) {
       setSelectedCourseId(saved.id);
     }
     setShowCourseModal(false);
+    setEditingCourseId(null);
     setCourseForm({ code: '', name: '' });
     toast.success(`Course ${saved.name} saved successfully!`);
   };
 
-  // Add Program
+  // Add / Edit Program
   const handleSaveProgram = async () => {
     if (!programForm.code || !programForm.name) {
       toast.error('Program Code and Name are required');
       return;
     }
     const saved = await store.saveProgram({
+      id: editingProgramId || undefined,
       code: programForm.code.toUpperCase(),
       name: programForm.name,
     });
     setPrograms([...store.programs]);
     setShowProgramModal(false);
+    setEditingProgramId(null);
     setProgramForm({ code: '', name: '' });
     toast.success(`Program ${saved.code} saved successfully!`);
   };
 
-  // Add Assessment Type
+  // Add / Edit Assessment Type
   const handleSaveAssessment = async () => {
     if (!assessmentForm.name) {
       toast.error('Name is required');
       return;
     }
     const saved = await store.saveAssessmentType({
+      id: editingAssessmentTypeId || undefined,
       name: assessmentForm.name,
       default_max_mark: Number(assessmentForm.default_max_mark) || 100,
     });
     setAssessmentTypes([...store.assessmentTypes]);
     setShowAssessmentModal(false);
+    setEditingAssessmentTypeId(null);
     setAssessmentForm({ name: '', default_max_mark: 100 });
     toast.success(`Assessment Type ${saved.name} saved successfully!`);
   };
@@ -337,7 +346,7 @@ export default function MasterData() {
           <div className="space-y-4 lg:col-span-1">
             <div className="flex justify-between items-center">
               <h2 className="text-lg font-semibold font-heading">Tool Courses</h2>
-              <Button size="sm" onClick={() => setShowCourseModal(true)} className="bg-primary text-primary-foreground">
+              <Button size="sm" onClick={() => { setEditingCourseId(null); setCourseForm({ code: '', name: '' }); setShowCourseModal(true); }} className="bg-primary text-primary-foreground">
                 <Plus className="h-4 w-4 mr-1" /> Add Course
               </Button>
             </div>
@@ -345,21 +354,56 @@ export default function MasterData() {
               {courses.map((crs) => {
                 const topicCount = defaultSyllabus.filter(s => s.course_id === crs.id).length;
                 return (
-                  <button
+                  <div
                     key={crs.id}
                     onClick={() => setSelectedCourseId(crs.id)}
-                    className={`w-full flex items-center justify-between p-3 rounded-xl transition-all text-left ${
+                    className={`w-full flex items-center justify-between p-3 rounded-xl transition-all text-left cursor-pointer ${
                       selectedCourseId === crs.id 
                         ? 'bg-primary-tint/80 border border-primary/30 text-primary font-semibold' 
                         : 'hover:bg-muted/50 text-foreground'
                     }`}
                   >
-                    <div className="flex items-center gap-3">
-                      <span className="font-mono text-xs px-2 py-0.5 rounded bg-primary/10 text-primary font-bold">{crs.code}</span>
-                      <span>{crs.name}</span>
+                    <div className="flex items-center gap-3 min-w-0">
+                      <span className="font-mono text-xs px-2 py-0.5 rounded bg-primary/10 text-primary font-bold shrink-0">{crs.code}</span>
+                      <span className="truncate text-sm font-medium">{crs.name}</span>
                     </div>
-                    <span className="text-xs text-muted-foreground font-mono">{topicCount} topics</span>
-                  </button>
+                    <div className="flex items-center gap-1.5 shrink-0 ml-2">
+                      <span className="text-xs text-muted-foreground font-mono mr-1">{topicCount} topics</span>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        title="Edit course"
+                        className="h-7 w-7 text-primary hover:bg-primary/20"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setEditingCourseId(crs.id);
+                          setCourseForm({ code: crs.code, name: crs.name });
+                          setShowCourseModal(true);
+                        }}
+                      >
+                        <Edit2 className="h-3.5 w-3.5" />
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        title="Delete course"
+                        className="h-7 w-7 text-destructive hover:bg-destructive/20"
+                        onClick={async (e) => {
+                          e.stopPropagation();
+                          if (confirm(`Remove course "${crs.name}"? This will delete its default syllabus topics.`)) {
+                            await store.deleteCourse(crs.id);
+                            setCourses([...store.courses]);
+                            if (selectedCourseId === crs.id) {
+                              setSelectedCourseId(store.courses[0]?.id || '');
+                            }
+                            toast.success('Course removed');
+                          }
+                        }}
+                      >
+                        <Trash2 className="h-3.5 w-3.5" />
+                      </Button>
+                    </div>
+                  </div>
                 );
               })}
             </div>
@@ -437,7 +481,7 @@ export default function MasterData() {
         <div className="space-y-4">
           <div className="flex justify-between items-center">
             <h2 className="text-lg font-semibold font-heading">Academic Programs</h2>
-            <Button onClick={() => setShowProgramModal(true)} className="bg-primary text-primary-foreground">
+            <Button onClick={() => { setEditingProgramId(null); setProgramForm({ code: '', name: '' }); setShowProgramModal(true); }} className="bg-primary text-primary-foreground">
               <Plus className="h-4 w-4 mr-2" /> Add Program
             </Button>
           </div>
@@ -453,12 +497,34 @@ export default function MasterData() {
                     <span className="font-mono text-xs px-2 py-0.5 rounded bg-accent/15 text-accent font-bold">{prog.code}</span>
                     <h3 className="font-bold text-foreground mt-2">{prog.name}</h3>
                   </div>
-                  <Button variant="ghost" size="icon" className="text-destructive hover:bg-destructive/10" onClick={async () => {
-                    await store.deleteProgram(prog.id);
-                    setPrograms([...store.programs]);
-                  }}>
-                    <Trash2 className="h-4 w-4" />
-                  </Button>
+                  <div className="flex items-center gap-1">
+                    <Button 
+                      variant="ghost" 
+                      size="icon" 
+                      className="h-8 w-8 text-primary hover:bg-primary/10" 
+                      onClick={() => {
+                        setEditingProgramId(prog.id);
+                        setProgramForm({ code: prog.code, name: prog.name });
+                        setShowProgramModal(true);
+                      }}
+                    >
+                      <Edit2 className="h-4 w-4" />
+                    </Button>
+                    <Button 
+                      variant="ghost" 
+                      size="icon" 
+                      className="h-8 w-8 text-destructive hover:bg-destructive/10" 
+                      onClick={async () => {
+                        if (confirm(`Remove academic program "${prog.name}"?`)) {
+                          await store.deleteProgram(prog.id);
+                          setPrograms([...store.programs]);
+                          toast.success('Program removed');
+                        }
+                      }}
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </Button>
+                  </div>
                 </div>
               ))
             )}
@@ -471,7 +537,7 @@ export default function MasterData() {
         <div className="space-y-4">
           <div className="flex justify-between items-center">
             <h2 className="text-lg font-semibold font-heading">Assessment Types & Default Max Marks</h2>
-            <Button onClick={() => setShowAssessmentModal(true)} className="bg-primary text-primary-foreground">
+            <Button onClick={() => { setEditingAssessmentTypeId(null); setAssessmentForm({ name: '', default_max_mark: 100 }); setShowAssessmentModal(true); }} className="bg-primary text-primary-foreground">
               <Plus className="h-4 w-4 mr-2" /> Add Assessment Type
             </Button>
           </div>
@@ -489,12 +555,34 @@ export default function MasterData() {
                       Default Suggestion: <span className="font-bold text-primary">{at.default_max_mark} marks</span>
                     </div>
                   </div>
-                  <Button variant="ghost" size="icon" className="text-destructive hover:bg-destructive/10" onClick={async () => {
-                    await store.deleteAssessmentType(at.id);
-                    setAssessmentTypes([...store.assessmentTypes]);
-                  }}>
-                    <Trash2 className="h-4 w-4" />
-                  </Button>
+                  <div className="flex items-center gap-1">
+                    <Button 
+                      variant="ghost" 
+                      size="icon" 
+                      className="h-8 w-8 text-primary hover:bg-primary/10" 
+                      onClick={() => {
+                        setEditingAssessmentTypeId(at.id);
+                        setAssessmentForm({ name: at.name, default_max_mark: at.default_max_mark });
+                        setShowAssessmentModal(true);
+                      }}
+                    >
+                      <Edit2 className="h-4 w-4" />
+                    </Button>
+                    <Button 
+                      variant="ghost" 
+                      size="icon" 
+                      className="h-8 w-8 text-destructive hover:bg-destructive/10" 
+                      onClick={async () => {
+                        if (confirm(`Remove assessment type "${at.name}"?`)) {
+                          await store.deleteAssessmentType(at.id);
+                          setAssessmentTypes([...store.assessmentTypes]);
+                          toast.success('Assessment type removed');
+                        }
+                      }}
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </Button>
+                  </div>
                 </div>
               ))
             )}
@@ -539,11 +627,11 @@ export default function MasterData() {
         </div>
       )}
 
-      {/* MODAL 2: Add Course */}
+      {/* MODAL 2: Add / Edit Course */}
       {showCourseModal && (
         <div className="fixed inset-0 z-50 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4">
           <div className="bg-card border border-border rounded-2xl p-6 max-w-md w-full shadow-2xl space-y-4">
-            <h3 className="text-lg font-bold font-heading">Add Tool Course</h3>
+            <h3 className="text-lg font-bold font-heading">{editingCourseId ? 'Edit Tool Course' : 'Add Tool Course'}</h3>
             <div className="space-y-3">
               <div>
                 <label className="text-xs font-mono font-medium text-muted-foreground">Course Code (e.g. XL, PBI, R)</label>
@@ -555,18 +643,20 @@ export default function MasterData() {
               </div>
             </div>
             <div className="flex justify-end gap-2 pt-2">
-              <Button variant="outline" onClick={() => setShowCourseModal(false)}>Cancel</Button>
-              <Button onClick={handleSaveCourse} className="bg-primary text-primary-foreground">Save Course</Button>
+              <Button variant="outline" onClick={() => { setShowCourseModal(false); setEditingCourseId(null); setCourseForm({ code: '', name: '' }); }}>Cancel</Button>
+              <Button onClick={handleSaveCourse} className="bg-primary text-primary-foreground">
+                {editingCourseId ? 'Save Changes' : 'Save Course'}
+              </Button>
             </div>
           </div>
         </div>
       )}
 
-      {/* MODAL 3: Add Program */}
+      {/* MODAL 3: Add / Edit Program */}
       {showProgramModal && (
         <div className="fixed inset-0 z-50 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4">
           <div className="bg-card border border-border rounded-2xl p-6 max-w-md w-full shadow-2xl space-y-4">
-            <h3 className="text-lg font-bold font-heading">Add Academic Program</h3>
+            <h3 className="text-lg font-bold font-heading">{editingProgramId ? 'Edit Academic Program' : 'Add Academic Program'}</h3>
             <div className="space-y-3">
               <div>
                 <label className="text-xs font-mono font-medium text-muted-foreground">Program Code (e.g. BBA)</label>
@@ -578,18 +668,20 @@ export default function MasterData() {
               </div>
             </div>
             <div className="flex justify-end gap-2 pt-2">
-              <Button variant="outline" onClick={() => setShowProgramModal(false)}>Cancel</Button>
-              <Button onClick={handleSaveProgram} className="bg-primary text-primary-foreground">Save Program</Button>
+              <Button variant="outline" onClick={() => { setShowProgramModal(false); setEditingProgramId(null); setProgramForm({ code: '', name: '' }); }}>Cancel</Button>
+              <Button onClick={handleSaveProgram} className="bg-primary text-primary-foreground">
+                {editingProgramId ? 'Save Changes' : 'Save Program'}
+              </Button>
             </div>
           </div>
         </div>
       )}
 
-      {/* MODAL 4: Add Assessment Type */}
+      {/* MODAL 4: Add / Edit Assessment Type */}
       {showAssessmentModal && (
         <div className="fixed inset-0 z-50 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4">
           <div className="bg-card border border-border rounded-2xl p-6 max-w-md w-full shadow-2xl space-y-4">
-            <h3 className="text-lg font-bold font-heading">Add Assessment Type</h3>
+            <h3 className="text-lg font-bold font-heading">{editingAssessmentTypeId ? 'Edit Assessment Type' : 'Add Assessment Type'}</h3>
             <div className="space-y-3">
               <div>
                 <label className="text-xs font-mono font-medium text-muted-foreground">Assessment Type Name</label>
@@ -601,8 +693,10 @@ export default function MasterData() {
               </div>
             </div>
             <div className="flex justify-end gap-2 pt-2">
-              <Button variant="outline" onClick={() => setShowAssessmentModal(false)}>Cancel</Button>
-              <Button onClick={handleSaveAssessment} className="bg-primary text-primary-foreground">Save Type</Button>
+              <Button variant="outline" onClick={() => { setShowAssessmentModal(false); setEditingAssessmentTypeId(null); setAssessmentForm({ name: '', default_max_mark: 100 }); }}>Cancel</Button>
+              <Button onClick={handleSaveAssessment} className="bg-primary text-primary-foreground">
+                {editingAssessmentTypeId ? 'Save Changes' : 'Save Type'}
+              </Button>
             </div>
           </div>
         </div>
