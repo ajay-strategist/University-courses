@@ -95,17 +95,21 @@ export default function ImportCenter() {
       }
       filename = `${selectedBatch?.code || 'Batch'}_${selectedCourse?.code || 'Course'}_Marks_Template.xlsx`;
     } else if (importType === 'attendance') {
+      // Column format: DD-MM-YYYY(H1) matching real-world attendance sheets
+      const today = new Date();
+      const fmt = (d: Date) => `${String(d.getDate()).padStart(2,'0')}-${String(d.getMonth()+1).padStart(2,'0')}-${d.getFullYear()}`;
+      const d1 = fmt(today);
       rows = batchStudents.map(stu => ({
         'Register No': stu.register_no,
         'Student Name': stu.name,
         'Class': stu.class,
-        '2026-02-01 (H1)': 'P',
-        '2026-02-01 (H2)': 'P',
+        [`${d1}(H1)`]: 'P',
+        [`${d1}(H2)`]: 'P',
       }));
       if (rows.length === 0) {
         rows = [
-          { 'Register No': '2026BBA101', 'Student Name': 'Charlie Brown', 'Class': 'CS-A', '2026-02-01 (H1)': 'P', '2026-02-01 (H2)': 'P' },
-          { 'Register No': '2026BBA102', 'Student Name': 'Lucy van Pelt', 'Class': 'CS-A', '2026-02-01 (H1)': 'A', '2026-02-01 (H2)': 'P' }
+          { 'Register No': '24UBB101', 'Student Name': 'Sample Student 1', 'Class': 'BBA A', [`${d1}(H1)`]: 'P', [`${d1}(H2)`]: 'P' },
+          { 'Register No': '24UBB102', 'Student Name': 'Sample Student 2', 'Class': 'BBA A', [`${d1}(H1)`]: 'A', [`${d1}(H2)`]: 'P' }
         ];
       }
       filename = `${selectedBatch?.code || 'Batch'}_${selectedCourse?.code || 'Course'}_Attendance_Template.xlsx`;
@@ -160,11 +164,16 @@ export default function ImportCenter() {
       const bcs = store.batchCourses.filter(bc => bc.batch_id === selectedBatchId && bc.course_id === selectedCourseId);
       const bcsIds = bcs.map(b => b.id);
       const sessions = store.sessions.filter(s => bcsIds.includes(s.batch_course_id));
+      // Export uses same DD-MM-YYYY(H1) format for round-trip compatibility
+      const toColHeader = (isoDate: string, hour: number) => {
+        const [y, m, d] = isoDate.split('-');
+        return `${d}-${m}-${y}(H${hour})`;
+      };
       const data = batchStudents.map(stu => {
-        const row: any = { 'Register Number': stu.register_no, 'Name': stu.name };
+        const row: any = { 'Register No': stu.register_no, 'Student Name': stu.name, 'Class': stu.class };
         sessions.forEach(sess => {
           const rec = store.attendance.find(a => a.session_id === sess.id && a.student_id === stu.id);
-          row[`${sess.session_date} (H${sess.hour_no})`] = rec ? rec.status.toUpperCase() : 'PRESENT';
+          row[toColHeader(sess.session_date, sess.hour_no)] = rec ? rec.status[0].toUpperCase() : 'P';
         });
         return row;
       });
@@ -297,16 +306,27 @@ export default function ImportCenter() {
               return !BASE_KEYS.some(bk => kl.includes(bk));
             });
             let sessionCount = 0;
+            // Helper to convert DD-MM-YYYY → YYYY-MM-DD for DB storage
+            const normDate = (raw: string): string => {
+              const ddmm = raw.match(/^(\d{2})-(\d{2})-(\d{4})$/);
+              if (ddmm) return `${ddmm[3]}-${ddmm[2]}-${ddmm[1]}`;
+              return raw; // already YYYY-MM-DD or will be caught as invalid
+            };
             dateKeys.forEach(col => {
-              const bracketMatch = col.match(/(\d{4}-\d{2}-\d{2})\s*\(H(\d+)\)/i);
-              const dotMatch = col.match(/(\d{4}-\d{2}-\d{2})[·.\-](\d+)/);
+              // Matches: DD-MM-YYYY(H1) | DD-MM-YYYY(1) | DD-MM-YYYY (H1) | DD-MM-YYYY (1)
+              //      and: YYYY-MM-DD(H1) | YYYY-MM-DD(1) | YYYY-MM-DD (H1) | YYYY-MM-DD (1)
+              const colTrimmed = col.trim();
+              const bracketMatch = colTrimmed.match(/^(\d{2}-\d{2}-\d{4}|\d{4}-\d{2}-\d{2})\s*\(H?(\d+)\)$/i);
               let date = '';
               let hour = 1;
-              if (bracketMatch) { date = bracketMatch[1]; hour = Number(bracketMatch[2]); }
-              else if (dotMatch) { date = dotMatch[1]; hour = Number(dotMatch[2]); }
-              else {
-                const parsed = parseExcelDate(col);
-                if (parsed) date = parsed;
+              if (bracketMatch) {
+                date = normDate(bracketMatch[1]);
+                hour = Number(bracketMatch[2]);
+              } else {
+                // Fallback: try to parse whatever is before the first '(' as a date
+                const beforeParen = colTrimmed.split('(')[0].trim();
+                const parsed = parseExcelDate(beforeParen || colTrimmed);
+                if (parsed) date = normDate(parsed);
               }
               if (!date) return;
               const val = String(r[col] || 'P').trim().toUpperCase();
