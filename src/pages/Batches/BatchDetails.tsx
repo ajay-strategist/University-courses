@@ -1497,6 +1497,7 @@ export default function BatchDetails() {
                   <th className="p-3">Register No</th>
                   <th className="p-3">Student Name</th>
                   <th className="p-3">Tool</th>
+                  <th className="p-3">Assignment</th>
                   <th className="p-3 text-center">Marks Obtained</th>
                   <th className="p-3 text-center">Max Mark</th>
                   <th className="p-3 text-center">Percentage</th>
@@ -1514,6 +1515,9 @@ export default function BatchDetails() {
                       <td className="p-3 font-mono font-bold text-accent">{stu.register_no}</td>
                       <td className="p-3 font-medium text-foreground">{stu.name}</td>
                       <td className="p-3 text-xs font-mono">{activeCourse?.name}</td>
+                      <td className="p-3 text-xs font-mono font-semibold text-primary">
+                        {selectedAssessmentId === 'new' ? (assessmentName || 'New Assessment') : (currentAssessment?.name || '—')}
+                      </td>
                       <td className="p-3 text-center font-mono">
                         <div className="flex items-center justify-center gap-1">
                           <Input
