@@ -189,6 +189,48 @@ class DataStore {
         supabase.from('uct_migration_mappings').select('*').order('created_at', { ascending: false }),
       ]);
 
+      // Sync local-only/modified data to Supabase
+      try {
+        await Promise.all([
+          this.syncTable('uct_profiles', this.profiles, profs || []),
+          this.syncTable('uct_colleges', this.colleges, cols || []),
+          this.syncTable('uct_programs', this.programs, progs || []),
+          this.syncTable('uct_courses', this.courses, crses || []),
+          this.syncTable('uct_course_default_syllabus', this.defaultSyllabus, defSyl || []),
+          this.syncTable('uct_assessment_types', this.assessmentTypes, assTypes || []),
+          this.syncTable('uct_batches', this.batches, bts || [], (b) => ({
+            ...b,
+            college_coordinator_id: b.college_coordinator_id && !b.college_coordinator_id.startsWith('usr-') ? b.college_coordinator_id : null,
+            student_coordinator_id: b.student_coordinator_id && !b.student_coordinator_id.startsWith('usr-') ? b.student_coordinator_id : null,
+          })),
+          this.syncTable('uct_students', this.students, stds || []),
+          this.syncTable('uct_batch_courses', this.batchCourses, bCrs || [], (bc) => ({
+            ...bc,
+            trainer_id: bc.trainer_id && !bc.trainer_id.startsWith('usr-') ? bc.trainer_id : null,
+          })),
+          this.syncTable('uct_batch_course_syllabus', this.batchSyllabus, bSyl || []),
+          this.syncTable('uct_sessions', this.sessions, sess || []),
+          this.syncTable('uct_attendance', this.attendance, atts || []),
+          this.syncTable('uct_assessments', this.assessments, asms || []),
+          this.syncTable('uct_assessment_marks', this.assessmentMarks, marks || []),
+          this.syncTable('uct_user_email_config', this.emailConfigs, emails || []),
+          this.syncTable('uct_notification_log', this.notificationLogs, logs || [], (log) => ({
+            ...log,
+            sender_id: log.sender_id && !log.sender_id.startsWith('usr-') ? log.sender_id : null,
+          })),
+          this.syncTable('uct_migration_runs', this.migrationRuns, runs || [], (run) => ({
+            ...run,
+            uploaded_by: run.uploaded_by && !run.uploaded_by.startsWith('usr-') ? run.uploaded_by : null,
+          })),
+          this.syncTable('uct_migration_mappings', this.migrationMappings, mappings || [], (mapping) => ({
+            ...mapping,
+            owner_id: mapping.owner_id && !mapping.owner_id.startsWith('usr-') ? mapping.owner_id : null,
+          })),
+        ]);
+      } catch (syncErr) {
+        console.warn('Background sync failed:', syncErr);
+      }
+
       const mergeArrays = <T extends { id?: string; user_id?: string }>(local: T[], remote: T[]): T[] => {
         const merged = [...remote];
         local.forEach(l => {
@@ -447,8 +489,8 @@ class DataStore {
         program_id: item.program_id,
         academic_year: item.academic_year,
         current_semester: item.current_semester,
-        college_coordinator_id: item.college_coordinator_id,
-        student_coordinator_id: item.student_coordinator_id,
+        college_coordinator_id: item.college_coordinator_id && !item.college_coordinator_id.startsWith('usr-') ? item.college_coordinator_id : null,
+        student_coordinator_id: item.student_coordinator_id && !item.student_coordinator_id.startsWith('usr-') ? item.student_coordinator_id : null,
         status: item.status,
         start_date: item.start_date,
         end_date: item.end_date,
@@ -550,7 +592,11 @@ class DataStore {
     this.saveLocalCache();
 
     try {
-      const { error } = await supabase.from('uct_batch_courses').upsert(item);
+      const dbItem = {
+        ...item,
+        trainer_id: item.trainer_id && !item.trainer_id.startsWith('usr-') ? item.trainer_id : null
+      };
+      const { error } = await supabase.from('uct_batch_courses').upsert(dbItem);
       if (error) console.error('Supabase saveBatchCourse error:', error.message);
     } catch (e) {
       console.warn('Supabase batch course sync warning:', e);
@@ -835,7 +881,11 @@ class DataStore {
 
     if (log.id && !log.id.startsWith('log-test-') && !log.id.startsWith('log-')) {
       try {
-        const { error } = await supabase.from('uct_notification_log').upsert(log);
+        const dbItem = {
+          ...log,
+          sender_id: log.sender_id && !log.sender_id.startsWith('usr-') ? log.sender_id : null
+        };
+        const { error } = await supabase.from('uct_notification_log').upsert(dbItem);
         if (error) console.error('Supabase saveNotificationLog error:', error.message);
       } catch (e) {
         console.warn('Supabase notification log sync warning:', e);
@@ -874,7 +924,11 @@ class DataStore {
     this.saveLocalCache();
 
     try {
-      const { error } = await supabase.from('uct_migration_runs').upsert(run);
+      const dbItem = {
+        ...run,
+        uploaded_by: run.uploaded_by && !run.uploaded_by.startsWith('usr-') ? run.uploaded_by : null
+      };
+      const { error } = await supabase.from('uct_migration_runs').upsert(dbItem);
       if (error) console.error('Supabase saveMigrationRun error:', error.message);
     } catch (e) {
       console.warn('Supabase migration run sync warning:', e);
@@ -890,7 +944,11 @@ class DataStore {
     this.saveLocalCache();
 
     try {
-      const { error } = await supabase.from('uct_migration_mappings').upsert(mapping);
+      const dbItem = {
+        ...mapping,
+        owner_id: mapping.owner_id && !mapping.owner_id.startsWith('usr-') ? mapping.owner_id : null
+      };
+      const { error } = await supabase.from('uct_migration_mappings').upsert(dbItem);
       if (error) console.error('Supabase saveMigrationMapping error:', error.message);
     } catch (e) {
       console.warn('Supabase migration mapping sync warning:', e);
@@ -1383,6 +1441,75 @@ class DataStore {
     } catch (err: any) {
       this.saveLocalCache();
       return { success: false, summary, error: err.message };
+    }
+  }
+
+  private async syncTable<T extends { id?: string; user_id?: string }>(
+    tableName: string,
+    localItems: T[],
+    remoteItems: T[],
+    sanitizeFn?: (item: T) => any
+  ): Promise<void> {
+    const toSync = localItems.filter(localItem => {
+      const localKey = localItem.id || localItem.user_id;
+      if (!localKey) return false;
+      
+      // Skip test items or items starting with temp structures
+      if (localKey.startsWith?.('usr-') && (tableName === 'uct_profiles' || tableName === 'uct_user_email_config')) {
+        return false;
+      }
+      if (tableName === 'uct_notification_log' && (localKey.startsWith?.('log-test-') || localKey.startsWith?.('log-'))) {
+        return false;
+      }
+
+      const remoteItem = remoteItems.find(r => (r.id || r.user_id) === localKey);
+      if (!remoteItem) {
+        return true; // Local only
+      }
+
+      const localClean = { ...localItem };
+      const remoteClean = { ...remoteItem };
+      const stripKeys = [
+        'created_at', 'updated_at', 
+        'college', 'program', 'college_coordinator', 'student_coordinator', 
+        'student_count', 'avg_attendance_pct', 'avg_coverage_pct', 
+        'course', 'trainer', 'batch', 'coverage_pct', 'sessions_held', 'delivered_hours'
+      ];
+      stripKeys.forEach(k => {
+        delete (localClean as any)[k];
+        delete (remoteClean as any)[k];
+      });
+
+      return JSON.stringify(localClean) !== JSON.stringify(remoteClean);
+    });
+
+    if (toSync.length === 0) return;
+
+    console.log(`[Sync] Pushing ${toSync.length} modified/new records to Supabase table ${tableName}...`);
+
+    const chunkSize = 50;
+    for (let i = 0; i < toSync.length; i += chunkSize) {
+      const chunk = toSync.slice(i, i + chunkSize).map(item => {
+        const sanitized = sanitizeFn ? sanitizeFn(item) : item;
+        const dbItem = { ...sanitized };
+        
+        // Clean metadata fields
+        const nonDbKeys = [
+          'college', 'program', 'college_coordinator', 'student_coordinator', 
+          'student_count', 'avg_attendance_pct', 'avg_coverage_pct', 
+          'course', 'trainer', 'batch', 'coverage_pct', 'sessions_held', 'delivered_hours',
+          'attendance_pct', 'type'
+        ];
+        nonDbKeys.forEach(k => delete (dbItem as any)[k]);
+        return dbItem;
+      });
+
+      try {
+        const { error } = await supabase.from(tableName).upsert(chunk);
+        if (error) console.error(`[Sync] Failed to sync ${tableName} chunk:`, error.message);
+      } catch (err) {
+        console.warn(`[Sync] Error syncing ${tableName} chunk:`, err);
+      }
     }
   }
 }

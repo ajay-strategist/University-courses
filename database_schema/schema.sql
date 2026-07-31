@@ -673,10 +673,38 @@ BEGIN
 END;
 $$;
 
+-- Function 4: Admin Update User Role
+CREATE OR REPLACE FUNCTION public.admin_update_user_role(
+  target_user_id UUID,
+  new_role public.uct_user_role
+)
+RETURNS void
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+BEGIN
+  -- 1) Verify caller is an admin
+  IF NOT EXISTS (
+    SELECT 1 FROM public.uct_profiles
+    WHERE id = auth.uid() AND role = 'admin'
+  ) THEN
+    RAISE EXCEPTION 'Only administrators can update user roles';
+  END IF;
+
+  -- 2) Update role in uct_profiles
+  UPDATE public.uct_profiles
+  SET role = new_role,
+      updated_at = now()
+  WHERE id = target_user_id;
+END;
+$$;
+
 -- Grant permissions to authenticated users to call these functions
 GRANT EXECUTE ON FUNCTION public.admin_create_user(TEXT, TEXT, TEXT, public.uct_user_role) TO authenticated;
 GRANT EXECUTE ON FUNCTION public.admin_delete_user(UUID) TO authenticated;
 GRANT EXECUTE ON FUNCTION public.reset_user_password(UUID) TO authenticated;
+GRANT EXECUTE ON FUNCTION public.admin_update_user_role(UUID, public.uct_user_role) TO authenticated;
 
 -- -------------------------------------------------------------------------------------
 -- 13. MIGRATION RUNS & COLUMN MAPPINGS
