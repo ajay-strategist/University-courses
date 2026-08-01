@@ -24,6 +24,9 @@ DROP VIEW IF EXISTS public.uct_vw_dim_batch CASCADE;
 DROP VIEW IF EXISTS public.uct_vw_dim_college CASCADE;
 
 -- Drop uct_ tables if they exist
+DROP TABLE IF EXISTS public.uct_migration_mappings CASCADE;
+DROP TABLE IF EXISTS public.uct_migration_runs CASCADE;
+DROP TABLE IF EXISTS public.uct_trainer_logs CASCADE;
 DROP TABLE IF EXISTS public.uct_notification_log CASCADE;
 DROP TABLE IF EXISTS public.uct_assessment_marks CASCADE;
 DROP TABLE IF EXISTS public.uct_assessments CASCADE;
