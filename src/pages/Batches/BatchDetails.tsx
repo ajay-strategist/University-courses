@@ -144,6 +144,7 @@ export default function BatchDetails() {
     student_coordinator_id: batch?.student_coordinator_id || '',
     start_date: batch?.start_date || '',
     end_date: batch?.end_date || '',
+    academic_year: batch?.academic_year || '',
   });
 
   // Edit/Delete Student State
@@ -216,11 +217,16 @@ export default function BatchDetails() {
       toast.error('Batch Name cannot be empty');
       return;
     }
+    if (!editBatchForm.academic_year.trim()) {
+      toast.error('Academic Year/Course Duration cannot be empty');
+      return;
+    }
     const targetBatch = store.batches.find(b => b.id === batch.id);
     if (targetBatch) {
       await store.saveBatch({
         ...targetBatch,
         code: editBatchForm.code.toUpperCase().trim(),
+        academic_year: editBatchForm.academic_year.trim(),
         current_semester: Number(editBatchForm.current_semester),
         status: editBatchForm.status as 'Active' | 'Completed',
         college_coordinator_id: editBatchForm.college_coordinator_id || undefined,
@@ -908,6 +914,7 @@ export default function BatchDetails() {
                           student_coordinator_id: batch.student_coordinator_id || '',
                           start_date: batch.start_date || '',
                           end_date: batch.end_date || '',
+                          academic_year: batch.academic_year || '',
                         });
                         setShowEditBatchModal(true);
                       }} 
@@ -2456,6 +2463,16 @@ export default function BatchDetails() {
                   value={editBatchForm.code}
                   onChange={(e) => setEditBatchForm({ ...editBatchForm, code: e.target.value })}
                   placeholder="MIM-BBA-2026-29"
+                  className="mt-1 font-sans text-sm font-semibold"
+                />
+              </div>
+
+              <div>
+                <label className="font-medium text-muted-foreground">Academic Year / Course Duration</label>
+                <Input
+                  value={editBatchForm.academic_year}
+                  onChange={(e) => setEditBatchForm({ ...editBatchForm, academic_year: e.target.value })}
+                  placeholder="2026-29"
                   className="mt-1 font-sans text-sm font-semibold"
                 />
               </div>

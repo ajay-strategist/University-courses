@@ -60,6 +60,7 @@ export default function BatchesGrid() {
     student_coordinator_id: '',
     start_date: '',
     end_date: '',
+    academic_year: '',
   });
 
   const handleDeleteBatchInGrid = async (batchId: string, batchCode: string) => {
@@ -78,9 +79,14 @@ export default function BatchesGrid() {
         toast.error('Batch Name cannot be empty');
         return;
       }
+      if (!editForm.academic_year.trim()) {
+        toast.error('Academic Year/Course Duration cannot be empty');
+        return;
+      }
       await store.saveBatch({
         ...target,
         code: editForm.code.toUpperCase().trim(),
+        academic_year: editForm.academic_year.trim(),
         current_semester: editForm.current_semester,
         status: editForm.status,
         college_coordinator_id: editForm.college_coordinator_id || undefined,
@@ -282,6 +288,7 @@ export default function BatchesGrid() {
                           student_coordinator_id: batch.student_coordinator_id || '',
                           start_date: batch.start_date || '',
                           end_date: batch.end_date || '',
+                          academic_year: batch.academic_year || '',
                         });
                         setShowEditModal(true);
                       }}
@@ -351,7 +358,7 @@ export default function BatchesGrid() {
               </div>
 
               <div>
-                <label className="text-xs font-mono font-medium text-muted-foreground">Academic Year Span</label>
+                <label className="text-xs font-mono font-medium text-muted-foreground">Academic Year / Course Duration</label>
                 <Input
                   value={academicYear}
                   onChange={(e) => setAcademicYear(e.target.value)}
@@ -445,6 +452,16 @@ export default function BatchesGrid() {
                   value={editForm.code}
                   onChange={(e) => setEditForm({ ...editForm, code: e.target.value })}
                   placeholder="MIM-BBA-2026-29"
+                  className="mt-1 font-sans text-sm font-semibold"
+                />
+              </div>
+
+              <div>
+                <label className="font-medium text-muted-foreground">Academic Year / Course Duration</label>
+                <Input
+                  value={editForm.academic_year}
+                  onChange={(e) => setEditForm({ ...editForm, academic_year: e.target.value })}
+                  placeholder="2026-29"
                   className="mt-1 font-sans text-sm font-semibold"
                 />
               </div>

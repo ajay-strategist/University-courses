@@ -14,14 +14,14 @@ CREATE SCHEMA IF NOT EXISTS reporting;
 -- CLEANUP: DROP EXISTING VIEWS, TABLES & TYPES IN REVERSE DEPENDENCY ORDER
 -- (Ensures clean application in Supabase SQL Editor even if legacy schema elements exist)
 -- -------------------------------------------------------------------------------------
-DROP VIEW IF EXISTS reporting.vw_course_coverage CASCADE;
-DROP VIEW IF EXISTS reporting.vw_attendance_summary CASCADE;
-DROP VIEW IF EXISTS reporting.vw_fact_marks CASCADE;
-DROP VIEW IF EXISTS reporting.vw_fact_attendance CASCADE;
-DROP VIEW IF EXISTS reporting.vw_dim_student CASCADE;
-DROP VIEW IF EXISTS reporting.vw_dim_course CASCADE;
-DROP VIEW IF EXISTS reporting.vw_dim_batch CASCADE;
-DROP VIEW IF EXISTS reporting.vw_dim_college CASCADE;
+DROP VIEW IF EXISTS public.uct_vw_course_coverage CASCADE;
+DROP VIEW IF EXISTS public.uct_vw_attendance_summary CASCADE;
+DROP VIEW IF EXISTS public.uct_vw_fact_marks CASCADE;
+DROP VIEW IF EXISTS public.uct_vw_fact_attendance CASCADE;
+DROP VIEW IF EXISTS public.uct_vw_dim_student CASCADE;
+DROP VIEW IF EXISTS public.uct_vw_dim_course CASCADE;
+DROP VIEW IF EXISTS public.uct_vw_dim_batch CASCADE;
+DROP VIEW IF EXISTS public.uct_vw_dim_college CASCADE;
 
 -- Drop uct_ tables if they exist
 DROP TABLE IF EXISTS public.uct_notification_log CASCADE;
@@ -309,8 +309,8 @@ CREATE POLICY own_notification_log ON public.uct_notification_log FOR ALL USING 
 -- 10. POWER BI REPORTING VIEWS (reporting schema)
 -- -------------------------------------------------------------------------------------
 
--- vw_dim_college
-CREATE OR REPLACE VIEW reporting.vw_dim_college AS
+-- uct_vw_dim_college
+CREATE OR REPLACE VIEW public.uct_vw_dim_college AS
 SELECT 
     c.id AS college_id,
     c.code AS college_code,
@@ -320,8 +320,8 @@ SELECT
     c.image_url
 FROM public.uct_colleges c;
 
--- vw_dim_batch
-CREATE OR REPLACE VIEW reporting.vw_dim_batch AS
+-- uct_vw_dim_batch
+CREATE OR REPLACE VIEW public.uct_vw_dim_batch AS
 SELECT 
     b.id AS batch_id,
     b.code AS batch_code,
@@ -341,16 +341,16 @@ JOIN public.uct_programs p ON p.id = b.program_id
 LEFT JOIN public.uct_profiles cc ON cc.id = b.college_coordinator_id
 LEFT JOIN public.uct_profiles sc ON sc.id = b.student_coordinator_id;
 
--- vw_dim_course
-CREATE OR REPLACE VIEW reporting.vw_dim_course AS
+-- uct_vw_dim_course
+CREATE OR REPLACE VIEW public.uct_vw_dim_course AS
 SELECT 
     id AS course_id,
     code AS course_code,
     name AS course_name
 FROM public.uct_courses;
 
--- vw_dim_student
-CREATE OR REPLACE VIEW reporting.vw_dim_student AS
+-- uct_vw_dim_student
+CREATE OR REPLACE VIEW public.uct_vw_dim_student AS
 SELECT 
     s.id AS student_id,
     s.register_no,
@@ -362,8 +362,8 @@ FROM public.uct_students s
 JOIN public.uct_batches b ON b.id = s.batch_id
 JOIN public.uct_colleges c ON c.id = b.college_id;
 
--- vw_fact_attendance
-CREATE OR REPLACE VIEW reporting.vw_fact_attendance AS
+-- uct_vw_fact_attendance
+CREATE OR REPLACE VIEW public.uct_vw_fact_attendance AS
 SELECT 
     att.id AS attendance_id,
     c.code AS college_code,
@@ -387,8 +387,8 @@ JOIN public.uct_programs p ON p.id = b.program_id
 JOIN public.uct_courses crs ON crs.id = bc.course_id
 JOIN public.uct_students st ON st.id = att.student_id;
 
--- vw_fact_marks
-CREATE OR REPLACE VIEW reporting.vw_fact_marks AS
+-- uct_vw_fact_marks
+CREATE OR REPLACE VIEW public.uct_vw_fact_marks AS
 SELECT 
     m.id AS mark_id,
     c.code AS college_code,
@@ -410,8 +410,8 @@ JOIN public.uct_colleges c ON c.id = b.college_id
 JOIN public.uct_courses crs ON crs.id = bc.course_id
 JOIN public.uct_students st ON st.id = m.student_id;
 
--- vw_attendance_summary
-CREATE OR REPLACE VIEW reporting.vw_attendance_summary AS
+-- uct_vw_attendance_summary
+CREATE OR REPLACE VIEW public.uct_vw_attendance_summary AS
 SELECT 
     st.id AS student_id,
     st.register_no,
@@ -434,8 +434,8 @@ LEFT JOIN public.uct_sessions s ON s.batch_course_id = bc.id
 LEFT JOIN public.uct_attendance att ON att.session_id = s.id AND att.student_id = st.id
 GROUP BY st.id, st.register_no, st.name, b.code, crs.name;
 
--- vw_course_coverage
-CREATE OR REPLACE VIEW reporting.vw_course_coverage AS
+-- uct_vw_course_coverage
+CREATE OR REPLACE VIEW public.uct_vw_course_coverage AS
 SELECT 
     bc.id AS batch_course_id,
     c.code AS college_code,
