@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { store } from '@/lib/store';
 import type { Profile, UserRole } from '@/types';
 import { Button } from '@/components/ui/button';
@@ -12,6 +12,7 @@ export default function Users() {
   const navigate = useNavigate();
   const [profiles, setProfiles] = useState<Profile[]>([...store.profiles]);
   const [showModal, setShowModal] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null); // null = create, id = edit
   const [form, setForm] = useState<{ full_name: string; email: string; phone: string; role: UserRole }>({
     full_name: '',
@@ -19,6 +20,21 @@ export default function Users() {
     phone: '',
     role: 'trainer',
   });
+
+  useEffect(() => {
+    async function loadData() {
+      setIsLoading(true);
+      try {
+        await store.init();
+        setProfiles([...store.profiles]);
+      } catch (err: any) {
+        toast.error('Failed to load user profiles', { description: err.message });
+      } finally {
+        setIsLoading(false);
+      }
+    }
+    loadData();
+  }, []);
 
   const openAddModal = () => {
     setEditingId(null);
@@ -162,75 +178,89 @@ export default function Users() {
             </tr>
           </thead>
           <tbody className="divide-y divide-border">
-            {profiles.map((p) => (
-              <tr key={p.id} className="hover:bg-muted/30">
-                <td className="p-4 font-semibold text-foreground flex items-center gap-2">
-                  <UserCheck className="h-4 w-4 text-primary" />
-                  {p.full_name}
-                </td>
-                <td className="p-4 font-mono text-xs text-muted-foreground">{p.email}</td>
-                <td className="p-4">
-                  <span className={`font-mono text-xs font-bold px-2.5 py-1 rounded-full border capitalize ${roleBadges[p.role]}`}>
-                    {p.role.replace('_', ' ')}
-                  </span>
-                </td>
-                <td className="p-4 font-mono text-xs text-muted-foreground">{p.phone || '—'}</td>
-                <td className="p-4 text-right space-x-1">
-                  {/* Edit */}
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    title="Edit user"
-                    className="h-8 w-8 text-primary hover:bg-primary/10"
-                    onClick={() => openEditModal(p)}
-                  >
-                    <Edit2 className="h-4 w-4" />
-                  </Button>
-
-                  {/* Reset Password */}
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    title="Reset password to default ('password')"
-                    className="h-8 w-8 text-amber-500 hover:bg-amber-500/10"
-                    onClick={async () => {
-                      try {
-                        const { error } = await supabase.rpc('reset_user_password', {
-                          target_user_id: p.id
-                        });
-                        if (error) throw error;
-                        toast.success(`Password for ${p.full_name} has been reset to "password".`);
-                      } catch (err: any) {
-                        toast.error('Failed to reset password', { description: err.message || err });
-                      }
-                    }}
-                  >
-                    <KeyRound className="h-4 w-4" />
-                  </Button>
-
-                  {/* Delete */}
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    title="Delete user"
-                    className="h-8 w-8 text-destructive hover:bg-destructive/10"
-                    onClick={async () => {
-                      if (!confirm(`Delete user "${p.full_name}"? This cannot be undone.`)) return;
-                      try {
-                        await store.deleteProfile(p.id);
-                        setProfiles([...store.profiles]);
-                        toast.success('User removed');
-                      } catch (err: any) {
-                        console.warn('Failed to delete user:', err);
-                        toast.error('Failed to delete user');
-                      }
-                    }}
-                  >
-                    <Trash2 className="h-4 w-4" />
-                  </Button>
+            {isLoading ? (
+              <tr>
+                <td colSpan={5} className="p-8 text-center text-muted-foreground italic">
+                  Loading user accounts...
                 </td>
               </tr>
-            ))}
+            ) : profiles.length === 0 ? (
+              <tr>
+                <td colSpan={5} className="p-8 text-center text-muted-foreground italic">
+                  No user accounts found.
+                </td>
+              </tr>
+            ) : (
+              profiles.map((p) => (
+                <tr key={p.id} className="hover:bg-muted/30">
+                  <td className="p-4 font-semibold text-foreground flex items-center gap-2">
+                    <UserCheck className="h-4 w-4 text-primary" />
+                    {p.full_name}
+                  </td>
+                  <td className="p-4 font-mono text-xs text-muted-foreground">{p.email}</td>
+                  <td className="p-4">
+                    <span className={`font-mono text-xs font-bold px-2.5 py-1 rounded-full border capitalize ${roleBadges[p.role]}`}>
+                      {p.role.replace('_', ' ')}
+                    </span>
+                  </td>
+                  <td className="p-4 font-mono text-xs text-muted-foreground">{p.phone || '—'}</td>
+                  <td className="p-4 text-right space-x-1">
+                    {/* Edit */}
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      title="Edit user"
+                      className="h-8 w-8 text-primary hover:bg-primary/10"
+                      onClick={() => openEditModal(p)}
+                    >
+                      <Edit2 className="h-4 w-4" />
+                    </Button>
+
+                    {/* Reset Password */}
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      title="Reset password to default ('password')"
+                      className="h-8 w-8 text-amber-500 hover:bg-amber-500/10"
+                      onClick={async () => {
+                        try {
+                          const { error } = await supabase.rpc('reset_user_password', {
+                            target_user_id: p.id
+                          });
+                          if (error) throw error;
+                          toast.success(`Password for ${p.full_name} has been reset to "password".`);
+                        } catch (err: any) {
+                          toast.error('Failed to reset password', { description: err.message || err });
+                        }
+                      }}
+                    >
+                      <KeyRound className="h-4 w-4" />
+                    </Button>
+
+                    {/* Delete */}
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      title="Delete user"
+                      className="h-8 w-8 text-destructive hover:bg-destructive/10"
+                      onClick={async () => {
+                        if (!confirm(`Delete user "${p.full_name}"? This cannot be undone.`)) return;
+                        try {
+                          await store.deleteProfile(p.id);
+                          setProfiles([...store.profiles]);
+                          toast.success('User removed');
+                        } catch (err: any) {
+                          console.warn('Failed to delete user:', err);
+                          toast.error('Failed to delete user');
+                        }
+                      }}
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </Button>
+                  </td>
+                </tr>
+              ))
+            )}
           </tbody>
         </table>
       </div>

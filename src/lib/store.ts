@@ -17,10 +17,7 @@ export const generateUUID = (): string => {
   });
 };
 
-// Admin System Profile
-export const INITIAL_PROFILES: Profile[] = [
-  { id: 'usr-admin-1', email: 'mail@thestrategist.co.in', full_name: 'Ajay Thomas', role: 'admin', phone: '+1 555-0192' },
-];
+export const INITIAL_PROFILES: Profile[] = [];
 
 class DataStore {
   profiles: Profile[] = [...INITIAL_PROFILES];
