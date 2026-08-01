@@ -60,7 +60,7 @@ CREATE TYPE public.uct_batch_status AS ENUM ('Active', 'Completed');
 -- 2. USERS & PROFILES
 -- -------------------------------------------------------------------------------------
 CREATE TABLE public.uct_profiles (
-    id UUID PRIMARY KEY REFERENCES auth.users(id) ON DELETE CASCADE,
+    id UUID PRIMARY KEY,
     full_name TEXT NOT NULL,
     email TEXT UNIQUE NOT NULL,
     phone TEXT,

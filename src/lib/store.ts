@@ -1305,7 +1305,7 @@ class DataStore {
             const emailLower = row.email.trim().toLowerCase();
             const existingId = userEmailToId[emailLower];
             const isUpdate = !!existingId;
-            const userId = existingId || `usr-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+            const userId = existingId || generateUUID();
             
             const saved = await this.saveProfile({
               id: userId,

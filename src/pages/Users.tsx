@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { store } from '@/lib/store';
+import { store, generateUUID } from '@/lib/store';
 import type { Profile, UserRole } from '@/types';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -85,7 +85,7 @@ export default function Users() {
       console.warn('Failed to create user on Supabase:', err);
       // Fallback for offline/demo mode
       const newUser: Profile = {
-        id: `usr-${Date.now()}`,
+        id: generateUUID(),
         full_name: form.full_name,
         email: form.email,
         phone: form.phone,
