@@ -78,6 +78,13 @@ const REPORTING_VIEWS = [
   },
   {
     schema: 'public',
+    name: 'uct_vw_dim_batch_course',
+    type: 'Dimension',
+    columns: 'batch_course_id, batch_code, course_code, course_name, semester, planned_hours, status',
+    desc: 'Allocated batch courses dimension, mapping each course to its specific batch and semester.',
+  },
+  {
+    schema: 'public',
     name: 'uct_vw_dim_student',
     type: 'Dimension',
     columns: 'student_id, register_no, student_name, class, batch_code, college_name',
@@ -192,7 +199,7 @@ export default function Reports() {
             <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-success opacity-75" />
             <span className="relative inline-flex rounded-full h-2 w-2 bg-success" />
           </span>
-          reporting schema · 10 views · SELECT-only
+          reporting schema · 11 views · SELECT-only
         </div>
       </div>
 

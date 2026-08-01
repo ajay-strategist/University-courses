@@ -24,6 +24,7 @@ DROP VIEW IF EXISTS public.uct_vw_attendance_summary CASCADE;
 DROP VIEW IF EXISTS public.uct_vw_fact_marks CASCADE;
 DROP VIEW IF EXISTS public.uct_vw_fact_attendance CASCADE;
 DROP VIEW IF EXISTS public.uct_vw_dim_student CASCADE;
+DROP VIEW IF EXISTS public.uct_vw_dim_batch_course CASCADE;
 DROP VIEW IF EXISTS public.uct_vw_dim_course CASCADE;
 DROP VIEW IF EXISTS public.uct_vw_dim_batch CASCADE;
 DROP VIEW IF EXISTS public.uct_vw_dim_college CASCADE;
@@ -70,6 +71,20 @@ SELECT
     code AS course_code,
     name AS course_name
 FROM public.uct_courses;
+
+-- uct_vw_dim_batch_course
+CREATE OR REPLACE VIEW public.uct_vw_dim_batch_course AS
+SELECT 
+    bc.id AS batch_course_id,
+    b.code AS batch_code,
+    crs.code AS course_code,
+    crs.name AS course_name,
+    bc.semester,
+    bc.planned_hours,
+    bc.status
+FROM public.uct_batch_courses bc
+JOIN public.uct_batches b ON b.id = bc.batch_id
+JOIN public.uct_courses crs ON crs.id = bc.course_id;
 
 -- uct_vw_dim_student
 CREATE OR REPLACE VIEW public.uct_vw_dim_student AS
@@ -230,6 +245,7 @@ GRANT USAGE ON SCHEMA public TO pbi_reporting_role;
 GRANT SELECT ON public.uct_vw_dim_college TO pbi_reporting_role;
 GRANT SELECT ON public.uct_vw_dim_batch TO pbi_reporting_role;
 GRANT SELECT ON public.uct_vw_dim_course TO pbi_reporting_role;
+GRANT SELECT ON public.uct_vw_dim_batch_course TO pbi_reporting_role;
 GRANT SELECT ON public.uct_vw_dim_student TO pbi_reporting_role;
 GRANT SELECT ON public.uct_vw_fact_attendance TO pbi_reporting_role;
 GRANT SELECT ON public.uct_vw_fact_marks TO pbi_reporting_role;
