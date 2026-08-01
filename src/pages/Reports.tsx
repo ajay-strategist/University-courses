@@ -111,6 +111,13 @@ const REPORTING_VIEWS = [
     columns: 'batch_course_id, college_code, batch_code, course_name, coverage_pct, planned_hours, delivered_hours, status_flag',
     desc: 'Syllabus coverage % and on_track / behind flag per batch-course.',
   },
+  {
+    schema: 'public',
+    name: 'uct_vw_trainer_logs',
+    type: 'Fact',
+    columns: 'log_id, college_code, college_name, batch_code, academic_year, course_code, course_name, trainer_name, log_date, start_time, end_time, duration_minutes, topic_no, topic_name, notes',
+    desc: 'One row per trainer log × topic covered. Includes date, trainer, start/end time, duration, and topics.',
+  },
 ];
 
 const TYPE_STYLES: Record<string, string> = {
@@ -178,7 +185,7 @@ export default function Reports() {
             <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-success opacity-75" />
             <span className="relative inline-flex rounded-full h-2 w-2 bg-success" />
           </span>
-          reporting schema · 8 views · SELECT-only
+          reporting schema · 9 views · SELECT-only
         </div>
       </div>
 

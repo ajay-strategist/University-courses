@@ -17,6 +17,7 @@ $$;
 GRANT CONNECT ON DATABASE postgres TO pbi_reporting_role;
 
 -- 2. Drop existing views to prevent conflict during creation
+DROP VIEW IF EXISTS public.uct_vw_trainer_logs CASCADE;
 DROP VIEW IF EXISTS public.uct_vw_course_coverage CASCADE;
 DROP VIEW IF EXISTS public.uct_vw_attendance_summary CASCADE;
 DROP VIEW IF EXISTS public.uct_vw_fact_marks CASCADE;
@@ -183,6 +184,33 @@ LEFT JOIN public.uct_profiles tr ON tr.id = bc.trainer_id
 LEFT JOIN public.uct_batch_course_syllabus bcs ON bcs.batch_course_id = bc.id
 GROUP BY bc.id, c.code, b.code, crs.name, tr.full_name, bc.planned_hours;
 
+-- uct_vw_trainer_logs
+CREATE OR REPLACE VIEW public.uct_vw_trainer_logs AS
+SELECT 
+    tl.id AS log_id,
+    c.code AS college_code,
+    c.name AS college_name,
+    b.code AS batch_code,
+    b.academic_year,
+    crs.code AS course_code,
+    crs.name AS course_name,
+    COALESCE(tr.full_name, 'Unassigned') AS trainer_name,
+    tl.log_date,
+    tl.start_time,
+    tl.end_time,
+    tl.duration_minutes,
+    syl.topic_no,
+    syl.topic_name,
+    tl.notes
+FROM public.uct_trainer_logs tl
+JOIN public.uct_batch_courses bc ON bc.id = tl.batch_course_id
+JOIN public.uct_batches b ON b.id = bc.batch_id
+JOIN public.uct_colleges c ON c.id = b.college_id
+JOIN public.uct_courses crs ON crs.id = bc.course_id
+LEFT JOIN public.uct_profiles tr ON tr.id = tl.trainer_id
+LEFT JOIN LATERAL unnest(tl.topics_covered) AS covered_topic_id ON true
+LEFT JOIN public.uct_batch_course_syllabus syl ON syl.id = covered_topic_id;
+
 -- 4. Grant permissions to the read-only role
 -- Grant usage on the public schema
 GRANT USAGE ON SCHEMA public TO pbi_reporting_role;
@@ -196,4 +224,4 @@ GRANT SELECT ON public.uct_vw_fact_attendance TO pbi_reporting_role;
 GRANT SELECT ON public.uct_vw_fact_marks TO pbi_reporting_role;
 GRANT SELECT ON public.uct_vw_attendance_summary TO pbi_reporting_role;
 GRANT SELECT ON public.uct_vw_course_coverage TO pbi_reporting_role;
-
+GRANT SELECT ON public.uct_vw_trainer_logs TO pbi_reporting_role;

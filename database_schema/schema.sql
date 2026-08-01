@@ -264,6 +264,22 @@ CREATE TABLE public.uct_notification_log (
 );
 
 -- -------------------------------------------------------------------------------------
+-- 7.1. TRAINER LOGS
+-- -------------------------------------------------------------------------------------
+CREATE TABLE public.uct_trainer_logs (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    batch_course_id UUID NOT NULL REFERENCES public.uct_batch_courses(id) ON DELETE CASCADE,
+    trainer_id UUID REFERENCES public.uct_profiles(id) ON DELETE SET NULL,
+    log_date DATE NOT NULL,
+    start_time TEXT NOT NULL,
+    end_time TEXT NOT NULL,
+    duration_minutes INT NOT NULL DEFAULT 0,
+    topics_covered UUID[] NOT NULL DEFAULT '{}',
+    notes TEXT,
+    created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- -------------------------------------------------------------------------------------
 -- 8. INDEXES
 -- -------------------------------------------------------------------------------------
 CREATE INDEX idx_uct_students_batch_id ON public.uct_students(batch_id);
@@ -276,6 +292,7 @@ CREATE INDEX idx_uct_attendance_session_id ON public.uct_attendance(session_id);
 CREATE INDEX idx_uct_attendance_student_id ON public.uct_attendance(student_id);
 CREATE INDEX idx_uct_assessments_batch_course_id ON public.uct_assessments(batch_course_id);
 CREATE INDEX idx_uct_assessment_marks_assessment_id ON public.uct_assessment_marks(assessment_id);
+CREATE INDEX idx_uct_trainer_logs_batch_course_id ON public.uct_trainer_logs(batch_course_id);
 
 -- -------------------------------------------------------------------------------------
 -- 9. ROW-LEVEL SECURITY (RLS) POLICIES & PERMISSIONS
@@ -296,6 +313,7 @@ ALTER TABLE public.uct_assessments DISABLE ROW LEVEL SECURITY;
 ALTER TABLE public.uct_assessment_marks DISABLE ROW LEVEL SECURITY;
 ALTER TABLE public.uct_user_email_config DISABLE ROW LEVEL SECURITY;
 ALTER TABLE public.uct_notification_log DISABLE ROW LEVEL SECURITY;
+ALTER TABLE public.uct_trainer_logs DISABLE ROW LEVEL SECURITY;
 
 GRANT ALL ON ALL TABLES IN SCHEMA public TO anon, authenticated, service_role;
 
