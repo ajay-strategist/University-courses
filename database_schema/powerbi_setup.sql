@@ -115,6 +115,7 @@ SELECT
     m.id AS mark_id,
     c.code AS college_code,
     b.code AS batch_code,
+    bc.semester,
     crs.name AS course_name,
     a.name AS assessment_name,
     atp.name AS assessment_type,
@@ -139,6 +140,7 @@ SELECT
     st.register_no,
     st.name AS student_name,
     b.code AS batch_code,
+    bc.semester,
     crs.name AS course_name,
     COUNT(att.id) AS sessions_held,
     COUNT(CASE WHEN att.status = 'present' THEN 1 END) AS present_count,
@@ -154,7 +156,7 @@ CROSS JOIN public.uct_courses crs
 LEFT JOIN public.uct_batch_courses bc ON bc.batch_id = b.id AND bc.course_id = crs.id
 LEFT JOIN public.uct_sessions s ON s.batch_course_id = bc.id
 LEFT JOIN public.uct_attendance att ON att.session_id = s.id AND att.student_id = st.id
-GROUP BY st.id, st.register_no, st.name, b.code, crs.name;
+GROUP BY st.id, st.register_no, st.name, b.code, bc.semester, crs.name;
 
 -- uct_vw_course_coverage
 CREATE OR REPLACE VIEW public.uct_vw_course_coverage AS
@@ -162,6 +164,7 @@ SELECT
     bc.id AS batch_course_id,
     c.code AS college_code,
     b.code AS batch_code,
+    bc.semester,
     crs.name AS course_name,
     COALESCE(tr.full_name, 'Unassigned') AS trainer_name,
     COUNT(bcs.id) AS total_topics,
@@ -183,7 +186,7 @@ JOIN public.uct_colleges c ON c.id = b.college_id
 JOIN public.uct_courses crs ON crs.id = bc.course_id
 LEFT JOIN public.uct_profiles tr ON tr.id = bc.trainer_id
 LEFT JOIN public.uct_batch_course_syllabus bcs ON bcs.batch_course_id = bc.id
-GROUP BY bc.id, c.code, b.code, crs.name, tr.full_name, bc.planned_hours;
+GROUP BY bc.id, c.code, b.code, bc.semester, crs.name, tr.full_name, bc.planned_hours;
 
 -- uct_vw_trainer_logs (Parent View - Grain: one row per trainer log)
 CREATE OR REPLACE VIEW public.uct_vw_trainer_logs AS
@@ -193,6 +196,7 @@ SELECT
     c.name AS college_name,
     b.code AS batch_code,
     b.academic_year,
+    bc.semester,
     crs.code AS course_code,
     crs.name AS course_name,
     tl.trainer_name, -- directly sourced from the table's text column
