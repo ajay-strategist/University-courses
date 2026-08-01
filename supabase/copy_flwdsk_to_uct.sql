@@ -96,7 +96,24 @@ ON CONFLICT (id) DO NOTHING;
 DO $$
 BEGIN
     IF EXISTS (SELECT 1 FROM pg_tables WHERE schemaname = 'public' AND tablename = 'flwdsk_trainer_logs') THEN
-        INSERT INTO public.uct_trainer_logs SELECT * FROM public.flwdsk_trainer_logs ON CONFLICT (id) DO NOTHING;
+        INSERT INTO public.uct_trainer_logs (
+            id, batch_course_id, trainer_id, trainer_name, log_date, start_time, end_time, duration_minutes, topics_covered, notes, created_at
+        )
+        SELECT 
+            tl.id, 
+            tl.batch_course_id, 
+            tl.trainer_id, 
+            COALESCE(p.full_name, 'Unassigned') AS trainer_name, 
+            tl.log_date, 
+            tl.start_time, 
+            tl.end_time, 
+            tl.duration_minutes, 
+            tl.topics_covered, 
+            tl.notes, 
+            tl.created_at
+        FROM public.flwdsk_trainer_logs tl
+        LEFT JOIN public.flwdsk_profiles p ON p.id = tl.trainer_id
+        ON CONFLICT (id) DO NOTHING;
     END IF;
 END
 $$;

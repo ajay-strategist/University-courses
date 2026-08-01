@@ -2088,7 +2088,7 @@ export default function BatchDetails() {
                       return (
                         <tr key={log.id} className="hover:bg-muted/20">
                           <td className="p-3 font-mono text-xs font-bold">{log.log_date}</td>
-                          <td className="p-3 text-sm">{trainer?.full_name || <span className="text-muted-foreground/50 italic">—</span>}</td>
+                          <td className="p-3 text-sm">{trainer?.full_name || log.trainer_name || <span className="text-muted-foreground/50 italic">—</span>}</td>
                           <td className="p-3 text-center font-mono text-xs">
                             {log.start_time} – {log.end_time}
                           </td>

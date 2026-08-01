@@ -270,6 +270,7 @@ CREATE TABLE public.uct_trainer_logs (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     batch_course_id UUID NOT NULL REFERENCES public.uct_batch_courses(id) ON DELETE CASCADE,
     trainer_id UUID REFERENCES public.uct_profiles(id) ON DELETE SET NULL,
+    trainer_name TEXT NOT NULL DEFAULT 'Unassigned',
     log_date DATE NOT NULL,
     start_time TEXT NOT NULL,
     end_time TEXT NOT NULL,

@@ -289,10 +289,14 @@ class DataStore {
   // TRAINER LOGS
   // -------------------------
   async saveTrainerLog(log: Partial<TrainerLog>): Promise<TrainerLog> {
+    const trainerProfile = this.profiles.find(p => p.id === log.trainer_id);
+    const trainerName = trainerProfile ? trainerProfile.full_name : 'Unassigned';
+
     const item: TrainerLog = {
       id: log.id || generateUUID(),
       batch_course_id: log.batch_course_id!,
       trainer_id: log.trainer_id,
+      trainer_name: trainerName,
       log_date: log.log_date!,
       start_time: log.start_time!,
       end_time: log.end_time!,

@@ -145,6 +145,7 @@ export interface TrainerLog {
   id: string;
   batch_course_id: string;
   trainer_id?: string;
+  trainer_name?: string;   // resolved trainer name
   log_date: string;        // YYYY-MM-DD
   start_time: string;      // HH:MM
   end_time: string;        // HH:MM

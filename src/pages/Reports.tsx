@@ -115,8 +115,15 @@ const REPORTING_VIEWS = [
     schema: 'public',
     name: 'uct_vw_trainer_logs',
     type: 'Fact',
-    columns: 'log_id, college_code, college_name, batch_code, academic_year, course_code, course_name, trainer_name, log_date, start_time, end_time, duration_minutes, topic_no, topic_name, notes',
-    desc: 'One row per trainer log × topic covered. Includes date, trainer, start/end time, duration, and topics.',
+    columns: 'log_id, college_code, college_name, batch_code, academic_year, course_code, course_name, trainer_name, log_date, start_time, end_time, duration_minutes, notes',
+    desc: 'Parent view: session logs containing Date, Trainer Name (text column), Start/End times, and Duration.',
+  },
+  {
+    schema: 'public',
+    name: 'uct_vw_trainer_log_topics',
+    type: 'Fact',
+    columns: 'trainer_log_id, topic_no, topic_name, planned_hours',
+    desc: 'Child view: individual topics covered during each trainer log session (connected via trainer_log_id).',
   },
 ];
 
@@ -185,7 +192,7 @@ export default function Reports() {
             <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-success opacity-75" />
             <span className="relative inline-flex rounded-full h-2 w-2 bg-success" />
           </span>
-          reporting schema · 9 views · SELECT-only
+          reporting schema · 10 views · SELECT-only
         </div>
       </div>
 
