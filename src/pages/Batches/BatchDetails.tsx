@@ -36,8 +36,11 @@ export default function BatchDetails() {
   const [batchCourses, setBatchCourses] = useState<BatchCourse[]>(
     store.batchCourses.filter(bc => bc.batch_id === id)
   );
+  const [selectedSemesterFilter, setSelectedSemesterFilter] = useState<number | 'all'>(
+    batch?.current_semester || 'all'
+  );
   const [selectedBatchCourseId, setSelectedBatchCourseId] = useState<string>(
-    batchCourses[0]?.id || ''
+    batchCourses.find(bc => bc.semester === (batch?.current_semester || 1))?.id || batchCourses[0]?.id || ''
   );
 
   // Modals & Dialogs
@@ -421,6 +424,27 @@ export default function BatchDetails() {
     setBatchCourses(store.batchCourses.filter(bc => bc.batch_id === batch.id));
     setShowEditCourseModal(false);
     toast.success('Course allocation updated successfully!');
+  };
+
+  const filteredBatchCourses = batchCourses.filter(bc => 
+    selectedSemesterFilter === 'all' || bc.semester === Number(selectedSemesterFilter)
+  );
+
+  const handleSemesterFilterChange = (sem: number | 'all') => {
+    setSelectedSemesterFilter(sem);
+    const semCourses = batchCourses.filter(bc => sem === 'all' || bc.semester === Number(sem));
+    if (semCourses.length > 0) {
+      const isCurrentInNewSem = semCourses.some(bc => bc.id === selectedBatchCourseId);
+      if (!isCurrentInNewSem) {
+        const newBcId = semCourses[0].id;
+        setSelectedBatchCourseId(newBcId);
+        const firstAss = store.assessments.find(a => a.batch_course_id === newBcId);
+        changeSelectedAssessment(firstAss?.id || 'new');
+      }
+    } else {
+      setSelectedBatchCourseId('');
+      changeSelectedAssessment('new');
+    }
   };
 
   const handleDeleteBatchCourse = async (bcId: string, courseName: string) => {
@@ -943,25 +967,49 @@ export default function BatchDetails() {
             </div>
           </div>
 
-          {/* Course Filter Dropdown */}
+          {/* Semester & Course Filter Dropdowns */}
           {batchCourses.length > 0 && (
-            <div className="flex items-center gap-2 bg-sunken p-2 rounded-xl border border-border/80">
-              <span className="text-xs font-mono text-muted-foreground uppercase font-medium px-1">Active Tool Course:</span>
-              <select
-                value={selectedBatchCourseId}
-                onChange={(e) => {
-                  const bcId = e.target.value;
-                  setSelectedBatchCourseId(bcId);
-                  const firstAss = store.assessments.find(a => a.batch_course_id === bcId);
-                  changeSelectedAssessment(firstAss?.id || 'new');
-                }}
-                className="bg-background border border-border rounded-lg px-3 py-1.5 text-sm font-semibold text-primary focus:outline-none"
-              >
-                {batchCourses.map((bc) => {
-                  const c = store.courses.find(crs => crs.id === bc.course_id);
-                  return <option key={bc.id} value={bc.id}>{c?.name} ({c?.code})</option>;
-                })}
-              </select>
+            <div className="flex flex-wrap items-center gap-2">
+              {/* Semester Filter */}
+              <div className="flex items-center gap-2 bg-sunken p-2 rounded-xl border border-border/80">
+                <span className="text-xs font-mono text-muted-foreground uppercase font-medium px-1">View Semester:</span>
+                <select
+                  value={selectedSemesterFilter}
+                  onChange={(e) => {
+                    const val = e.target.value;
+                    const semVal = val === 'all' ? 'all' : Number(val);
+                    handleSemesterFilterChange(semVal);
+                  }}
+                  className="bg-background border border-border rounded-lg px-3 py-1.5 text-sm font-semibold text-primary focus:outline-none"
+                >
+                  <option value="all">All Semesters</option>
+                  {[1,2,3,4,5,6,7,8].map(s => (
+                    <option key={s} value={s}>Semester {s}</option>
+                  ))}
+                </select>
+              </div>
+
+              {/* Active Course Selector */}
+              {filteredBatchCourses.length > 0 && (
+                <div className="flex items-center gap-2 bg-sunken p-2 rounded-xl border border-border/80">
+                  <span className="text-xs font-mono text-muted-foreground uppercase font-medium px-1">Active Tool Course:</span>
+                  <select
+                    value={selectedBatchCourseId}
+                    onChange={(e) => {
+                      const bcId = e.target.value;
+                      setSelectedBatchCourseId(bcId);
+                      const firstAss = store.assessments.find(a => a.batch_course_id === bcId);
+                      changeSelectedAssessment(firstAss?.id || 'new');
+                    }}
+                    className="bg-background border border-border rounded-lg px-3 py-1.5 text-sm font-semibold text-primary focus:outline-none"
+                  >
+                    {filteredBatchCourses.map((bc) => {
+                      const c = store.courses.find(crs => crs.id === bc.course_id);
+                      return <option key={bc.id} value={bc.id}>{c?.name} ({c?.code})</option>;
+                    })}
+                  </select>
+                </div>
+              )}
             </div>
           )}
         </div>
@@ -1157,7 +1205,7 @@ export default function BatchDetails() {
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            {batchCourses.map((bc) => {
+            {filteredBatchCourses.map((bc) => {
               const crs = store.courses.find(c => c.id === bc.course_id);
               const trainer = store.profiles.find(p => p.id === bc.trainer_id);
               const syllabus = store.batchSyllabus.filter(s => s.batch_course_id === bc.id);
