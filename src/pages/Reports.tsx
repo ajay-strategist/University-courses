@@ -87,8 +87,8 @@ const REPORTING_VIEWS = [
     schema: 'public',
     name: 'uct_vw_dim_student',
     type: 'Dimension',
-    columns: 'student_id, register_no, student_name, class, batch_code, college_name',
-    desc: 'Student dimension with register number, class, and batch linkage.',
+    columns: 'student_id, register_no, student_name, class, phone, batch_code, college_name',
+    desc: 'Student dimension with register number, class, phone number, and batch linkage.',
   },
   {
     schema: 'public',

@@ -93,6 +93,7 @@ SELECT
     s.register_no,
     s.name AS student_name,
     s.class,
+    s.phone,
     b.code AS batch_code,
     c.name AS college_name
 FROM public.uct_students s
