@@ -78,12 +78,14 @@ export default function BatchDetails() {
   const [editingBatchCourse, setEditingBatchCourse] = useState<BatchCourse | null>(null);
   const [editCourseTrainerId, setEditCourseTrainerId] = useState('');
   const [editCoursePlannedHours, setEditCoursePlannedHours] = useState(30);
+  const [editCourseSemester, setEditCourseSemester] = useState(1);
   const [editCourseStatus, setEditCourseStatus] = useState<string>('Active');
 
   // Add Batch Course Inputs
   const [newCourseId, setNewCourseId] = useState(store.courses[0]?.id || '');
   const [newTrainerId, setNewTrainerId] = useState(store.profiles.find(p => p.role === 'trainer')?.id || '');
   const [newPlannedHours, setNewPlannedHours] = useState(30);
+  const [newCourseSemester, setNewCourseSemester] = useState(1);
 
   // Attendance Register State
   const [attendanceDate, setAttendanceDate] = useState(new Date().toISOString().split('T')[0]);
@@ -382,7 +384,7 @@ export default function BatchDetails() {
       batch_id: batch.id,
       course_id: newCourseId,
       trainer_id: newTrainerId,
-      semester: batch.current_semester,
+      semester: Number(newCourseSemester),
       planned_hours: newPlannedHours,
       start_date: new Date().toISOString().split('T')[0],
       status: 'Active',
@@ -400,6 +402,7 @@ export default function BatchDetails() {
     setEditingBatchCourse(bc);
     setEditCourseTrainerId(bc.trainer_id || '');
     setEditCoursePlannedHours(bc.planned_hours || 30);
+    setEditCourseSemester(bc.semester || 1);
     setEditCourseStatus(bc.status || 'Active');
     setShowEditCourseModal(true);
   };
@@ -411,6 +414,7 @@ export default function BatchDetails() {
       ...editingBatchCourse,
       trainer_id: editCourseTrainerId || undefined,
       planned_hours: Number(editCoursePlannedHours),
+      semester: Number(editCourseSemester),
       status: editCourseStatus,
     });
 
@@ -1147,7 +1151,7 @@ export default function BatchDetails() {
         <div className="space-y-4">
           <div className="flex justify-between items-center">
             <h2 className="text-lg font-semibold font-heading">Allocated Tool Courses</h2>
-            <Button size="sm" onClick={() => setShowAddCourseModal(true)} className="bg-primary text-primary-foreground">
+            <Button size="sm" onClick={() => { setNewCourseSemester(batch?.current_semester || 1); setShowAddCourseModal(true); }} className="bg-primary text-primary-foreground">
               <Plus className="h-3.5 w-3.5 mr-1" /> Add Course to Batch
             </Button>
           </div>
@@ -1192,6 +1196,7 @@ export default function BatchDetails() {
 
                   <div className="grid grid-cols-2 gap-2 text-xs font-mono bg-sunken p-3 rounded-xl">
                     <div>Trainer: <span className="text-foreground font-bold">{trainer?.full_name || 'Unassigned'}</span></div>
+                    <div>Semester: <span className="text-foreground font-bold">Sem {bc.semester}</span></div>
                     <div>Planned: <span className="text-foreground font-bold">{bc.planned_hours} hrs</span></div>
                     <div>Coverage: <span className="text-primary font-bold">{covPct}%</span></div>
                     <div>Topics: <span className="text-foreground font-bold">{completed}/{syllabus.length}</span></div>
@@ -2269,6 +2274,12 @@ export default function BatchDetails() {
                 <label className="text-xs font-mono font-medium text-muted-foreground">Planned Hours</label>
                 <Input type="number" value={newPlannedHours} onChange={(e) => setNewPlannedHours(Number(e.target.value))} className="mt-1 font-mono" />
               </div>
+              <div>
+                <label className="text-xs font-mono font-medium text-muted-foreground">Semester</label>
+                <select value={newCourseSemester} onChange={(e) => setNewCourseSemester(Number(e.target.value))} className="w-full mt-1 bg-background border border-border rounded-xl p-2 text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-primary">
+                  {[1,2,3,4,5,6,7,8].map(s => <option key={s} value={s}>Semester {s}</option>)}
+                </select>
+              </div>
             </div>
             <div className="flex justify-end gap-2 pt-2">
               <Button variant="outline" onClick={() => setShowAddCourseModal(false)}>Cancel</Button>
@@ -2313,6 +2324,16 @@ export default function BatchDetails() {
                   onChange={(e) => setEditCoursePlannedHours(Number(e.target.value))} 
                   className="mt-1 font-mono" 
                 />
+              </div>
+              <div>
+                <label className="text-xs font-mono font-medium text-muted-foreground">Semester</label>
+                <select 
+                  value={editCourseSemester} 
+                  onChange={(e) => setEditCourseSemester(Number(e.target.value))} 
+                  className="w-full mt-1 bg-background border border-border rounded-xl p-2 text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-primary"
+                >
+                  {[1,2,3,4,5,6,7,8].map(s => <option key={s} value={s}>Semester {s}</option>)}
+                </select>
               </div>
               <div>
                 <label className="text-xs font-mono font-medium text-muted-foreground">Status</label>
