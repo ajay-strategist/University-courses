@@ -64,8 +64,11 @@ export default function BulkUpload() {
     { key: 'batchCourses', label: 'Course Assignments', requiredFields: ['batch_code', 'course_code', 'trainer_email', 'semester', 'planned_hours', 'start_date', 'end_date'] },
     { key: 'batchSyllabus', label: 'Batch Syllabus', requiredFields: ['batch_code', 'course_code', 'topic_no', 'topic_name', 'planned_hours', 'is_completed', 'completed_date'] },
     { key: 'assessments', label: 'Assessments', requiredFields: ['batch_code', 'course_code', 'assessment_name', 'type', 'max_mark', 'assessment_date'] },
-    { key: 'assessmentMarks', label: 'Marks', requiredFields: ['batch_code', 'course_code', 'assessment_name', 'register_no', 'mark'] },
-    { key: 'attendance', label: 'Attendance', requiredFields: ['batch_code', 'course_code', 'register_no', 'session_date', 'hour_no', 'status'] }
+    // Fields: Course (batch_code+course_code), Assignment Name, Maximum Mark, Register Number, Name, Mark
+    { key: 'assessmentMarks', label: 'Assignment & Exam Marks', requiredFields: ['batch_code', 'course_code', 'assessment_name', 'max_mark', 'register_no', 'name', 'mark'] },
+    { key: 'attendance', label: 'Attendance', requiredFields: ['batch_code', 'course_code', 'register_no', 'session_date', 'hour_no', 'status'] },
+    // Fields: Date, Batch, Course, Trainer, Start Time, End Time, Covered Topics
+    { key: 'trainerLogs', label: 'Trainer Log', requiredFields: ['batch_code', 'course_code', 'trainer_name', 'log_date', 'start_time', 'end_time', 'covered_topics'] },
   ];
 
   const [entitySheetMapping, setEntitySheetMapping] = useState<Record<string, string>>({});
@@ -166,12 +169,18 @@ export default function BulkUpload() {
         { batch_code: 'COL-001-CS-2026', course_code: 'CS101', assessment_name: 'Midterm Exam', type: 'Exam', max_mark: 100, assessment_date: '2026-03-10' }
       ],
       assessmentMarks: [
-        { batch_code: 'COL-001-CS-2026', course_code: 'CS101', assessment_name: 'Midterm Exam', register_no: '001', mark: 85 },
-        { batch_code: 'COL-001-CS-2026', course_code: 'CS101', assessment_name: 'Midterm Exam', register_no: '002', mark: 92 }
+        // Course = batch_code + course_code | Assignment Name | Maximum Mark | Register Number | Name | Mark
+        { batch_code: 'COL-001-CS-2026', course_code: 'CS101', assessment_name: 'Midterm Exam', max_mark: 100, register_no: '001', name: 'Charlie Brown', mark: 85 },
+        { batch_code: 'COL-001-CS-2026', course_code: 'CS101', assessment_name: 'Midterm Exam', max_mark: 100, register_no: '002', name: 'Lucy van Pelt', mark: 92 }
       ],
       attendance: [
         { batch_code: 'COL-001-CS-2026', course_code: 'CS101', register_no: '001', session_date: '2026-01-20', hour_no: 1, status: 'present' },
         { batch_code: 'COL-001-CS-2026', course_code: 'CS101', register_no: '002', session_date: '2026-01-20', hour_no: 1, status: 'absent' }
+      ],
+      trainerLogs: [
+        // Date | Batch (batch_code) | Course (course_code) | Trainer | Start Time | End Time | Covered Topics (comma-separated topic names)
+        { batch_code: 'COL-001-CS-2026', course_code: 'CS101', trainer_name: 'Alice Smith', log_date: '2026-01-20', start_time: '09:00', end_time: '11:00', covered_topics: 'Introduction to Programming, Variables & Data Types' },
+        { batch_code: 'COL-001-CS-2026', course_code: 'CS101', trainer_name: 'Alice Smith', log_date: '2026-01-21', start_time: '09:00', end_time: '10:30', covered_topics: 'Conditionals & Loops' }
       ]
     };
 
@@ -599,7 +608,7 @@ export default function BulkUpload() {
           const matchCourse = store.courses.find(c => c.code.toUpperCase() === cCode);
           const matchBc = store.batchCourses.find(bc => bc.batch_id === matchBatch?.id && bc.course_id === matchCourse?.id);
           
-          let assessmentMaxMark = 100;
+          let assessmentMaxMark = row.max_mark ? Number(row.max_mark) : 100;
           let assessmentId = '';
           if (matchBc) {
             const asm = store.assessments.find(a => a.batch_course_id === matchBc.id && a.name.toUpperCase() === asmName);
@@ -608,14 +617,18 @@ export default function BulkUpload() {
               assessmentMaxMark = asm.max_mark;
             }
           }
-          // Try resolving from workbook assessments list
-          const wbAsm = payload.assessments?.find(a => 
+          // Try resolving max_mark from workbook assessments list
+          const wbAsm = payload.assessments?.find((a: any) => 
             a.batch_code.trim().toUpperCase() === bCode && 
             a.course_code.trim().toUpperCase() === cCode && 
             a.assessment_name.trim().toUpperCase() === asmName
           );
           if (wbAsm) {
-            assessmentMaxMark = Number(wbAsm.max_mark) || 100;
+            assessmentMaxMark = Number(wbAsm.max_mark) || assessmentMaxMark;
+          }
+          // Also accept max_mark from the marks row itself (new field)
+          if (row.max_mark && !wbAsm) {
+            assessmentMaxMark = Number(row.max_mark) || assessmentMaxMark;
           }
 
           const mark = Number(row.mark);
@@ -637,6 +650,41 @@ export default function BulkUpload() {
           } else {
             newCount++;
           }
+        }
+
+        else if (ent.key === 'trainerLogs') {
+          // Fields: Date (log_date), Batch (batch_code), Course (course_code), Trainer (trainer_name), Start Time, End Time, Covered Topics
+          const bCode = String(row.batch_code).trim().toUpperCase();
+          const cCode = String(row.course_code).trim().toUpperCase();
+
+          const batchCourseExists = store.batchCourses.some(bc => {
+            const b = store.batches.find(x => x.id === bc.batch_id);
+            const c = store.courses.find(x => x.id === bc.course_id);
+            return b?.code.toUpperCase() === bCode && c?.code.toUpperCase() === cCode;
+          }) || batchCoursesInWorkbook.has(`${bCode}_${cCode}`);
+
+          if (!batchCourseExists) {
+            reasons.push(`Referenced course assignment not found in Batches/Courses: ${row.batch_code} - ${row.course_code}`);
+          }
+
+          if (!row.trainer_name || String(row.trainer_name).trim() === '') {
+            reasons.push('Trainer name is required');
+          }
+
+          if (!row.log_date || String(row.log_date).trim() === '') {
+            reasons.push('Log date (Date) is required');
+          }
+
+          const startTime = String(row.start_time || '').trim();
+          const endTime = String(row.end_time || '').trim();
+          if (!startTime) reasons.push('Start Time is required');
+          if (!endTime) reasons.push('End Time is required');
+
+          if (!row.covered_topics || String(row.covered_topics).trim() === '') {
+            reasons.push('Covered Topics must not be empty');
+          }
+
+          if (reasons.length === 0) newCount++;
         }
 
         else if (ent.key === 'attendance') {

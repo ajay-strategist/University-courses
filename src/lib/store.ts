@@ -1168,6 +1168,7 @@ class DataStore {
       assessments: { new: 0, updated: 0, errored: 0 },
       assessment_marks: { new: 0, updated: 0, errored: 0 },
       attendance: { new: 0, updated: 0, errored: 0 },
+      trainer_logs: { new: 0, updated: 0, errored: 0 },
     };
 
     const collegeCodeToId: Record<string, string> = {};
@@ -1602,6 +1603,63 @@ class DataStore {
           } catch (e: any) {
             summary.attendance.errored++;
             if (!skipErrored) throw new Error(`Attendance error: ${e.message}`);
+          }
+        }
+      }
+
+      // 13. TRAINER LOGS
+      // Fields: Date (log_date), Batch (batch_code), Course (course_code), Trainer (trainer_name),
+      //         Start Time (start_time), End Time (end_time), Covered Topics (covered_topics - comma-separated topic names as free text in notes)
+      if (payload.trainerLogs) {
+        for (const row of payload.trainerLogs) {
+          try {
+            const bCode = String(row.batch_code).trim().toUpperCase();
+            const cCode = String(row.course_code).trim().toUpperCase();
+            const batchCourseId = batchCourseKeyToId[`${bCode}_${cCode}`];
+            if (!batchCourseId) throw new Error(`Batch course not assigned: ${row.batch_code} - ${row.course_code}`);
+
+            const trainerName = String(row.trainer_name || 'Unassigned').trim();
+
+            // Try to resolve trainer_id from profiles by name
+            const trainerProfile = this.profiles.find(
+              p => p.full_name.toLowerCase() === trainerName.toLowerCase()
+            );
+
+            const logDate = String(row.log_date || '').trim();
+            const startTime = String(row.start_time || '').trim();
+            const endTime = String(row.end_time || '').trim();
+
+            // Compute duration_minutes from start/end times (HH:MM format)
+            let durationMinutes = 0;
+            try {
+              const [sh, sm] = startTime.split(':').map(Number);
+              const [eh, em] = endTime.split(':').map(Number);
+              durationMinutes = (eh * 60 + em) - (sh * 60 + sm);
+              if (durationMinutes < 0) durationMinutes = 0;
+            } catch (_) {
+              durationMinutes = 0;
+            }
+
+            // Covered topics are stored as notes (free-text) since we don't have syllabus UUIDs
+            const coveredTopicsText = String(row.covered_topics || '').trim();
+
+            await this.saveTrainerLog({
+              id: generateUUID(),
+              batch_course_id: batchCourseId,
+              trainer_id: trainerProfile?.id,
+              trainer_name: trainerName,
+              log_date: logDate,
+              start_time: startTime,
+              end_time: endTime,
+              duration_minutes: durationMinutes,
+              topics_covered: [], // no syllabus UUID mapping in bulk import
+              notes: coveredTopicsText,
+            });
+
+            summary.trainer_logs.new++;
+          } catch (e: any) {
+            summary.trainer_logs.errored++;
+            if (!skipErrored) throw new Error(`Trainer Log error: ${e.message}`);
           }
         }
       }
