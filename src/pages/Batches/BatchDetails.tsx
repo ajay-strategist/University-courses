@@ -12,7 +12,8 @@ import { toast } from 'sonner';
 import { 
   ArrowLeft, Users, BookOpen, CalendarCheck, Award, FileCheck2, 
   CheckSquare, Plus, Download, Upload, Mail, CheckCircle2, Clock, 
-  AlertTriangle, Check, X, FileSpreadsheet, Send, Edit2, Trash2
+  AlertTriangle, Check, X, FileSpreadsheet, Send, Edit2, Trash2,
+  ListTodo
 } from 'lucide-react';
 import * as XLSX from 'xlsx';
 
@@ -26,7 +27,7 @@ export default function BatchDetails() {
   const isStudentCoordinator = profile?.role === 'student_coordinator';
 
   const [activeTab, setActiveTab] = useState<
-    'students' | 'courses' | 'attendance' | 'marks' | 'assessment_types' | 'syllabus' | 'coverage' | 'trainer_log'
+    'students' | 'courses' | 'attendance' | 'marks' | 'assessment_types' | 'syllabus' | 'coverage' | 'trainer_log' | 'task_list'
   >(isStudentCoordinator ? 'attendance' : 'students');
 
   // Local reactive states for this batch
@@ -49,6 +50,44 @@ export default function BatchDetails() {
   const [showAddAssessmentModal, setShowAddAssessmentModal] = useState(false);
   const [showAddTopicModal, setShowAddTopicModal] = useState(false);
   const [showAbsenteeModal, setShowAbsenteeModal] = useState(false);
+
+  // Task List state
+  const [newTaskText, setNewTaskText] = useState('');
+  const [customTasks, setCustomTasks] = useState<{ id: string; text: string; completed: boolean }[]>(() => {
+    try {
+      const stored = localStorage.getItem(`uct_tasks_batch_${id}`);
+      return stored ? JSON.parse(stored) : [];
+    } catch {
+      return [];
+    }
+  });
+
+  const handleAddCustomTask = () => {
+    if (!newTaskText.trim()) return;
+    const newTask = {
+      id: generateUUID(),
+      text: newTaskText.trim(),
+      completed: false,
+    };
+    const updated = [...customTasks, newTask];
+    setCustomTasks(updated);
+    localStorage.setItem(`uct_tasks_batch_${id}`, JSON.stringify(updated));
+    setNewTaskText('');
+    toast.success('Custom task added!');
+  };
+
+  const handleToggleCustomTask = (taskId: string) => {
+    const updated = customTasks.map(t => t.id === taskId ? { ...t, completed: !t.completed } : t);
+    setCustomTasks(updated);
+    localStorage.setItem(`uct_tasks_batch_${id}`, JSON.stringify(updated));
+  };
+
+  const handleDeleteCustomTask = (taskId: string) => {
+    const updated = customTasks.filter(t => t.id !== taskId);
+    setCustomTasks(updated);
+    localStorage.setItem(`uct_tasks_batch_${id}`, JSON.stringify(updated));
+    toast.success('Custom task deleted');
+  };
 
   // Syllabus Topic Editing State
   const [editingTopicId, setEditingTopicId] = useState<string | null>(null);
@@ -991,8 +1030,8 @@ export default function BatchDetails() {
 
               {/* Active Course Selector */}
               {filteredBatchCourses.length > 0 && (
-                <div className="flex items-center gap-2 bg-sunken p-2 rounded-xl border border-border/80">
-                  <span className="text-xs font-mono text-muted-foreground uppercase font-medium px-1">Active Tool Course:</span>
+                <div className="flex items-center gap-2 bg-sunken p-1.5 px-2.5 rounded-xl border border-border/80 max-w-full">
+                  <span className="text-xs font-mono text-muted-foreground uppercase font-medium whitespace-nowrap px-1">Active Tool Course:</span>
                   <select
                     value={selectedBatchCourseId}
                     onChange={(e) => {
@@ -1001,7 +1040,7 @@ export default function BatchDetails() {
                       const firstAss = store.assessments.find(a => a.batch_course_id === bcId);
                       changeSelectedAssessment(firstAss?.id || 'new');
                     }}
-                    className="bg-background border border-border rounded-lg px-3 py-1.5 text-sm font-semibold text-primary focus:outline-none"
+                    className="bg-background border border-border rounded-lg px-2.5 py-1 text-sm font-semibold text-primary focus:outline-none max-w-[180px] sm:max-w-[260px] md:max-w-[340px] truncate cursor-pointer"
                   >
                     {filteredBatchCourses.map((bc) => {
                       const c = store.courses.find(crs => crs.id === bc.course_id);
@@ -1086,6 +1125,14 @@ export default function BatchDetails() {
               }`}
             >
               <Clock className="h-3.5 w-3.5" /> 7.8 Trainer Log
+            </button>
+            <button
+              onClick={() => setActiveTab('task_list')}
+              className={`flex items-center gap-2 px-4 py-2 text-xs font-semibold rounded-xl transition-all whitespace-nowrap ${
+                activeTab === 'task_list' ? 'bg-primary text-primary-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground'
+              }`}
+            >
+              <ListTodo className="h-3.5 w-3.5" /> 7.9 Task List
             </button>
           </>
         )}
@@ -2187,6 +2234,223 @@ export default function BatchDetails() {
                   </tbody>
                 </table>
               )}
+            </div>
+          </div>
+        );
+      })()}
+
+      {/* TAB 7.9: TASK LIST */}
+      {activeTab === 'task_list' && (() => {
+        // Calculate dynamic system tasks
+        const hasStudents = students.length > 0;
+        const hasCourses = batchCourses.length > 0;
+
+        const systemTasks = [
+          {
+            id: 'sys-roster',
+            title: 'Register Students',
+            description: 'Enroll student profiles in the batch roster.',
+            status: hasStudents ? 'completed' : 'pending',
+            action: !hasStudents ? () => setShowAddStudentModal(true) : null,
+            actionLabel: 'Add Student',
+          },
+          {
+            id: 'sys-courses',
+            title: 'Allocate Courses',
+            description: 'Assign master curriculum training courses to this batch.',
+            status: hasCourses ? 'completed' : 'pending',
+            action: !hasCourses ? () => setShowAddCourseModal(true) : null,
+            actionLabel: 'Allocate Course',
+          },
+        ];
+
+        // Add syllabus sync, sessions, assessments status per allocated course
+        batchCourses.forEach(bc => {
+          const c = store.courses.find(crs => crs.id === bc.course_id);
+          const courseName = c?.name || 'Allocated Course';
+
+          // Check syllabus
+          const courseSyl = store.batchSyllabus.filter(s => s.batch_course_id === bc.id);
+          const hasSyllabus = courseSyl.length > 0;
+          const totalTopics = courseSyl.length;
+          const completedTopics = courseSyl.filter(s => s.is_completed).length;
+          const isSyllabusCompleted = hasSyllabus && completedTopics === totalTopics;
+
+          systemTasks.push({
+            id: `sys-syl-sync-${bc.id}`,
+            title: `Sync Syllabus: ${courseName}`,
+            description: hasSyllabus 
+              ? `Syllabus synced (${totalTopics} topics).`
+              : 'Syllabus plan needs to be synced from course defaults.',
+            status: hasSyllabus ? 'completed' : 'pending',
+            action: !hasSyllabus ? () => {
+              setActiveTab('syllabus');
+              setSelectedBatchCourseId(bc.id);
+            } : null,
+            actionLabel: 'Go to Syllabus',
+          });
+
+          if (hasSyllabus) {
+            systemTasks.push({
+              id: `sys-syl-cov-${bc.id}`,
+              title: `Complete Syllabus: ${courseName}`,
+              description: `Completed ${completedTopics} of ${totalTopics} topics.`,
+              status: isSyllabusCompleted ? 'completed' : 'in-progress',
+              action: !isSyllabusCompleted ? () => {
+                setActiveTab('trainer_log');
+                setSelectedBatchCourseId(bc.id);
+              } : null,
+              actionLabel: 'Log Progress',
+            });
+          }
+
+          // Check sessions / attendance
+          const hasSession = store.sessions.some(s => s.batch_course_id === bc.id);
+          systemTasks.push({
+            id: `sys-att-${bc.id}`,
+            title: `Record Attendance: ${courseName}`,
+            description: hasSession 
+              ? 'Attendance logs recorded.' 
+              : 'First session attendance register needs to be opened.',
+            status: hasSession ? 'completed' : 'pending',
+            action: !hasSession ? () => {
+              setActiveTab('attendance');
+              setSelectedBatchCourseId(bc.id);
+            } : null,
+            actionLabel: 'Mark Attendance',
+          });
+
+          // Check grading
+          const courseAss = store.assessments.filter(a => a.batch_course_id === bc.id);
+          const hasAssessments = courseAss.length > 0;
+          systemTasks.push({
+            id: `sys-ass-${bc.id}`,
+            title: `Grade Assessments: ${courseName}`,
+            description: hasAssessments 
+              ? `${courseAss.length} assessment task(s) created.`
+              : 'No assignments or exams created for grading yet.',
+            status: hasAssessments ? 'completed' : 'pending',
+            action: !hasAssessments ? () => {
+              setActiveTab('marks');
+              setSelectedBatchCourseId(bc.id);
+            } : null,
+            actionLabel: 'Manage Marks',
+          });
+        });
+
+        return (
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            {/* Left: Dynamic Operational Checklist */}
+            <div className="card-meridian p-6 space-y-4">
+              <div className="flex items-center justify-between border-b border-border pb-3">
+                <div>
+                  <h3 className="text-base font-bold font-heading text-foreground">Operational Checklist</h3>
+                  <p className="text-xs text-muted-foreground">Auto-generated checklist based on cohort data state.</p>
+                </div>
+                <span className="text-[10px] font-mono bg-primary/10 text-primary px-2 py-0.5 rounded-full font-bold">
+                  System Tracking
+                </span>
+              </div>
+
+              <div className="space-y-3.5 max-h-[600px] overflow-y-auto pr-1">
+                {systemTasks.map(task => (
+                  <div key={task.id} className="flex gap-3 items-start bg-sunken/40 hover:bg-sunken/80 border border-border/60 p-3 rounded-xl transition-all">
+                    <div className="mt-0.5">
+                      {task.status === 'completed' ? (
+                        <div className="w-5 h-5 rounded-full bg-success-tint flex items-center justify-center border border-success-text/30">
+                          <Check className="h-3 w-3 text-success-text" />
+                        </div>
+                      ) : task.status === 'in-progress' ? (
+                        <div className="w-5 h-5 rounded-full bg-amber-500/10 flex items-center justify-center border border-amber-500/30 animate-pulse">
+                          <Clock className="h-3 w-3 text-amber-500" />
+                        </div>
+                      ) : (
+                        <div className="w-5 h-5 rounded-full bg-muted/20 flex items-center justify-center border border-border/80">
+                          <AlertTriangle className="h-3 w-3 text-muted-foreground" />
+                        </div>
+                      )}
+                    </div>
+                    <div className="flex-1">
+                      <p className={`text-sm font-semibold leading-none ${
+                        task.status === 'completed' ? 'line-through text-muted-foreground' : 'text-foreground'
+                      }`}>
+                        {task.title}
+                      </p>
+                      <p className="text-xs text-muted-foreground mt-1 leading-relaxed">
+                        {task.description}
+                      </p>
+                    </div>
+                    {task.action && (
+                      <Button size="sm" variant="ghost" onClick={task.action} className="text-xs text-primary hover:bg-primary/5 h-8 px-2.5 rounded-lg border border-primary/20 shrink-0">
+                        {task.actionLabel}
+                      </Button>
+                    )}
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {/* Right: Custom Task List */}
+            <div className="card-meridian p-6 space-y-4">
+              <div className="flex items-center justify-between border-b border-border pb-3">
+                <div>
+                  <h3 className="text-base font-bold font-heading text-foreground">Custom Cohort Tasks</h3>
+                  <p className="text-xs text-muted-foreground">Add and manage specific custom actions for this batch.</p>
+                </div>
+                <span className="text-[10px] font-mono bg-accent/10 text-accent px-2 py-0.5 rounded-full font-bold">
+                  User Configured
+                </span>
+              </div>
+
+              {/* Add Custom Task Form */}
+              <div className="flex gap-2">
+                <Input
+                  value={newTaskText}
+                  onChange={(e) => setNewTaskText(e.target.value)}
+                  placeholder="e.g. Schedule guest lecture, verify final marks..."
+                  className="text-xs flex-1 rounded-xl"
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter') handleAddCustomTask();
+                  }}
+                />
+                <Button onClick={handleAddCustomTask} className="bg-primary text-primary-foreground rounded-xl shrink-0">
+                  <Plus className="h-4 w-4 mr-1.5" /> Add Task
+                </Button>
+              </div>
+
+              {/* Tasks List */}
+              <div className="space-y-2 max-h-[500px] overflow-y-auto pr-1">
+                {customTasks.length === 0 ? (
+                  <div className="flex flex-col items-center justify-center p-8 text-center text-muted-foreground italic border border-dashed border-border/80 rounded-xl bg-sunken/10">
+                    <ListTodo className="h-8 w-8 text-muted-foreground/40 mb-2" />
+                    <p className="text-xs">No custom tasks yet. Add one above!</p>
+                  </div>
+                ) : (
+                  customTasks.map(task => (
+                    <div key={task.id} className="flex gap-3 items-center bg-sunken/45 border border-border/50 p-2.5 rounded-xl hover:bg-sunken/80 transition-all group">
+                      <input
+                        type="checkbox"
+                        checked={task.completed}
+                        onChange={() => handleToggleCustomTask(task.id)}
+                        className="w-4 h-4 rounded border-border text-primary focus:ring-primary focus:ring-offset-background cursor-pointer"
+                      />
+                      <span className={`text-xs flex-1 truncate ${
+                        task.completed ? 'line-through text-muted-foreground' : 'text-foreground font-medium'
+                      }`}>
+                        {task.text}
+                      </span>
+                      <Button
+                        size="icon"
+                        variant="ghost"
+                        className="h-7 w-7 opacity-0 group-hover:opacity-100 text-muted-foreground hover:text-destructive transition-all rounded-lg"
+                        onClick={() => handleDeleteCustomTask(task.id)}
+                      >
+                        <Trash2 className="h-3.5 w-3.5" />
+                      </Button>
+                    </div>
+                  ))
+                )}
+              </div>
             </div>
           </div>
         );

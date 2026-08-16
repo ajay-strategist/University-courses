@@ -570,7 +570,7 @@ CREATE OR REPLACE FUNCTION public.admin_create_user(
 RETURNS UUID
 LANGUAGE plpgsql
 SECURITY DEFINER
-SET search_path = public
+SET search_path = public, extensions
 AS $$
 DECLARE
   v_new_user_id UUID;
@@ -670,7 +670,7 @@ CREATE OR REPLACE FUNCTION public.reset_user_password(target_user_id UUID)
 RETURNS void
 LANGUAGE plpgsql
 SECURITY DEFINER
-SET search_path = public
+SET search_path = public, extensions
 AS $$
 BEGIN
   -- 1) Verify caller is an admin
