@@ -942,9 +942,9 @@ export default function BatchDetails() {
           </div>
         )}
 
-        <div className="relative z-10 flex flex-col md:flex-row md:items-center md:justify-between gap-4">
-          <div className="flex items-center gap-4">
-            <Button variant="outline" size="icon" className="rounded-xl shrink-0" onClick={() => navigate('/batches')}>
+        <div className="relative z-10 flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
+          <div className="flex items-start sm:items-center gap-4">
+            <Button variant="outline" size="icon" className="rounded-xl shrink-0 mt-1 sm:mt-0" onClick={() => navigate('/batches')}>
               <ArrowLeft className="h-4 w-4" />
             </Button>
 
@@ -953,56 +953,56 @@ export default function BatchDetails() {
               <img 
                 src={batch.college.logo_url} 
                 alt={batch.college.name} 
-                className="h-12 w-12 rounded-xl object-cover border border-border bg-background shadow-xs shrink-0"
+                className="h-14 w-14 rounded-xl object-contain p-1 border border-border bg-background shadow-xs shrink-0 mt-1 sm:mt-0"
               />
             ) : (
-              <div className="h-12 w-12 rounded-xl bg-primary/10 border border-primary/20 flex items-center justify-center font-bold font-mono text-sm text-primary shrink-0">
+              <div className="h-14 w-14 rounded-xl bg-primary/10 border border-primary/20 flex items-center justify-center font-bold font-mono text-sm text-primary shrink-0 mt-1 sm:mt-0">
                 {batch.college?.code}
               </div>
             )}
 
-            <div>
-              <div className="flex items-center gap-2">
-                <h1 className="text-2xl font-bold font-heading text-foreground tracking-tight">{batch.code}</h1>
-                <span className="font-mono text-xs px-2.5 py-0.5 rounded-full bg-accent/15 text-accent font-bold">
+            <div className="space-y-1.5">
+              <div className="flex flex-wrap items-center gap-2">
+                <h1 className="text-xl sm:text-2xl font-bold font-heading text-foreground tracking-tight whitespace-nowrap">{batch.code}</h1>
+                <span className="font-mono text-xs px-2.5 py-0.5 rounded-full bg-accent/15 text-accent font-bold shrink-0">
                   Sem {batch.current_semester}
                 </span>
-                {!isStudentCoordinator && (
-                  <div className="flex items-center gap-1">
-                    <Button 
-                      size="sm" 
-                      variant="outline" 
-                      onClick={() => {
-                        setEditBatchForm({
-                          code: batch.code,
-                          current_semester: batch.current_semester,
-                          status: batch.status,
-                          college_coordinator_id: batch.college_coordinator_id || '',
-                          student_coordinator_id: batch.student_coordinator_id || '',
-                          start_date: batch.start_date || '',
-                          end_date: batch.end_date || '',
-                          academic_year: batch.academic_year || '',
-                        });
-                        setShowEditBatchModal(true);
-                      }} 
-                      className="h-7 text-xs rounded-xl ml-1"
-                    >
-                      <Edit2 className="h-3.5 w-3.5 mr-1" /> Edit Batch
-                    </Button>
-                    <Button 
-                      size="sm" 
-                      variant="outline" 
-                      onClick={handleDeleteBatch} 
-                      className="h-7 text-xs rounded-xl text-destructive hover:bg-destructive/10 border-destructive/30"
-                    >
-                      <Trash2 className="h-3.5 w-3.5 mr-1" /> Delete Batch
-                    </Button>
-                  </div>
-                )}
               </div>
-              <p className="text-xs text-muted-foreground mt-0.5">
+              <p className="text-xs text-muted-foreground leading-normal">
                 <span className="font-semibold text-foreground">{batch.college?.name}</span> · {batch.program?.name} ({batch.academic_year})
               </p>
+              {!isStudentCoordinator && (
+                <div className="flex items-center gap-2 pt-0.5">
+                  <Button 
+                    size="sm" 
+                    variant="outline" 
+                    onClick={() => {
+                      setEditBatchForm({
+                        code: batch.code,
+                        current_semester: batch.current_semester,
+                        status: batch.status,
+                        college_coordinator_id: batch.college_coordinator_id || '',
+                        student_coordinator_id: batch.student_coordinator_id || '',
+                        start_date: batch.start_date || '',
+                        end_date: batch.end_date || '',
+                        academic_year: batch.academic_year || '',
+                      });
+                      setShowEditBatchModal(true);
+                    }} 
+                    className="h-7 text-xs rounded-xl"
+                  >
+                    <Edit2 className="h-3.5 w-3.5 mr-1" /> Edit Batch
+                  </Button>
+                  <Button 
+                    size="sm" 
+                    variant="outline" 
+                    onClick={handleDeleteBatch} 
+                    className="h-7 text-xs rounded-xl text-destructive hover:bg-destructive/10 border-destructive/30"
+                  >
+                    <Trash2 className="h-3.5 w-3.5 mr-1" /> Delete Batch
+                  </Button>
+                </div>
+              )}
             </div>
           </div>
 
