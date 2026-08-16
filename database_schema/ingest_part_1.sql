@@ -11,7 +11,7 @@ ON CONFLICT (code) DO NOTHING;
 -- 2. INSERT DEFAULT ASSESSMENT TYPES
 INSERT INTO public.uct_assessment_types (id, name, default_max_mark) VALUES ('a0000000-0000-0000-0000-000000000001', 'Assignment', 100.0) ON CONFLICT DO NOTHING;
 INSERT INTO public.uct_assessment_types (id, name, default_max_mark) VALUES ('e0000000-0000-0000-0000-000000000002', 'Exam', 100.0) ON CONFLICT DO NOTHING;
-INSERT INTO public.uct_assessment_types (id, name, default_max_mark) VALUES ('i0000000-0000-0000-0000-000000000003', 'Internal Assessment', 100.0) ON CONFLICT DO NOTHING;
+INSERT INTO public.uct_assessment_types (id, name, default_max_mark) VALUES ('d0000000-0000-0000-0000-000000000003', 'Internal Assessment', 100.0) ON CONFLICT DO NOTHING;
 INSERT INTO public.uct_assessment_types (id, name, default_max_mark) VALUES ('c0000000-0000-0000-0000-000000000004', 'Assessment', 100.0) ON CONFLICT DO NOTHING;
 
 -- 3. INSERT STUDENT ROSTERS
