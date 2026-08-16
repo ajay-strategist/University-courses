@@ -138,51 +138,51 @@ INSERT INTO public.uct_attendance (id, session_id, student_id, status) VALUES ('
 INSERT INTO public.uct_attendance (id, session_id, student_id, status) VALUES ('8cde0aeb-9183-55f3-bb6a-82754c607e26', '27b7fc58-3692-55a3-bd90-8f753bd107fa', '4adc5ed6-9a11-5f2c-9204-52e5d3241349', 'present') ON CONFLICT (session_id, student_id) DO UPDATE SET status = EXCLUDED.status;
 
 -- 6. INSERT SYLLABUS TOPICS & TRAINER LOGS
-INSERT INTO public.uct_batch_course_syllabus (id, batch_course_id, topic_no, topic_name, planned_hours, is_completed) VALUES ('db483c88-add2-5ab8-844a-0735e5168344', 'b0b29a94-574e-54ed-9c52-c7008fe9ef1b', 1, 'Introduction to python,installation of anaconda,python interface,connecting file ,import library,python programming basics,understanding database,', nan, false) ON CONFLICT (batch_course_id, topic_no) DO NOTHING;
-INSERT INTO public.uct_batch_course_syllabus (id, batch_course_id, topic_no, topic_name, planned_hours, is_completed) VALUES ('181cf83d-5c66-51a7-aed9-90df0a312307', 'b0b29a94-574e-54ed-9c52-c7008fe9ef1b', 2, 'univariable analysis', nan, false) ON CONFLICT (batch_course_id, topic_no) DO NOTHING;
-INSERT INTO public.uct_batch_course_syllabus (id, batch_course_id, topic_no, topic_name, planned_hours, is_completed) VALUES ('b86eebe9-4231-53a9-953a-f831dbca46d5', 'b0b29a94-574e-54ed-9c52-c7008fe9ef1b', 3, 'Inter quartile range,Basic Data Visualization -histogram, boxplot', nan, false) ON CONFLICT (batch_course_id, topic_no) DO NOTHING;
-INSERT INTO public.uct_batch_course_syllabus (id, batch_course_id, topic_no, topic_name, planned_hours, is_completed) VALUES ('e976850d-20cc-5f1c-9337-f0aa354eedff', 'b0b29a94-574e-54ed-9c52-c7008fe9ef1b', 4, 'Valuecount and Visualization,Formating of visualization,Groupby', nan, false) ON CONFLICT (batch_course_id, topic_no) DO NOTHING;
-INSERT INTO public.uct_batch_course_syllabus (id, batch_course_id, topic_no, topic_name, planned_hours, is_completed) VALUES ('c959fa76-34c9-51d8-bfe3-7be1b460ffd8', 'b0b29a94-574e-54ed-9c52-c7008fe9ef1b', 5, 'Advanced Visualization', nan, false) ON CONFLICT (batch_course_id, topic_no) DO NOTHING;
-INSERT INTO public.uct_batch_course_syllabus (id, batch_course_id, topic_no, topic_name, planned_hours, is_completed) VALUES ('e0036887-1b62-58b5-9998-68a6ef95c206', 'b0b29a94-574e-54ed-9c52-c7008fe9ef1b', 6, 'Data Cleaning - removing rows, columns, droping null values,replace the mean', nan, false) ON CONFLICT (batch_course_id, topic_no) DO NOTHING;
-INSERT INTO public.uct_batch_course_syllabus (id, batch_course_id, topic_no, topic_name, planned_hours, is_completed) VALUES ('f13dce8a-0be0-58c1-8e64-e42b23e87196', 'b0b29a94-574e-54ed-9c52-c7008fe9ef1b', 7, 'Data Cleaning 2- removing duplicates ,converting data type and analyze the data', nan, false) ON CONFLICT (batch_course_id, topic_no) DO NOTHING;
-INSERT INTO public.uct_batch_course_syllabus (id, batch_course_id, topic_no, topic_name, planned_hours, is_completed) VALUES ('a173b3b8-3c20-53a2-8c24-1b0a24600e7c', 'b0b29a94-574e-54ed-9c52-c7008fe9ef1b', 8, 'Add Columns and doing calculations', nan, false) ON CONFLICT (batch_course_id, topic_no) DO NOTHING;
-INSERT INTO public.uct_batch_course_syllabus (id, batch_course_id, topic_no, topic_name, planned_hours, is_completed) VALUES ('96f80742-2d92-530f-a65d-49c99a0942c4', 'b0b29a94-574e-54ed-9c52-c7008fe9ef1b', 9, 'Data Consolidation and formatting (Table Formatting)', nan, false) ON CONFLICT (batch_course_id, topic_no) DO NOTHING;
-INSERT INTO public.uct_batch_course_syllabus (id, batch_course_id, topic_no, topic_name, planned_hours, is_completed) VALUES ('f49d315d-0432-5289-b038-864e060da7c9', 'b0b29a94-574e-54ed-9c52-c7008fe9ef1b', 10, 'Risk Analysis(Stock Market)', nan, false) ON CONFLICT (batch_course_id, topic_no) DO NOTHING;
-INSERT INTO public.uct_batch_course_syllabus (id, batch_course_id, topic_no, topic_name, planned_hours, is_completed) VALUES ('2a07e00b-5899-5635-8447-12ab4a746a20', 'b0b29a94-574e-54ed-9c52-c7008fe9ef1b', 11, 'Hypothesis Test -parametric Test-t-test,f-test,z-test', nan, false) ON CONFLICT (batch_course_id, topic_no) DO NOTHING;
-INSERT INTO public.uct_batch_course_syllabus (id, batch_course_id, topic_no, topic_name, planned_hours, is_completed) VALUES ('9490b17c-ee48-5e72-bbb9-d102ee206eb2', 'b0b29a94-574e-54ed-9c52-c7008fe9ef1b', 12, 'Non parametric Test- Chi-square,MannnWhinsey U-test', nan, false) ON CONFLICT (batch_course_id, topic_no) DO NOTHING;
-INSERT INTO public.uct_batch_course_syllabus (id, batch_course_id, topic_no, topic_name, planned_hours, is_completed) VALUES ('7838da36-bed2-568b-aa13-0502e5116cf2', 'b0b29a94-574e-54ed-9c52-c7008fe9ef1b', 13, 'DataType and Applications', nan, false) ON CONFLICT (batch_course_id, topic_no) DO NOTHING;
-INSERT INTO public.uct_batch_course_syllabus (id, batch_course_id, topic_no, topic_name, planned_hours, is_completed) VALUES ('14102f14-5180-5bc1-a30e-5184e4bb2ecd', 'b0b29a94-574e-54ed-9c52-c7008fe9ef1b', 14, 'Python Operators', nan, false) ON CONFLICT (batch_course_id, topic_no) DO NOTHING;
-INSERT INTO public.uct_batch_course_syllabus (id, batch_course_id, topic_no, topic_name, planned_hours, is_completed) VALUES ('3464b546-f04d-50ae-bf76-5a3af77f90e8', 'b0b29a94-574e-54ed-9c52-c7008fe9ef1b', 15, 'if,While,for ,iterators ,inhertiance,lamada', nan, false) ON CONFLICT (batch_course_id, topic_no) DO NOTHING;
-INSERT INTO public.uct_batch_course_syllabus (id, batch_course_id, topic_no, topic_name, planned_hours, is_completed) VALUES ('727ead0e-a633-579f-9a6a-5ab41d3ed8e4', 'b0b29a94-574e-54ed-9c52-c7008fe9ef1b', 16, 'Scatter Plot,Violin plot, kdeplot', nan, false) ON CONFLICT (batch_course_id, topic_no) DO NOTHING;
-INSERT INTO public.uct_batch_course_syllabus (id, batch_course_id, topic_no, topic_name, planned_hours, is_completed) VALUES ('39f6d4f9-3562-584a-9011-8c49728ec8f9', 'b0b29a94-574e-54ed-9c52-c7008fe9ef1b', 17, 'Correlation Matrix(heatplot),cross tabulation matrix,Quality Control Charts', nan, false) ON CONFLICT (batch_course_id, topic_no) DO NOTHING;
-INSERT INTO public.uct_batch_course_syllabus (id, batch_course_id, topic_no, topic_name, planned_hours, is_completed) VALUES ('0a5e2aa4-c8c5-524d-bbf0-cda181442c54', 'b0b29a94-574e-54ed-9c52-c7008fe9ef1b', 18, 'Introduction to Machine Learning,Simple Linear Regression', nan, false) ON CONFLICT (batch_course_id, topic_no) DO NOTHING;
-INSERT INTO public.uct_batch_course_syllabus (id, batch_course_id, topic_no, topic_name, planned_hours, is_completed) VALUES ('48bb3b62-d903-52bb-b53a-99884dd6b68a', 'b0b29a94-574e-54ed-9c52-c7008fe9ef1b', 19, 'MultiLinear Regression', nan, false) ON CONFLICT (batch_course_id, topic_no) DO NOTHING;
-INSERT INTO public.uct_batch_course_syllabus (id, batch_course_id, topic_no, topic_name, planned_hours, is_completed) VALUES ('cf713e13-0331-5e37-9952-ad4932a595f9', 'b0b29a94-574e-54ed-9c52-c7008fe9ef1b', 20, 'Logistic Regression', nan, false) ON CONFLICT (batch_course_id, topic_no) DO NOTHING;
-INSERT INTO public.uct_batch_course_syllabus (id, batch_course_id, topic_no, topic_name, planned_hours, is_completed) VALUES ('840129c7-a161-522e-ac68-e6f10f174b97', 'b0b29a94-574e-54ed-9c52-c7008fe9ef1b', 21, 'Time Series Analysis', nan, false) ON CONFLICT (batch_course_id, topic_no) DO NOTHING;
-INSERT INTO public.uct_batch_course_syllabus (id, batch_course_id, topic_no, topic_name, planned_hours, is_completed) VALUES ('4e29d53a-e46c-5e13-aaea-8b612d91dc33', 'b0b29a94-574e-54ed-9c52-c7008fe9ef1b', 22, 'ABC Analysis', nan, false) ON CONFLICT (batch_course_id, topic_no) DO NOTHING;
-INSERT INTO public.uct_batch_course_syllabus (id, batch_course_id, topic_no, topic_name, planned_hours, is_completed) VALUES ('d2a8a6c8-6754-5b93-9141-cd57153658c3', 'b0b29a94-574e-54ed-9c52-c7008fe9ef1b', 23, 'RFM Analysis', nan, false) ON CONFLICT (batch_course_id, topic_no) DO NOTHING;
-INSERT INTO public.uct_batch_course_syllabus (id, batch_course_id, topic_no, topic_name, planned_hours, is_completed) VALUES ('9c8fda7a-0e8b-56a6-97f9-782d919dabe4', 'b0b29a94-574e-54ed-9c52-c7008fe9ef1b', 24, 'Market Basket Analysis', nan, false) ON CONFLICT (batch_course_id, topic_no) DO NOTHING;
-INSERT INTO public.uct_batch_course_syllabus (id, batch_course_id, topic_no, topic_name, planned_hours, is_completed) VALUES ('b16a36b2-b2d1-5dc6-894b-b5edf5d73fa2', 'b0b29a94-574e-54ed-9c52-c7008fe9ef1b', 25, 'HR Analytics', nan, false) ON CONFLICT (batch_course_id, topic_no) DO NOTHING;
-INSERT INTO public.uct_batch_course_syllabus (id, batch_course_id, topic_no, topic_name, planned_hours, is_completed) VALUES ('1e029a56-dcb8-5a6c-9c3f-54be3915e173', 'b0b29a94-574e-54ed-9c52-c7008fe9ef1b', 26, 'Employee Attrittion Prediction', nan, false) ON CONFLICT (batch_course_id, topic_no) DO NOTHING;
-INSERT INTO public.uct_batch_course_syllabus (id, batch_course_id, topic_no, topic_name, planned_hours, is_completed) VALUES ('a572af53-66cd-5d6b-8c28-3f036bb5adff', 'b0b29a94-574e-54ed-9c52-c7008fe9ef1b', 27, 'Recruitment Analysis', nan, false) ON CONFLICT (batch_course_id, topic_no) DO NOTHING;
-INSERT INTO public.uct_batch_course_syllabus (id, batch_course_id, topic_no, topic_name, planned_hours, is_completed) VALUES ('7f8c382b-48ed-5c43-bc05-09d6e7214bb1', 'b0b29a94-574e-54ed-9c52-c7008fe9ef1b', 28, 'Fraud Detection', nan, false) ON CONFLICT (batch_course_id, topic_no) DO NOTHING;
-INSERT INTO public.uct_batch_course_syllabus (id, batch_course_id, topic_no, topic_name, planned_hours, is_completed) VALUES ('ceaf4265-6d06-58ea-bf87-1dd6ff3fa170', 'b0b29a94-574e-54ed-9c52-c7008fe9ef1b', 29, 'Financial Analysis', nan, false) ON CONFLICT (batch_course_id, topic_no) DO NOTHING;
-INSERT INTO public.uct_batch_course_syllabus (id, batch_course_id, topic_no, topic_name, planned_hours, is_completed) VALUES ('0d97d765-0a5a-5666-82ce-e331c4e5ce65', 'b0b29a94-574e-54ed-9c52-c7008fe9ef1b', 30, 'Financial Broadcasting', nan, false) ON CONFLICT (batch_course_id, topic_no) DO NOTHING;
+INSERT INTO public.uct_batch_course_syllabus (id, batch_course_id, topic_no, topic_name, planned_hours, is_completed) VALUES ('db483c88-add2-5ab8-844a-0735e5168344', 'b0b29a94-574e-54ed-9c52-c7008fe9ef1b', 1, 'Introduction to python,installation of anaconda,python interface,connecting file ,import library,python programming basics,understanding database,', 2.0, false) ON CONFLICT (batch_course_id, topic_no) DO NOTHING;
+INSERT INTO public.uct_batch_course_syllabus (id, batch_course_id, topic_no, topic_name, planned_hours, is_completed) VALUES ('181cf83d-5c66-51a7-aed9-90df0a312307', 'b0b29a94-574e-54ed-9c52-c7008fe9ef1b', 2, 'univariable analysis', 2.0, false) ON CONFLICT (batch_course_id, topic_no) DO NOTHING;
+INSERT INTO public.uct_batch_course_syllabus (id, batch_course_id, topic_no, topic_name, planned_hours, is_completed) VALUES ('b86eebe9-4231-53a9-953a-f831dbca46d5', 'b0b29a94-574e-54ed-9c52-c7008fe9ef1b', 3, 'Inter quartile range,Basic Data Visualization -histogram, boxplot', 2.0, false) ON CONFLICT (batch_course_id, topic_no) DO NOTHING;
+INSERT INTO public.uct_batch_course_syllabus (id, batch_course_id, topic_no, topic_name, planned_hours, is_completed) VALUES ('e976850d-20cc-5f1c-9337-f0aa354eedff', 'b0b29a94-574e-54ed-9c52-c7008fe9ef1b', 4, 'Valuecount and Visualization,Formating of visualization,Groupby', 2.0, false) ON CONFLICT (batch_course_id, topic_no) DO NOTHING;
+INSERT INTO public.uct_batch_course_syllabus (id, batch_course_id, topic_no, topic_name, planned_hours, is_completed) VALUES ('c959fa76-34c9-51d8-bfe3-7be1b460ffd8', 'b0b29a94-574e-54ed-9c52-c7008fe9ef1b', 5, 'Advanced Visualization', 2.0, false) ON CONFLICT (batch_course_id, topic_no) DO NOTHING;
+INSERT INTO public.uct_batch_course_syllabus (id, batch_course_id, topic_no, topic_name, planned_hours, is_completed) VALUES ('e0036887-1b62-58b5-9998-68a6ef95c206', 'b0b29a94-574e-54ed-9c52-c7008fe9ef1b', 6, 'Data Cleaning - removing rows, columns, droping null values,replace the mean', 2.0, false) ON CONFLICT (batch_course_id, topic_no) DO NOTHING;
+INSERT INTO public.uct_batch_course_syllabus (id, batch_course_id, topic_no, topic_name, planned_hours, is_completed) VALUES ('f13dce8a-0be0-58c1-8e64-e42b23e87196', 'b0b29a94-574e-54ed-9c52-c7008fe9ef1b', 7, 'Data Cleaning 2- removing duplicates ,converting data type and analyze the data', 2.0, false) ON CONFLICT (batch_course_id, topic_no) DO NOTHING;
+INSERT INTO public.uct_batch_course_syllabus (id, batch_course_id, topic_no, topic_name, planned_hours, is_completed) VALUES ('a173b3b8-3c20-53a2-8c24-1b0a24600e7c', 'b0b29a94-574e-54ed-9c52-c7008fe9ef1b', 8, 'Add Columns and doing calculations', 2.0, false) ON CONFLICT (batch_course_id, topic_no) DO NOTHING;
+INSERT INTO public.uct_batch_course_syllabus (id, batch_course_id, topic_no, topic_name, planned_hours, is_completed) VALUES ('96f80742-2d92-530f-a65d-49c99a0942c4', 'b0b29a94-574e-54ed-9c52-c7008fe9ef1b', 9, 'Data Consolidation and formatting (Table Formatting)', 2.0, false) ON CONFLICT (batch_course_id, topic_no) DO NOTHING;
+INSERT INTO public.uct_batch_course_syllabus (id, batch_course_id, topic_no, topic_name, planned_hours, is_completed) VALUES ('f49d315d-0432-5289-b038-864e060da7c9', 'b0b29a94-574e-54ed-9c52-c7008fe9ef1b', 10, 'Risk Analysis(Stock Market)', 2.0, false) ON CONFLICT (batch_course_id, topic_no) DO NOTHING;
+INSERT INTO public.uct_batch_course_syllabus (id, batch_course_id, topic_no, topic_name, planned_hours, is_completed) VALUES ('2a07e00b-5899-5635-8447-12ab4a746a20', 'b0b29a94-574e-54ed-9c52-c7008fe9ef1b', 11, 'Hypothesis Test -parametric Test-t-test,f-test,z-test', 2.0, false) ON CONFLICT (batch_course_id, topic_no) DO NOTHING;
+INSERT INTO public.uct_batch_course_syllabus (id, batch_course_id, topic_no, topic_name, planned_hours, is_completed) VALUES ('9490b17c-ee48-5e72-bbb9-d102ee206eb2', 'b0b29a94-574e-54ed-9c52-c7008fe9ef1b', 12, 'Non parametric Test- Chi-square,MannnWhinsey U-test', 2.0, false) ON CONFLICT (batch_course_id, topic_no) DO NOTHING;
+INSERT INTO public.uct_batch_course_syllabus (id, batch_course_id, topic_no, topic_name, planned_hours, is_completed) VALUES ('7838da36-bed2-568b-aa13-0502e5116cf2', 'b0b29a94-574e-54ed-9c52-c7008fe9ef1b', 13, 'DataType and Applications', 2.0, false) ON CONFLICT (batch_course_id, topic_no) DO NOTHING;
+INSERT INTO public.uct_batch_course_syllabus (id, batch_course_id, topic_no, topic_name, planned_hours, is_completed) VALUES ('14102f14-5180-5bc1-a30e-5184e4bb2ecd', 'b0b29a94-574e-54ed-9c52-c7008fe9ef1b', 14, 'Python Operators', 2.0, false) ON CONFLICT (batch_course_id, topic_no) DO NOTHING;
+INSERT INTO public.uct_batch_course_syllabus (id, batch_course_id, topic_no, topic_name, planned_hours, is_completed) VALUES ('3464b546-f04d-50ae-bf76-5a3af77f90e8', 'b0b29a94-574e-54ed-9c52-c7008fe9ef1b', 15, 'if,While,for ,iterators ,inhertiance,lamada', 2.0, false) ON CONFLICT (batch_course_id, topic_no) DO NOTHING;
+INSERT INTO public.uct_batch_course_syllabus (id, batch_course_id, topic_no, topic_name, planned_hours, is_completed) VALUES ('727ead0e-a633-579f-9a6a-5ab41d3ed8e4', 'b0b29a94-574e-54ed-9c52-c7008fe9ef1b', 16, 'Scatter Plot,Violin plot, kdeplot', 2.0, false) ON CONFLICT (batch_course_id, topic_no) DO NOTHING;
+INSERT INTO public.uct_batch_course_syllabus (id, batch_course_id, topic_no, topic_name, planned_hours, is_completed) VALUES ('39f6d4f9-3562-584a-9011-8c49728ec8f9', 'b0b29a94-574e-54ed-9c52-c7008fe9ef1b', 17, 'Correlation Matrix(heatplot),cross tabulation matrix,Quality Control Charts', 2.0, false) ON CONFLICT (batch_course_id, topic_no) DO NOTHING;
+INSERT INTO public.uct_batch_course_syllabus (id, batch_course_id, topic_no, topic_name, planned_hours, is_completed) VALUES ('0a5e2aa4-c8c5-524d-bbf0-cda181442c54', 'b0b29a94-574e-54ed-9c52-c7008fe9ef1b', 18, 'Introduction to Machine Learning,Simple Linear Regression', 2.0, false) ON CONFLICT (batch_course_id, topic_no) DO NOTHING;
+INSERT INTO public.uct_batch_course_syllabus (id, batch_course_id, topic_no, topic_name, planned_hours, is_completed) VALUES ('48bb3b62-d903-52bb-b53a-99884dd6b68a', 'b0b29a94-574e-54ed-9c52-c7008fe9ef1b', 19, 'MultiLinear Regression', 2.0, false) ON CONFLICT (batch_course_id, topic_no) DO NOTHING;
+INSERT INTO public.uct_batch_course_syllabus (id, batch_course_id, topic_no, topic_name, planned_hours, is_completed) VALUES ('cf713e13-0331-5e37-9952-ad4932a595f9', 'b0b29a94-574e-54ed-9c52-c7008fe9ef1b', 20, 'Logistic Regression', 2.0, false) ON CONFLICT (batch_course_id, topic_no) DO NOTHING;
+INSERT INTO public.uct_batch_course_syllabus (id, batch_course_id, topic_no, topic_name, planned_hours, is_completed) VALUES ('840129c7-a161-522e-ac68-e6f10f174b97', 'b0b29a94-574e-54ed-9c52-c7008fe9ef1b', 21, 'Time Series Analysis', 2.0, false) ON CONFLICT (batch_course_id, topic_no) DO NOTHING;
+INSERT INTO public.uct_batch_course_syllabus (id, batch_course_id, topic_no, topic_name, planned_hours, is_completed) VALUES ('4e29d53a-e46c-5e13-aaea-8b612d91dc33', 'b0b29a94-574e-54ed-9c52-c7008fe9ef1b', 22, 'ABC Analysis', 2.0, false) ON CONFLICT (batch_course_id, topic_no) DO NOTHING;
+INSERT INTO public.uct_batch_course_syllabus (id, batch_course_id, topic_no, topic_name, planned_hours, is_completed) VALUES ('d2a8a6c8-6754-5b93-9141-cd57153658c3', 'b0b29a94-574e-54ed-9c52-c7008fe9ef1b', 23, 'RFM Analysis', 2.0, false) ON CONFLICT (batch_course_id, topic_no) DO NOTHING;
+INSERT INTO public.uct_batch_course_syllabus (id, batch_course_id, topic_no, topic_name, planned_hours, is_completed) VALUES ('9c8fda7a-0e8b-56a6-97f9-782d919dabe4', 'b0b29a94-574e-54ed-9c52-c7008fe9ef1b', 24, 'Market Basket Analysis', 2.0, false) ON CONFLICT (batch_course_id, topic_no) DO NOTHING;
+INSERT INTO public.uct_batch_course_syllabus (id, batch_course_id, topic_no, topic_name, planned_hours, is_completed) VALUES ('b16a36b2-b2d1-5dc6-894b-b5edf5d73fa2', 'b0b29a94-574e-54ed-9c52-c7008fe9ef1b', 25, 'HR Analytics', 2.0, false) ON CONFLICT (batch_course_id, topic_no) DO NOTHING;
+INSERT INTO public.uct_batch_course_syllabus (id, batch_course_id, topic_no, topic_name, planned_hours, is_completed) VALUES ('1e029a56-dcb8-5a6c-9c3f-54be3915e173', 'b0b29a94-574e-54ed-9c52-c7008fe9ef1b', 26, 'Employee Attrittion Prediction', 2.0, false) ON CONFLICT (batch_course_id, topic_no) DO NOTHING;
+INSERT INTO public.uct_batch_course_syllabus (id, batch_course_id, topic_no, topic_name, planned_hours, is_completed) VALUES ('a572af53-66cd-5d6b-8c28-3f036bb5adff', 'b0b29a94-574e-54ed-9c52-c7008fe9ef1b', 27, 'Recruitment Analysis', 2.0, false) ON CONFLICT (batch_course_id, topic_no) DO NOTHING;
+INSERT INTO public.uct_batch_course_syllabus (id, batch_course_id, topic_no, topic_name, planned_hours, is_completed) VALUES ('7f8c382b-48ed-5c43-bc05-09d6e7214bb1', 'b0b29a94-574e-54ed-9c52-c7008fe9ef1b', 28, 'Fraud Detection', 2.0, false) ON CONFLICT (batch_course_id, topic_no) DO NOTHING;
+INSERT INTO public.uct_batch_course_syllabus (id, batch_course_id, topic_no, topic_name, planned_hours, is_completed) VALUES ('ceaf4265-6d06-58ea-bf87-1dd6ff3fa170', 'b0b29a94-574e-54ed-9c52-c7008fe9ef1b', 29, 'Financial Analysis', 2.0, false) ON CONFLICT (batch_course_id, topic_no) DO NOTHING;
+INSERT INTO public.uct_batch_course_syllabus (id, batch_course_id, topic_no, topic_name, planned_hours, is_completed) VALUES ('0d97d765-0a5a-5666-82ce-e331c4e5ce65', 'b0b29a94-574e-54ed-9c52-c7008fe9ef1b', 30, 'Financial Broadcasting', 2.0, false) ON CONFLICT (batch_course_id, topic_no) DO NOTHING;
 INSERT INTO public.uct_batch_course_syllabus (id, batch_course_id, topic_no, topic_name, planned_hours, is_completed) VALUES ('26b802cf-5df6-56b9-9b54-be7ea2da8976', 'ccbc0cf1-86cd-5d4c-bd55-b46acc09f078', 1, '* Installation
  * Import Data from Excel
  * Basic Visualisation
  * Implicit Measures
  * Basic Formatting
- * Dashboard Creation', nan, false) ON CONFLICT (batch_course_id, topic_no) DO NOTHING;
+ * Dashboard Creation', 2.0, false) ON CONFLICT (batch_course_id, topic_no) DO NOTHING;
 INSERT INTO public.uct_batch_course_syllabus (id, batch_course_id, topic_no, topic_name, planned_hours, is_completed) VALUES ('70e32ba7-2c24-5af9-9bf5-40eec765e426', 'ccbc0cf1-86cd-5d4c-bd55-b46acc09f078', 2, '* Import Data from CSV
  * Basic Visualisation
  * Implicit Measures
- * Explain Complete Formattings', nan, false) ON CONFLICT (batch_course_id, topic_no) DO NOTHING;
+ * Explain Complete Formattings', 2.0, false) ON CONFLICT (batch_course_id, topic_no) DO NOTHING;
 INSERT INTO public.uct_batch_course_syllabus (id, batch_course_id, topic_no, topic_name, planned_hours, is_completed) VALUES ('5dabd52b-5101-55c1-8c9b-8f9393b4ed8d', 'ccbc0cf1-86cd-5d4c-bd55-b46acc09f078', 3, '* Import Data from CSV
  * Drill Down Hierarchy
  * Forecasting
  * Create Mobile View
- * Insert Shapes', nan, false) ON CONFLICT (batch_course_id, topic_no) DO NOTHING;
+ * Insert Shapes', 2.0, false) ON CONFLICT (batch_course_id, topic_no) DO NOTHING;
 INSERT INTO public.uct_batch_course_syllabus (id, batch_course_id, topic_no, topic_name, planned_hours, is_completed) VALUES ('1675586a-4798-5039-9a7b-52b60fd7b1ea', 'ccbc0cf1-86cd-5d4c-bd55-b46acc09f078', 4, '* Import Data from Excel
  * Introduction to Power Query
  * Column Profiling
@@ -192,106 +192,106 @@ INSERT INTO public.uct_batch_course_syllabus (id, batch_course_id, topic_no, top
  * Remove Empty Rows - Filtering
  * Fix Headers
  * Change Data types
- * Dashboard', nan, false) ON CONFLICT (batch_course_id, topic_no) DO NOTHING;
+ * Dashboard', 2.0, false) ON CONFLICT (batch_course_id, topic_no) DO NOTHING;
 INSERT INTO public.uct_batch_course_syllabus (id, batch_course_id, topic_no, topic_name, planned_hours, is_completed) VALUES ('a5a9ca55-9a56-5cec-8b10-014e403f3086', 'ccbc0cf1-86cd-5d4c-bd55-b46acc09f078', 5, '* Date Transformation (Day, Month, Year)
- * Calculated Column - Basic (Addition, Subtraction, Division, Multiplication)', nan, false) ON CONFLICT (batch_course_id, topic_no) DO NOTHING;
+ * Calculated Column - Basic (Addition, Subtraction, Division, Multiplication)', 2.0, false) ON CONFLICT (batch_course_id, topic_no) DO NOTHING;
 INSERT INTO public.uct_batch_course_syllabus (id, batch_course_id, topic_no, topic_name, planned_hours, is_completed) VALUES ('f1c6b02f-13d9-520d-b12d-d6cdee75d962', 'ccbc0cf1-86cd-5d4c-bd55-b46acc09f078', 6, '* Introduction to Measure (Advantages)
  * Explicit Measures
  * Basic Modelling (Auto Detecting, Connecting Tables)
  * Navigators
- * Creating Buttons', nan, false) ON CONFLICT (batch_course_id, topic_no) DO NOTHING;
+ * Creating Buttons', 2.0, false) ON CONFLICT (batch_course_id, topic_no) DO NOTHING;
 INSERT INTO public.uct_batch_course_syllabus (id, batch_course_id, topic_no, topic_name, planned_hours, is_completed) VALUES ('053332d0-20e7-5436-b341-bc1bff7b44a4', 'ccbc0cf1-86cd-5d4c-bd55-b46acc09f078', 7, '* Model Resizing or Table Resizing
  * Remove Duplicates
  * Advanced Modelling (1 to 1, 1 to Many, Many to Many, Relationship Cardinality, Star Schema, Snow Flake(Explain Snowflake))
  * Connecting Different Tables
- * Calendar Table (CALENDARAUTO)', nan, false) ON CONFLICT (batch_course_id, topic_no) DO NOTHING;
+ * Calendar Table (CALENDARAUTO)', 2.0, false) ON CONFLICT (batch_course_id, topic_no) DO NOTHING;
 INSERT INTO public.uct_batch_course_syllabus (id, batch_course_id, topic_no, topic_name, planned_hours, is_completed) VALUES ('a7433db3-524e-5d78-9d19-3e1a9df8cad2', 'ccbc0cf1-86cd-5d4c-bd55-b46acc09f078', 8, '* Calculated Column (IF, Nested IF, SWITCH, AND, OR)
- * Remaining Visuals (Scatter Plot, Decomposition Tree, Smar Narrative, Ribbon Chart, Waterfall)', nan, false) ON CONFLICT (batch_course_id, topic_no) DO NOTHING;
+ * Remaining Visuals (Scatter Plot, Decomposition Tree, Smar Narrative, Ribbon Chart, Waterfall)', 2.0, false) ON CONFLICT (batch_course_id, topic_no) DO NOTHING;
 INSERT INTO public.uct_batch_course_syllabus (id, batch_course_id, topic_no, topic_name, planned_hours, is_completed) VALUES ('79be8320-0670-5350-9caf-b50e3c4807f1', 'ccbc0cf1-86cd-5d4c-bd55-b46acc09f078', 9, '* SUMX
  * Themes (Customizing, Adding, Saving, Uploading)
  * Sync Slicers
- * Filter Pane (Filter on this visual, Filter on this Page, Filter on all Pages)', nan, false) ON CONFLICT (batch_course_id, topic_no) DO NOTHING;
+ * Filter Pane (Filter on this visual, Filter on this Page, Filter on all Pages)', 2.0, false) ON CONFLICT (batch_course_id, topic_no) DO NOTHING;
 INSERT INTO public.uct_batch_course_syllabus (id, batch_course_id, topic_no, topic_name, planned_hours, is_completed) VALUES ('f3ed172e-bfa1-5110-b94a-08b61bcb9913', 'ccbc0cf1-86cd-5d4c-bd55-b46acc09f078', 10, '* Append
  * Append 2 Table
  * Append 3 Table
- * Merge (Left Outer, Right Outer, Inner)', nan, false) ON CONFLICT (batch_course_id, topic_no) DO NOTHING;
+ * Merge (Left Outer, Right Outer, Inner)', 2.0, false) ON CONFLICT (batch_course_id, topic_no) DO NOTHING;
 INSERT INTO public.uct_batch_course_syllabus (id, batch_course_id, topic_no, topic_name, planned_hours, is_completed) VALUES ('f13d1eff-f856-5ab3-95ae-9ea23ab50cc6', 'ccbc0cf1-86cd-5d4c-bd55-b46acc09f078', 11, '* Prepare from Previous Topics (Model Resizing, Modelling, Data Cleaning)
  * Custom Tooltip
  * Drill Through
  * Edit Interaction (Highlight, Filter)
- * Sorting in Visual', nan, false) ON CONFLICT (batch_course_id, topic_no) DO NOTHING;
+ * Sorting in Visual', 2.0, false) ON CONFLICT (batch_course_id, topic_no) DO NOTHING;
 INSERT INTO public.uct_batch_course_syllabus (id, batch_course_id, topic_no, topic_name, planned_hours, is_completed) VALUES ('da0cadf6-bff6-55cd-9829-7f791299737f', 'ccbc0cf1-86cd-5d4c-bd55-b46acc09f078', 12, '* Transpose
  * Fill
  * Pivot column
  * Unpivot column
  * Remove Errors
- * Replace Errors', nan, false) ON CONFLICT (batch_course_id, topic_no) DO NOTHING;
+ * Replace Errors', 2.0, false) ON CONFLICT (batch_course_id, topic_no) DO NOTHING;
 INSERT INTO public.uct_batch_course_syllabus (id, batch_course_id, topic_no, topic_name, planned_hours, is_completed) VALUES ('153583c4-64a1-5eeb-8170-ba092c6204b0', 'ccbc0cf1-86cd-5d4c-bd55-b46acc09f078', 13, '* Group By
  * Text Formatting (Upper Case, Lower Case, Trim, Clean, Prefix, Suffix)
- * Split Column, Column from Examples', nan, false) ON CONFLICT (batch_course_id, topic_no) DO NOTHING;
+ * Split Column, Column from Examples', 2.0, false) ON CONFLICT (batch_course_id, topic_no) DO NOTHING;
 INSERT INTO public.uct_batch_course_syllabus (id, batch_course_id, topic_no, topic_name, planned_hours, is_completed) VALUES ('f11827d7-b937-5425-9f0f-b39ae0c9b15e', 'ccbc0cf1-86cd-5d4c-bd55-b46acc09f078', 14, '* Custom Column
  * Conditional Column
- * Merge Column', nan, false) ON CONFLICT (batch_course_id, topic_no) DO NOTHING;
+ * Merge Column', 2.0, false) ON CONFLICT (batch_course_id, topic_no) DO NOTHING;
 INSERT INTO public.uct_batch_course_syllabus (id, batch_course_id, topic_no, topic_name, planned_hours, is_completed) VALUES ('6eb9fcb8-d628-5182-9f3b-3de9d0a31982', 'ccbc0cf1-86cd-5d4c-bd55-b46acc09f078', 15, '* Creating Hierarchy (Eg: Country, State, District)
  * Conditional Formatting (Color Scale, Databars, Icons)
- * Conditional Formatting using Measures', nan, false) ON CONFLICT (batch_course_id, topic_no) DO NOTHING;
+ * Conditional Formatting using Measures', 2.0, false) ON CONFLICT (batch_course_id, topic_no) DO NOTHING;
 INSERT INTO public.uct_batch_course_syllabus (id, batch_course_id, topic_no, topic_name, planned_hours, is_completed) VALUES ('6b86e271-314e-5b9e-813d-cb62554b1488', 'ccbc0cf1-86cd-5d4c-bd55-b46acc09f078', 16, '* CALCULATE
  * SAMEPERIODLASTYEAR
  * PARALLELPERIOD
  * DATESBETWEEN
  * TOTALYTD
- * DATESYTD', nan, false) ON CONFLICT (batch_course_id, topic_no) DO NOTHING;
+ * DATESYTD', 2.0, false) ON CONFLICT (batch_course_id, topic_no) DO NOTHING;
 INSERT INTO public.uct_batch_course_syllabus (id, batch_course_id, topic_no, topic_name, planned_hours, is_completed) VALUES ('09845b56-0c19-51d1-9cb7-491c792f77b2', 'ccbc0cf1-86cd-5d4c-bd55-b46acc09f078', 17, '* PREVIOUSMONTH
  * ALL
  * TOPN
  * RANKX
- * Variable Declaration in Measure', nan, false) ON CONFLICT (batch_course_id, topic_no) DO NOTHING;
+ * Variable Declaration in Measure', 2.0, false) ON CONFLICT (batch_course_id, topic_no) DO NOTHING;
 INSERT INTO public.uct_batch_course_syllabus (id, batch_course_id, topic_no, topic_name, planned_hours, is_completed) VALUES ('6706579b-5830-5145-b15f-cd9355a60b47', 'ccbc0cf1-86cd-5d4c-bd55-b46acc09f078', 18, '* Row Level Security (Dynamic)
  * Introduction to Power BI Workspace
  * Creating Workspace
  * Workspace Roles (Admin, Member… etc)
  * Publishing Report to Workspace
- * Sharing Reports in Service', nan, false) ON CONFLICT (batch_course_id, topic_no) DO NOTHING;
+ * Sharing Reports in Service', 2.0, false) ON CONFLICT (batch_course_id, topic_no) DO NOTHING;
 INSERT INTO public.uct_batch_course_syllabus (id, batch_course_id, topic_no, topic_name, planned_hours, is_completed) VALUES ('5341aaea-3442-5174-b04b-5ec89640fd8d', 'ccbc0cf1-86cd-5d4c-bd55-b46acc09f078', 19, '* Scheduled Refresh
  * Create Dashboard in Power BI Service
  * Connect to Shared Dataset
- * Dataset Permissions', nan, false) ON CONFLICT (batch_course_id, topic_no) DO NOTHING;
+ * Dataset Permissions', 2.0, false) ON CONFLICT (batch_course_id, topic_no) DO NOTHING;
 INSERT INTO public.uct_batch_course_syllabus (id, batch_course_id, topic_no, topic_name, planned_hours, is_completed) VALUES ('19def302-ec27-550c-bebd-302689622cbe', 'ccbc0cf1-86cd-5d4c-bd55-b46acc09f078', 20, '* Alerts & Subscriptions
  * Creating Apps in Power BI Service
- * Explain Direct Query v/s Import Mode', nan, false) ON CONFLICT (batch_course_id, topic_no) DO NOTHING;
+ * Explain Direct Query v/s Import Mode', 2.0, false) ON CONFLICT (batch_course_id, topic_no) DO NOTHING;
 INSERT INTO public.uct_batch_course_syllabus (id, batch_course_id, topic_no, topic_name, planned_hours, is_completed) VALUES ('29ec8c66-c4eb-568d-b6c7-bff2bd0994b4', 'ccbc0cf1-86cd-5d4c-bd55-b46acc09f078', 21, '* Installation of Tableau
  * Basic Visualisation
- * Dashboard', nan, false) ON CONFLICT (batch_course_id, topic_no) DO NOTHING;
+ * Dashboard', 2.0, false) ON CONFLICT (batch_course_id, topic_no) DO NOTHING;
 INSERT INTO public.uct_batch_course_syllabus (id, batch_course_id, topic_no, topic_name, planned_hours, is_completed) VALUES ('4a394057-88c3-5b45-b62d-d50f76c40c9d', 'ccbc0cf1-86cd-5d4c-bd55-b46acc09f078', 22, '* Calculation in columns
  * Formattings
- * Dashboard', nan, false) ON CONFLICT (batch_course_id, topic_no) DO NOTHING;
+ * Dashboard', 2.0, false) ON CONFLICT (batch_course_id, topic_no) DO NOTHING;
 INSERT INTO public.uct_batch_course_syllabus (id, batch_course_id, topic_no, topic_name, planned_hours, is_completed) VALUES ('28a616bf-e9ac-5e14-aec8-abceb5216975', 'ccbc0cf1-86cd-5d4c-bd55-b46acc09f078', 23, '* Basic Measures
  * Modelling
- * Dashboard', nan, false) ON CONFLICT (batch_course_id, topic_no) DO NOTHING;
+ * Dashboard', 2.0, false) ON CONFLICT (batch_course_id, topic_no) DO NOTHING;
 INSERT INTO public.uct_batch_course_syllabus (id, batch_course_id, topic_no, topic_name, planned_hours, is_completed) VALUES ('5eceef5c-1326-59dd-a1d6-477aa630c57e', 'ccbc0cf1-86cd-5d4c-bd55-b46acc09f078', 24, '* Basic Cleaning
  * Modelling
- * Dashboard', nan, false) ON CONFLICT (batch_course_id, topic_no) DO NOTHING;
-INSERT INTO public.uct_batch_course_syllabus (id, batch_course_id, topic_no, topic_name, planned_hours, is_completed) VALUES ('49e56a63-f3b4-5915-94ce-2844d270f051', 'ccbc0cf1-86cd-5d4c-bd55-b46acc09f078', 25, '* Project - Tableau', nan, false) ON CONFLICT (batch_course_id, topic_no) DO NOTHING;
-INSERT INTO public.uct_batch_course_syllabus (id, batch_course_id, topic_no, topic_name, planned_hours, is_completed) VALUES ('552b04e4-f1db-5fb8-8312-96b3d0ef7626', 'ccbc0cf1-86cd-5d4c-bd55-b46acc09f078', 26, '* Project - Tableau', nan, false) ON CONFLICT (batch_course_id, topic_no) DO NOTHING;
-INSERT INTO public.uct_batch_course_syllabus (id, batch_course_id, topic_no, topic_name, planned_hours, is_completed) VALUES ('1e8affa2-5f51-5355-8ec7-dc61d8c75e25', 'ccbc0cf1-86cd-5d4c-bd55-b46acc09f078', 27, '* Revision - Power BI', nan, false) ON CONFLICT (batch_course_id, topic_no) DO NOTHING;
-INSERT INTO public.uct_batch_course_syllabus (id, batch_course_id, topic_no, topic_name, planned_hours, is_completed) VALUES ('4f83d515-151e-56d3-adff-d6e6ff9403d0', 'ccbc0cf1-86cd-5d4c-bd55-b46acc09f078', 28, '* Revision - Power BI', nan, false) ON CONFLICT (batch_course_id, topic_no) DO NOTHING;
-INSERT INTO public.uct_batch_course_syllabus (id, batch_course_id, topic_no, topic_name, planned_hours, is_completed) VALUES ('1a4fcf7a-9127-5011-80a7-89a2fd2ee8d8', '8a54d49d-839d-5fa2-b577-78056eb6ba84', 1, 'Introduction to R and R studio, Overview of the R programming language, Systematically explore data in R', nan, false) ON CONFLICT (batch_course_id, topic_no) DO NOTHING;
-INSERT INTO public.uct_batch_course_syllabus (id, batch_course_id, topic_no, topic_name, planned_hours, is_completed) VALUES ('af53c0ee-1c33-517d-846d-e3bf8880827d', '8a54d49d-839d-5fa2-b577-78056eb6ba84', 2, 'Basic data cleaning: adding a new variable, removing columns and rows. Package tidyr: removing null values', nan, false) ON CONFLICT (batch_course_id, topic_no) DO NOTHING;
-INSERT INTO public.uct_batch_course_syllabus (id, batch_course_id, topic_no, topic_name, planned_hours, is_completed) VALUES ('57001bd4-904f-575d-88a5-e6f81cd7de06', '8a54d49d-839d-5fa2-b577-78056eb6ba84', 3, 'Change column values, remove duplicates, export cleaned data, basic data analysis on cleaned business data', nan, false) ON CONFLICT (batch_course_id, topic_no) DO NOTHING;
-INSERT INTO public.uct_batch_course_syllabus (id, batch_course_id, topic_no, topic_name, planned_hours, is_completed) VALUES ('03577bc5-b15c-5f0b-aee7-f418703f5b23', '8a54d49d-839d-5fa2-b577-78056eb6ba84', 4, 'Basic visualization and interpretation: bar chart and histogram, advanced data visualization using ggplot, plotly and treemap', nan, false) ON CONFLICT (batch_course_id, topic_no) DO NOTHING;
-INSERT INTO public.uct_batch_course_syllabus (id, batch_course_id, topic_no, topic_name, planned_hours, is_completed) VALUES ('b42a7258-44b9-59d2-aad0-ccf189a32ac3', '8a54d49d-839d-5fa2-b577-78056eb6ba84', 5, 'Bar, histogram, line (with and without filter), area chart, pie chart', nan, false) ON CONFLICT (batch_course_id, topic_no) DO NOTHING;
-INSERT INTO public.uct_batch_course_syllabus (id, batch_course_id, topic_no, topic_name, planned_hours, is_completed) VALUES ('0837b3ca-aad3-50ff-a212-6ae89c51fed2', '8a54d49d-839d-5fa2-b577-78056eb6ba84', 6, 'Donut chart, bubble chart, boxplot and scatter plot. Decision and analysis from visuals', nan, false) ON CONFLICT (batch_course_id, topic_no) DO NOTHING;
-INSERT INTO public.uct_batch_course_syllabus (id, batch_course_id, topic_no, topic_name, planned_hours, is_completed) VALUES ('d39c9c95-d7c5-5e22-8e73-146a98a3120a', '8a54d49d-839d-5fa2-b577-78056eb6ba84', 7, 'Univariable analysis', nan, false) ON CONFLICT (batch_course_id, topic_no) DO NOTHING;
-INSERT INTO public.uct_batch_course_syllabus (id, batch_course_id, topic_no, topic_name, planned_hours, is_completed) VALUES ('f3a522f2-1534-51aa-a600-4f25a1b164ae', '8a54d49d-839d-5fa2-b577-78056eb6ba84', 8, 'Bivariable analysis', nan, false) ON CONFLICT (batch_course_id, topic_no) DO NOTHING;
-INSERT INTO public.uct_batch_course_syllabus (id, batch_course_id, topic_no, topic_name, planned_hours, is_completed) VALUES ('45d160c0-ab9c-5fe5-9265-71d5934c2fe5', '8a54d49d-839d-5fa2-b577-78056eb6ba84', 9, 'Multivariable Analysis', nan, false) ON CONFLICT (batch_course_id, topic_no) DO NOTHING;
-INSERT INTO public.uct_batch_course_syllabus (id, batch_course_id, topic_no, topic_name, planned_hours, is_completed) VALUES ('4b5d0091-b273-51be-b696-7d1af3a325f5', '8a54d49d-839d-5fa2-b577-78056eb6ba84', 10, 'Hypothesis testing', nan, false) ON CONFLICT (batch_course_id, topic_no) DO NOTHING;
-INSERT INTO public.uct_batch_course_syllabus (id, batch_course_id, topic_no, topic_name, planned_hours, is_completed) VALUES ('47f87c1e-e060-5171-848e-c607021e8102', '8a54d49d-839d-5fa2-b577-78056eb6ba84', 11, 'Forecasting using regression', nan, false) ON CONFLICT (batch_course_id, topic_no) DO NOTHING;
-INSERT INTO public.uct_batch_course_syllabus (id, batch_course_id, topic_no, topic_name, planned_hours, is_completed) VALUES ('2470b675-3621-5ceb-b3b7-f2ebbf5e4676', '8a54d49d-839d-5fa2-b577-78056eb6ba84', 12, 'Economy Analysis using r', nan, false) ON CONFLICT (batch_course_id, topic_no) DO NOTHING;
-INSERT INTO public.uct_batch_course_syllabus (id, batch_course_id, topic_no, topic_name, planned_hours, is_completed) VALUES ('940329ee-bbe7-5d38-9f44-d79be4436320', '8a54d49d-839d-5fa2-b577-78056eb6ba84', 13, 'Companay Analaysis using r', nan, false) ON CONFLICT (batch_course_id, topic_no) DO NOTHING;
-INSERT INTO public.uct_batch_course_syllabus (id, batch_course_id, topic_no, topic_name, planned_hours, is_completed) VALUES ('7503c5f1-cf9b-53ca-8f30-b9e598f85f8a', '8a54d49d-839d-5fa2-b577-78056eb6ba84', 14, 'Risk return analysis of stocks', nan, false) ON CONFLICT (batch_course_id, topic_no) DO NOTHING;
-INSERT INTO public.uct_batch_course_syllabus (id, batch_course_id, topic_no, topic_name, planned_hours, is_completed) VALUES ('827f161a-53bf-5d70-b6f9-c14ae1447083', '8a54d49d-839d-5fa2-b577-78056eb6ba84', 15, 'Moving average for decision making', nan, false) ON CONFLICT (batch_course_id, topic_no) DO NOTHING;
-INSERT INTO public.uct_batch_course_syllabus (id, batch_course_id, topic_no, topic_name, planned_hours, is_completed) VALUES ('50ffd0a4-1cd2-5b5e-9643-829f545e70a1', '8a54d49d-839d-5fa2-b577-78056eb6ba84', 16, 'Performance analysis of stock', nan, false) ON CONFLICT (batch_course_id, topic_no) DO NOTHING;
-INSERT INTO public.uct_batch_course_syllabus (id, batch_course_id, topic_no, topic_name, planned_hours, is_completed) VALUES ('52e053c3-1ed2-5e2e-b2a1-e5dc81514a7a', '8a54d49d-839d-5fa2-b577-78056eb6ba84', 17, 'Comparitive analysis of stocks for investment decision making', nan, false) ON CONFLICT (batch_course_id, topic_no) DO NOTHING;
+ * Dashboard', 2.0, false) ON CONFLICT (batch_course_id, topic_no) DO NOTHING;
+INSERT INTO public.uct_batch_course_syllabus (id, batch_course_id, topic_no, topic_name, planned_hours, is_completed) VALUES ('49e56a63-f3b4-5915-94ce-2844d270f051', 'ccbc0cf1-86cd-5d4c-bd55-b46acc09f078', 25, '* Project - Tableau', 2.0, false) ON CONFLICT (batch_course_id, topic_no) DO NOTHING;
+INSERT INTO public.uct_batch_course_syllabus (id, batch_course_id, topic_no, topic_name, planned_hours, is_completed) VALUES ('552b04e4-f1db-5fb8-8312-96b3d0ef7626', 'ccbc0cf1-86cd-5d4c-bd55-b46acc09f078', 26, '* Project - Tableau', 2.0, false) ON CONFLICT (batch_course_id, topic_no) DO NOTHING;
+INSERT INTO public.uct_batch_course_syllabus (id, batch_course_id, topic_no, topic_name, planned_hours, is_completed) VALUES ('1e8affa2-5f51-5355-8ec7-dc61d8c75e25', 'ccbc0cf1-86cd-5d4c-bd55-b46acc09f078', 27, '* Revision - Power BI', 2.0, false) ON CONFLICT (batch_course_id, topic_no) DO NOTHING;
+INSERT INTO public.uct_batch_course_syllabus (id, batch_course_id, topic_no, topic_name, planned_hours, is_completed) VALUES ('4f83d515-151e-56d3-adff-d6e6ff9403d0', 'ccbc0cf1-86cd-5d4c-bd55-b46acc09f078', 28, '* Revision - Power BI', 2.0, false) ON CONFLICT (batch_course_id, topic_no) DO NOTHING;
+INSERT INTO public.uct_batch_course_syllabus (id, batch_course_id, topic_no, topic_name, planned_hours, is_completed) VALUES ('1a4fcf7a-9127-5011-80a7-89a2fd2ee8d8', '8a54d49d-839d-5fa2-b577-78056eb6ba84', 1, 'Introduction to R and R studio, Overview of the R programming language, Systematically explore data in R', 2.0, false) ON CONFLICT (batch_course_id, topic_no) DO NOTHING;
+INSERT INTO public.uct_batch_course_syllabus (id, batch_course_id, topic_no, topic_name, planned_hours, is_completed) VALUES ('af53c0ee-1c33-517d-846d-e3bf8880827d', '8a54d49d-839d-5fa2-b577-78056eb6ba84', 2, 'Basic data cleaning: adding a new variable, removing columns and rows. Package tidyr: removing null values', 2.0, false) ON CONFLICT (batch_course_id, topic_no) DO NOTHING;
+INSERT INTO public.uct_batch_course_syllabus (id, batch_course_id, topic_no, topic_name, planned_hours, is_completed) VALUES ('57001bd4-904f-575d-88a5-e6f81cd7de06', '8a54d49d-839d-5fa2-b577-78056eb6ba84', 3, 'Change column values, remove duplicates, export cleaned data, basic data analysis on cleaned business data', 2.0, false) ON CONFLICT (batch_course_id, topic_no) DO NOTHING;
+INSERT INTO public.uct_batch_course_syllabus (id, batch_course_id, topic_no, topic_name, planned_hours, is_completed) VALUES ('03577bc5-b15c-5f0b-aee7-f418703f5b23', '8a54d49d-839d-5fa2-b577-78056eb6ba84', 4, 'Basic visualization and interpretation: bar chart and histogram, advanced data visualization using ggplot, plotly and treemap', 2.0, false) ON CONFLICT (batch_course_id, topic_no) DO NOTHING;
+INSERT INTO public.uct_batch_course_syllabus (id, batch_course_id, topic_no, topic_name, planned_hours, is_completed) VALUES ('b42a7258-44b9-59d2-aad0-ccf189a32ac3', '8a54d49d-839d-5fa2-b577-78056eb6ba84', 5, 'Bar, histogram, line (with and without filter), area chart, pie chart', 2.0, false) ON CONFLICT (batch_course_id, topic_no) DO NOTHING;
+INSERT INTO public.uct_batch_course_syllabus (id, batch_course_id, topic_no, topic_name, planned_hours, is_completed) VALUES ('0837b3ca-aad3-50ff-a212-6ae89c51fed2', '8a54d49d-839d-5fa2-b577-78056eb6ba84', 6, 'Donut chart, bubble chart, boxplot and scatter plot. Decision and analysis from visuals', 2.0, false) ON CONFLICT (batch_course_id, topic_no) DO NOTHING;
+INSERT INTO public.uct_batch_course_syllabus (id, batch_course_id, topic_no, topic_name, planned_hours, is_completed) VALUES ('d39c9c95-d7c5-5e22-8e73-146a98a3120a', '8a54d49d-839d-5fa2-b577-78056eb6ba84', 7, 'Univariable analysis', 2.0, false) ON CONFLICT (batch_course_id, topic_no) DO NOTHING;
+INSERT INTO public.uct_batch_course_syllabus (id, batch_course_id, topic_no, topic_name, planned_hours, is_completed) VALUES ('f3a522f2-1534-51aa-a600-4f25a1b164ae', '8a54d49d-839d-5fa2-b577-78056eb6ba84', 8, 'Bivariable analysis', 2.0, false) ON CONFLICT (batch_course_id, topic_no) DO NOTHING;
+INSERT INTO public.uct_batch_course_syllabus (id, batch_course_id, topic_no, topic_name, planned_hours, is_completed) VALUES ('45d160c0-ab9c-5fe5-9265-71d5934c2fe5', '8a54d49d-839d-5fa2-b577-78056eb6ba84', 9, 'Multivariable Analysis', 2.0, false) ON CONFLICT (batch_course_id, topic_no) DO NOTHING;
+INSERT INTO public.uct_batch_course_syllabus (id, batch_course_id, topic_no, topic_name, planned_hours, is_completed) VALUES ('4b5d0091-b273-51be-b696-7d1af3a325f5', '8a54d49d-839d-5fa2-b577-78056eb6ba84', 10, 'Hypothesis testing', 2.0, false) ON CONFLICT (batch_course_id, topic_no) DO NOTHING;
+INSERT INTO public.uct_batch_course_syllabus (id, batch_course_id, topic_no, topic_name, planned_hours, is_completed) VALUES ('47f87c1e-e060-5171-848e-c607021e8102', '8a54d49d-839d-5fa2-b577-78056eb6ba84', 11, 'Forecasting using regression', 2.0, false) ON CONFLICT (batch_course_id, topic_no) DO NOTHING;
+INSERT INTO public.uct_batch_course_syllabus (id, batch_course_id, topic_no, topic_name, planned_hours, is_completed) VALUES ('2470b675-3621-5ceb-b3b7-f2ebbf5e4676', '8a54d49d-839d-5fa2-b577-78056eb6ba84', 12, 'Economy Analysis using r', 2.0, false) ON CONFLICT (batch_course_id, topic_no) DO NOTHING;
+INSERT INTO public.uct_batch_course_syllabus (id, batch_course_id, topic_no, topic_name, planned_hours, is_completed) VALUES ('940329ee-bbe7-5d38-9f44-d79be4436320', '8a54d49d-839d-5fa2-b577-78056eb6ba84', 13, 'Companay Analaysis using r', 2.0, false) ON CONFLICT (batch_course_id, topic_no) DO NOTHING;
+INSERT INTO public.uct_batch_course_syllabus (id, batch_course_id, topic_no, topic_name, planned_hours, is_completed) VALUES ('7503c5f1-cf9b-53ca-8f30-b9e598f85f8a', '8a54d49d-839d-5fa2-b577-78056eb6ba84', 14, 'Risk return analysis of stocks', 2.0, false) ON CONFLICT (batch_course_id, topic_no) DO NOTHING;
+INSERT INTO public.uct_batch_course_syllabus (id, batch_course_id, topic_no, topic_name, planned_hours, is_completed) VALUES ('827f161a-53bf-5d70-b6f9-c14ae1447083', '8a54d49d-839d-5fa2-b577-78056eb6ba84', 15, 'Moving average for decision making', 2.0, false) ON CONFLICT (batch_course_id, topic_no) DO NOTHING;
+INSERT INTO public.uct_batch_course_syllabus (id, batch_course_id, topic_no, topic_name, planned_hours, is_completed) VALUES ('50ffd0a4-1cd2-5b5e-9643-829f545e70a1', '8a54d49d-839d-5fa2-b577-78056eb6ba84', 16, 'Performance analysis of stock', 2.0, false) ON CONFLICT (batch_course_id, topic_no) DO NOTHING;
+INSERT INTO public.uct_batch_course_syllabus (id, batch_course_id, topic_no, topic_name, planned_hours, is_completed) VALUES ('52e053c3-1ed2-5e2e-b2a1-e5dc81514a7a', '8a54d49d-839d-5fa2-b577-78056eb6ba84', 17, 'Comparitive analysis of stocks for investment decision making', 2.0, false) ON CONFLICT (batch_course_id, topic_no) DO NOTHING;
 INSERT INTO public.uct_batch_course_syllabus (id, batch_course_id, topic_no, topic_name, planned_hours, is_completed) VALUES ('fece611b-92ab-5c59-bc1b-8d3b80eff4e0', 'ce45e116-1ed9-56aa-97e5-3ebbadd37473', 1, 'Basic Formulas(SUM, IF, SWITCH, SUMIF,AVERAGEIF,COUNT,COUNTIF,COUNTBLANK), Table Formatting', 2.0, false) ON CONFLICT (batch_course_id, topic_no) DO NOTHING;
 INSERT INTO public.uct_batch_course_syllabus (id, batch_course_id, topic_no, topic_name, planned_hours, is_completed) VALUES ('ac4b8ee2-7f8c-56f0-bac6-cb3b82bbbcd0', 'ce45e116-1ed9-56aa-97e5-3ebbadd37473', 2, 'Referencing, Absolute and Relative Referencing, Paste as Values), AVERAGEIFS,SUMIFS,COUNTIFS', 3.0, false) ON CONFLICT (batch_course_id, topic_no) DO NOTHING;
 INSERT INTO public.uct_batch_course_syllabus (id, batch_course_id, topic_no, topic_name, planned_hours, is_completed) VALUES ('1f81b9f4-8208-5e99-9752-f36e33a04f0f', 'ce45e116-1ed9-56aa-97e5-3ebbadd37473', 3, 'Time Value of Money 1 (PV, FV, PMT, RATE, YEAR)', 2.0, false) ON CONFLICT (batch_course_id, topic_no) DO NOTHING;
