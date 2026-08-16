@@ -3,9 +3,9 @@
 -- ==========================================
 
 -- 1. INSERT NEW COURSES
-INSERT INTO public.uct_courses (id, code, name, description) VALUES
-('b3017a66-fb69-42b7-a36c-947b74f346b0', 'PYTHON', 'Python', 'Python Programming Language Course'),
-('e3017a66-fb69-42b7-a36c-947b74f346c1', 'R', 'R', 'R Statistical Programming Language Course')
+INSERT INTO public.uct_courses (id, code, name) VALUES
+('b3017a66-fb69-42b7-a36c-947b74f346b0', 'PYTHON', 'Python'),
+('e3017a66-fb69-42b7-a36c-947b74f346c1', 'R', 'R')
 ON CONFLICT (code) DO NOTHING;
 
 -- 2. INSERT DEFAULT ASSESSMENT TYPES
