@@ -2,6 +2,33 @@
 -- UNIFIED DATA INGESTION MIGRATION SCRIPT
 -- ==========================================
 
+-- 0. CLEAN UP EXISTING COHORT DATA TO PREVENT CONFLICTS
+DELETE FROM public.uct_attendance WHERE session_id IN (
+    SELECT id FROM public.uct_sessions WHERE batch_course_id IN (
+        SELECT id FROM public.uct_batch_courses WHERE batch_id IN ('aee11014-ef53-4696-ae3e-6acbe6f72d2f', '059f204c-1209-44d8-8f4d-625b4099377e', '39fef5c6-9eb8-4a51-9573-d1a63f448965')
+    )
+);
+
+DELETE FROM public.uct_sessions WHERE batch_course_id IN (
+    SELECT id FROM public.uct_batch_courses WHERE batch_id IN ('aee11014-ef53-4696-ae3e-6acbe6f72d2f', '059f204c-1209-44d8-8f4d-625b4099377e', '39fef5c6-9eb8-4a51-9573-d1a63f448965')
+);
+
+DELETE FROM public.uct_trainer_logs WHERE batch_course_id IN (
+    SELECT id FROM public.uct_batch_courses WHERE batch_id IN ('aee11014-ef53-4696-ae3e-6acbe6f72d2f', '059f204c-1209-44d8-8f4d-625b4099377e', '39fef5c6-9eb8-4a51-9573-d1a63f448965')
+);
+
+DELETE FROM public.uct_batch_course_syllabus WHERE batch_course_id IN (
+    SELECT id FROM public.uct_batch_courses WHERE batch_id IN ('aee11014-ef53-4696-ae3e-6acbe6f72d2f', '059f204c-1209-44d8-8f4d-625b4099377e', '39fef5c6-9eb8-4a51-9573-d1a63f448965')
+);
+
+DELETE FROM public.uct_assessment_marks WHERE student_id IN (
+    SELECT id FROM public.uct_students WHERE batch_id IN ('aee11014-ef53-4696-ae3e-6acbe6f72d2f', '059f204c-1209-44d8-8f4d-625b4099377e', '39fef5c6-9eb8-4a51-9573-d1a63f448965')
+);
+
+DELETE FROM public.uct_assessments WHERE batch_course_id IN (
+    SELECT id FROM public.uct_batch_courses WHERE batch_id IN ('aee11014-ef53-4696-ae3e-6acbe6f72d2f', '059f204c-1209-44d8-8f4d-625b4099377e', '39fef5c6-9eb8-4a51-9573-d1a63f448965')
+);
+
 -- 1. INSERT NEW COURSES
 INSERT INTO public.uct_courses (id, code, name) VALUES
 ('b3017a66-fb69-42b7-a36c-947b74f346b0', 'PYTHON', 'Python'),
@@ -1471,30 +1498,3 @@ INSERT INTO public.uct_attendance (id, session_id, student_id, status) VALUES ('
 INSERT INTO public.uct_attendance (id, session_id, student_id, status) VALUES ('6295ae45-f77f-558b-8e33-6bbbc4b694fd', 'e54c9683-0244-5e06-ba38-aa65ab5630d5', '674588ed-1ac6-4cdc-af3d-50838c072572', 'present') ON CONFLICT (session_id, student_id) DO UPDATE SET status = EXCLUDED.status;
 INSERT INTO public.uct_attendance (id, session_id, student_id, status) VALUES ('37e0a846-fcf9-5baf-8d03-b305fe6cc863', 'e54c9683-0244-5e06-ba38-aa65ab5630d5', '7623f5ad-dabf-4481-bf6d-83f4982e0c28', 'present') ON CONFLICT (session_id, student_id) DO UPDATE SET status = EXCLUDED.status;
 INSERT INTO public.uct_attendance (id, session_id, student_id, status) VALUES ('84b7f85a-7687-5b5f-bfe1-9851d5d748c7', 'e54c9683-0244-5e06-ba38-aa65ab5630d5', '165882d6-8257-49fc-8af9-deff2544fd82', 'present') ON CONFLICT (session_id, student_id) DO UPDATE SET status = EXCLUDED.status;
-INSERT INTO public.uct_attendance (id, session_id, student_id, status) VALUES ('348a7f1e-6261-52f1-9351-2149c44bbfb1', 'e54c9683-0244-5e06-ba38-aa65ab5630d5', '29350673-5d12-4fa2-a47f-b2bfaa122af1', 'present') ON CONFLICT (session_id, student_id) DO UPDATE SET status = EXCLUDED.status;
-INSERT INTO public.uct_attendance (id, session_id, student_id, status) VALUES ('f7721d54-e6b1-516d-a3e1-e5a4a8b2bc6c', 'e54c9683-0244-5e06-ba38-aa65ab5630d5', '82caaab6-08ad-442d-97c1-a9951678575f', 'present') ON CONFLICT (session_id, student_id) DO UPDATE SET status = EXCLUDED.status;
-INSERT INTO public.uct_attendance (id, session_id, student_id, status) VALUES ('9c6d0992-452d-591a-984e-c20afa321949', 'e54c9683-0244-5e06-ba38-aa65ab5630d5', 'd719c622-fb1b-4d3c-98cf-4fde8d3b2b00', 'present') ON CONFLICT (session_id, student_id) DO UPDATE SET status = EXCLUDED.status;
-INSERT INTO public.uct_attendance (id, session_id, student_id, status) VALUES ('7c8c85f8-c476-5858-9700-fa24752a3c60', 'e54c9683-0244-5e06-ba38-aa65ab5630d5', '034b0778-ef50-4540-8165-5a9be91ae060', 'present') ON CONFLICT (session_id, student_id) DO UPDATE SET status = EXCLUDED.status;
-INSERT INTO public.uct_attendance (id, session_id, student_id, status) VALUES ('1539cef6-a3d3-55f7-a0ef-264f9204e25d', 'e54c9683-0244-5e06-ba38-aa65ab5630d5', 'e158ae8c-0457-4ce8-ad69-b7004f452603', 'present') ON CONFLICT (session_id, student_id) DO UPDATE SET status = EXCLUDED.status;
-INSERT INTO public.uct_attendance (id, session_id, student_id, status) VALUES ('fd1bcdbf-ef23-56a3-bb65-b13539722f17', 'e54c9683-0244-5e06-ba38-aa65ab5630d5', '9b71a937-326b-4ff5-ad49-1b9b787a26db', 'present') ON CONFLICT (session_id, student_id) DO UPDATE SET status = EXCLUDED.status;
-INSERT INTO public.uct_attendance (id, session_id, student_id, status) VALUES ('891c1976-cc56-572a-b2ab-5d16655c50a8', 'e54c9683-0244-5e06-ba38-aa65ab5630d5', '147fc0d9-0388-4f8d-a300-6656b4cb69c7', 'present') ON CONFLICT (session_id, student_id) DO UPDATE SET status = EXCLUDED.status;
-INSERT INTO public.uct_attendance (id, session_id, student_id, status) VALUES ('6999332a-d3c8-5dfb-8bc0-240ba7e32884', 'e54c9683-0244-5e06-ba38-aa65ab5630d5', '717e10ae-db6e-406f-9957-2e445f52a664', 'present') ON CONFLICT (session_id, student_id) DO UPDATE SET status = EXCLUDED.status;
-INSERT INTO public.uct_attendance (id, session_id, student_id, status) VALUES ('8833f2df-3a06-5a82-bfc0-c232d64f7fa2', 'e54c9683-0244-5e06-ba38-aa65ab5630d5', 'f0dbe6e8-2576-4b03-911c-ef2c0128e2c3', 'present') ON CONFLICT (session_id, student_id) DO UPDATE SET status = EXCLUDED.status;
-INSERT INTO public.uct_attendance (id, session_id, student_id, status) VALUES ('b90012c4-78f7-5e9a-b87a-377c032098b1', 'e54c9683-0244-5e06-ba38-aa65ab5630d5', '24affc65-8db1-40de-bbb2-1f3fe758d3ee', 'present') ON CONFLICT (session_id, student_id) DO UPDATE SET status = EXCLUDED.status;
-INSERT INTO public.uct_attendance (id, session_id, student_id, status) VALUES ('dde7e624-8078-5121-a24b-139e37797f74', 'e54c9683-0244-5e06-ba38-aa65ab5630d5', 'e2210542-8f8f-4f9c-b8bb-6a11234c92e0', 'present') ON CONFLICT (session_id, student_id) DO UPDATE SET status = EXCLUDED.status;
-INSERT INTO public.uct_attendance (id, session_id, student_id, status) VALUES ('1cefe605-f884-5e7f-9b5b-cb47c6bf5f3d', 'e54c9683-0244-5e06-ba38-aa65ab5630d5', 'c7f4cf49-6b2a-42ab-9841-deb4ad3134f6', 'present') ON CONFLICT (session_id, student_id) DO UPDATE SET status = EXCLUDED.status;
-INSERT INTO public.uct_attendance (id, session_id, student_id, status) VALUES ('80665e79-131e-56c2-aafb-864ea80d911e', 'e54c9683-0244-5e06-ba38-aa65ab5630d5', '04eb904c-b692-4675-8b91-e254a48db34f', 'present') ON CONFLICT (session_id, student_id) DO UPDATE SET status = EXCLUDED.status;
-INSERT INTO public.uct_attendance (id, session_id, student_id, status) VALUES ('08731919-59f7-5ede-9229-7caf086e87b3', 'e54c9683-0244-5e06-ba38-aa65ab5630d5', 'b09ba824-fc37-45c6-acec-d57906319721', 'present') ON CONFLICT (session_id, student_id) DO UPDATE SET status = EXCLUDED.status;
-INSERT INTO public.uct_attendance (id, session_id, student_id, status) VALUES ('2bfadc01-ae0c-5e7e-b697-ccfc8f35c51f', 'e54c9683-0244-5e06-ba38-aa65ab5630d5', '9c52726f-aedc-4915-b5db-4de58767ffcb', 'present') ON CONFLICT (session_id, student_id) DO UPDATE SET status = EXCLUDED.status;
-INSERT INTO public.uct_attendance (id, session_id, student_id, status) VALUES ('bf661ccc-41ac-59a9-b0c2-23bc8669daa4', 'e54c9683-0244-5e06-ba38-aa65ab5630d5', 'c35b3b62-2ee0-4bdf-a75b-687223877134', 'absent') ON CONFLICT (session_id, student_id) DO UPDATE SET status = EXCLUDED.status;
-INSERT INTO public.uct_sessions (id, batch_course_id, session_date, hour_no) VALUES ('c71482c6-8bda-5bc0-814b-042a43dfabd8', '1e95cf66-16af-42b9-bd97-b7d81a67993c', '2026-06-23', 1) ON CONFLICT (batch_course_id, session_date, hour_no) DO NOTHING;
-INSERT INTO public.uct_attendance (id, session_id, student_id, status) VALUES ('5f5bf8d4-2b87-52fb-9542-7c60c9d571b3', 'c71482c6-8bda-5bc0-814b-042a43dfabd8', 'a71ab4a4-241f-44a4-93ab-64ea3a8dfb08', 'present') ON CONFLICT (session_id, student_id) DO UPDATE SET status = EXCLUDED.status;
-INSERT INTO public.uct_attendance (id, session_id, student_id, status) VALUES ('6be1315b-78a8-5450-9cf5-bb573071a456', 'c71482c6-8bda-5bc0-814b-042a43dfabd8', '87bbd831-53f8-4236-ab44-3a52ef996c90', 'present') ON CONFLICT (session_id, student_id) DO UPDATE SET status = EXCLUDED.status;
-INSERT INTO public.uct_attendance (id, session_id, student_id, status) VALUES ('02651e76-b225-51fb-9c1e-68b0095df1fe', 'c71482c6-8bda-5bc0-814b-042a43dfabd8', '47cac0dc-0da2-4db3-a722-1f18a5e6d224', 'present') ON CONFLICT (session_id, student_id) DO UPDATE SET status = EXCLUDED.status;
-INSERT INTO public.uct_attendance (id, session_id, student_id, status) VALUES ('1590987a-f877-5931-a43b-83820a5dfcaa', 'c71482c6-8bda-5bc0-814b-042a43dfabd8', '39cb2730-1b76-4ea4-a191-b2cd70f3f078', 'present') ON CONFLICT (session_id, student_id) DO UPDATE SET status = EXCLUDED.status;
-INSERT INTO public.uct_attendance (id, session_id, student_id, status) VALUES ('0a58f20f-3961-533d-8760-ee3b8b04ac23', 'c71482c6-8bda-5bc0-814b-042a43dfabd8', 'd574ba74-ea48-407c-97ad-f27da000d904', 'present') ON CONFLICT (session_id, student_id) DO UPDATE SET status = EXCLUDED.status;
-INSERT INTO public.uct_attendance (id, session_id, student_id, status) VALUES ('1731dc5e-e9ab-5cf5-81bc-d7848ff77034', 'c71482c6-8bda-5bc0-814b-042a43dfabd8', 'ae4a3af9-836c-41c0-a8a3-ab02b6467d5f', 'present') ON CONFLICT (session_id, student_id) DO UPDATE SET status = EXCLUDED.status;
-INSERT INTO public.uct_attendance (id, session_id, student_id, status) VALUES ('7591e3bb-88ff-56fb-99da-9aec2bb892d5', 'c71482c6-8bda-5bc0-814b-042a43dfabd8', '674588ed-1ac6-4cdc-af3d-50838c072572', 'present') ON CONFLICT (session_id, student_id) DO UPDATE SET status = EXCLUDED.status;
-INSERT INTO public.uct_attendance (id, session_id, student_id, status) VALUES ('8ff328f0-f072-57c5-bac3-582d3b55bad1', 'c71482c6-8bda-5bc0-814b-042a43dfabd8', '7623f5ad-dabf-4481-bf6d-83f4982e0c28', 'present') ON CONFLICT (session_id, student_id) DO UPDATE SET status = EXCLUDED.status;
-INSERT INTO public.uct_attendance (id, session_id, student_id, status) VALUES ('a88e2c9b-7995-54c7-b52e-df3e4e9049c8', 'c71482c6-8bda-5bc0-814b-042a43dfabd8', '165882d6-8257-49fc-8af9-deff2544fd82', 'present') ON CONFLICT (session_id, student_id) DO UPDATE SET status = EXCLUDED.status;
-INSERT INTO public.uct_attendance (id, session_id, student_id, status) VALUES ('d08a3cd3-58d6-583d-aee3-c1531be57577', 'c71482c6-8bda-5bc0-814b-042a43dfabd8', '29350673-5d12-4fa2-a47f-b2bfaa122af1', 'absent') ON CONFLICT (session_id, student_id) DO UPDATE SET status = EXCLUDED.status;

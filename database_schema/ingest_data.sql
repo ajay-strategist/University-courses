@@ -2,6 +2,33 @@
 -- UNIFIED DATA INGESTION MIGRATION SCRIPT
 -- ==========================================
 
+-- 0. CLEAN UP EXISTING COHORT DATA TO PREVENT CONFLICTS
+DELETE FROM public.uct_attendance WHERE session_id IN (
+    SELECT id FROM public.uct_sessions WHERE batch_course_id IN (
+        SELECT id FROM public.uct_batch_courses WHERE batch_id IN ('aee11014-ef53-4696-ae3e-6acbe6f72d2f', '059f204c-1209-44d8-8f4d-625b4099377e', '39fef5c6-9eb8-4a51-9573-d1a63f448965')
+    )
+);
+
+DELETE FROM public.uct_sessions WHERE batch_course_id IN (
+    SELECT id FROM public.uct_batch_courses WHERE batch_id IN ('aee11014-ef53-4696-ae3e-6acbe6f72d2f', '059f204c-1209-44d8-8f4d-625b4099377e', '39fef5c6-9eb8-4a51-9573-d1a63f448965')
+);
+
+DELETE FROM public.uct_trainer_logs WHERE batch_course_id IN (
+    SELECT id FROM public.uct_batch_courses WHERE batch_id IN ('aee11014-ef53-4696-ae3e-6acbe6f72d2f', '059f204c-1209-44d8-8f4d-625b4099377e', '39fef5c6-9eb8-4a51-9573-d1a63f448965')
+);
+
+DELETE FROM public.uct_batch_course_syllabus WHERE batch_course_id IN (
+    SELECT id FROM public.uct_batch_courses WHERE batch_id IN ('aee11014-ef53-4696-ae3e-6acbe6f72d2f', '059f204c-1209-44d8-8f4d-625b4099377e', '39fef5c6-9eb8-4a51-9573-d1a63f448965')
+);
+
+DELETE FROM public.uct_assessment_marks WHERE student_id IN (
+    SELECT id FROM public.uct_students WHERE batch_id IN ('aee11014-ef53-4696-ae3e-6acbe6f72d2f', '059f204c-1209-44d8-8f4d-625b4099377e', '39fef5c6-9eb8-4a51-9573-d1a63f448965')
+);
+
+DELETE FROM public.uct_assessments WHERE batch_course_id IN (
+    SELECT id FROM public.uct_batch_courses WHERE batch_id IN ('aee11014-ef53-4696-ae3e-6acbe6f72d2f', '059f204c-1209-44d8-8f4d-625b4099377e', '39fef5c6-9eb8-4a51-9573-d1a63f448965')
+);
+
 -- 1. INSERT NEW COURSES
 INSERT INTO public.uct_courses (id, code, name) VALUES
 ('b3017a66-fb69-42b7-a36c-947b74f346b0', 'PYTHON', 'Python'),
