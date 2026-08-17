@@ -193,82 +193,30 @@ class DataStore {
         supabase.from('uct_trainer_logs').select('*').order('log_date', { ascending: false }),
       ]);
 
-      // Sync local-only/modified data to Supabase
-      try {
-        await Promise.all([
-          this.syncTable('uct_profiles', this.profiles, profs || []),
-          this.syncTable('uct_colleges', this.colleges, cols || []),
-          this.syncTable('uct_programs', this.programs, progs || []),
-          this.syncTable('uct_courses', this.courses, crses || []),
-          this.syncTable('uct_course_default_syllabus', this.defaultSyllabus, defSyl || []),
-          this.syncTable('uct_assessment_types', this.assessmentTypes, assTypes || []),
-          this.syncTable('uct_batches', this.batches, bts || [], (b) => ({
-            ...b,
-            college_coordinator_id: b.college_coordinator_id && !b.college_coordinator_id.startsWith('usr-') ? b.college_coordinator_id : null,
-            student_coordinator_id: b.student_coordinator_id && !b.student_coordinator_id.startsWith('usr-') ? b.student_coordinator_id : null,
-          })),
-          this.syncTable('uct_students', this.students, stds || []),
-          this.syncTable('uct_batch_courses', this.batchCourses, bCrs || [], (bc) => ({
-            ...bc,
-            trainer_id: bc.trainer_id && !bc.trainer_id.startsWith('usr-') ? bc.trainer_id : null,
-          })),
-          this.syncTable('uct_batch_course_syllabus', this.batchSyllabus, bSyl || []),
-          this.syncTable('uct_sessions', this.sessions, sess || []),
-          this.syncTable('uct_attendance', this.attendance, atts || []),
-          this.syncTable('uct_assessments', this.assessments, asms || []),
-          this.syncTable('uct_assessment_marks', this.assessmentMarks, marks || []),
-          this.syncTable('uct_user_email_config', this.emailConfigs, emails || []),
-          this.syncTable('uct_notification_log', this.notificationLogs, logs || [], (log) => ({
-            ...log,
-            sender_id: log.sender_id && !log.sender_id.startsWith('usr-') ? log.sender_id : null,
-          })),
-          this.syncTable('uct_migration_runs', this.migrationRuns, runs || [], (run) => ({
-            ...run,
-            uploaded_by: run.uploaded_by && !run.uploaded_by.startsWith('usr-') ? run.uploaded_by : null,
-          })),
-          this.syncTable('uct_migration_mappings', this.migrationMappings, mappings || [], (mapping) => ({
-            ...mapping,
-            owner_id: mapping.owner_id && !mapping.owner_id.startsWith('usr-') ? mapping.owner_id : null,
-          })),
-          this.syncTable('uct_trainer_logs', this.trainerLogs, tLogs || [], (tl) => ({
-            ...tl,
-            trainer_id: tl.trainer_id && !tl.trainer_id.startsWith('usr-') ? tl.trainer_id : null,
-          })),
-        ]);
-      } catch (syncErr) {
-        console.warn('Background sync failed:', syncErr);
-      }
+      // Supabase is the single source of truth.
+      // Do NOT re-push local cache to DB — that would resurrect records deleted from the DB.
 
-      const mergeArrays = <T extends { id?: string; user_id?: string }>(local: T[], remote: T[]): T[] => {
-        const merged = [...remote];
-        local.forEach(l => {
-          const lKey = l.id || l.user_id;
-          if (lKey && !merged.some(r => (r.id || r.user_id) === lKey)) {
-            merged.push(l);
-          }
-        });
-        return merged;
-      };
-
-      if (profs && profs.length > 0) this.profiles = mergeArrays(this.profiles, profs as Profile[]);
-      if (cols && cols.length > 0) this.colleges = mergeArrays(this.colleges, cols as College[]);
-      if (progs && progs.length > 0) this.programs = mergeArrays(this.programs, progs as Program[]);
-      if (crses && crses.length > 0) this.courses = mergeArrays(this.courses, crses as Course[]);
-      if (defSyl && defSyl.length > 0) this.defaultSyllabus = mergeArrays(this.defaultSyllabus, defSyl as CourseDefaultSyllabus[]);
-      if (assTypes && assTypes.length > 0) this.assessmentTypes = mergeArrays(this.assessmentTypes, assTypes as AssessmentType[]);
-      if (bts && bts.length > 0) this.batches = mergeArrays(this.batches, bts as Batch[]);
-      if (stds && stds.length > 0) this.students = mergeArrays(this.students, stds as Student[]);
-      if (bCrs && bCrs.length > 0) this.batchCourses = mergeArrays(this.batchCourses, bCrs as BatchCourse[]);
-      if (bSyl && bSyl.length > 0) this.batchSyllabus = mergeArrays(this.batchSyllabus, bSyl as BatchCourseSyllabus[]);
-      if (sess && sess.length > 0) this.sessions = mergeArrays(this.sessions, sess as Session[]);
-      if (atts && atts.length > 0) this.attendance = mergeArrays(this.attendance, atts as Attendance[]);
-      if (asms && asms.length > 0) this.assessments = mergeArrays(this.assessments, asms as Assessment[]);
-      if (marks && marks.length > 0) this.assessmentMarks = mergeArrays(this.assessmentMarks, marks as AssessmentMark[]);
-      if (emails && emails.length > 0) this.emailConfigs = mergeArrays(this.emailConfigs, emails as UserEmailConfig[]);
-      if (logs && logs.length > 0) this.notificationLogs = mergeArrays(this.notificationLogs, logs as NotificationLog[]);
-      if (runs && runs.length > 0) this.migrationRuns = mergeArrays(this.migrationRuns, runs as MigrationRun[]);
-      if (mappings && mappings.length > 0) this.migrationMappings = mergeArrays(this.migrationMappings, mappings as MigrationMapping[]);
-      if (tLogs && tLogs.length > 0) this.trainerLogs = mergeArrays(this.trainerLogs, tLogs as TrainerLog[]);
+      // Always use Supabase data directly — overwrite local cache completely.
+      // This ensures records deleted from the DB are never shown from stale cache.
+      if (profs !== null) this.profiles = (profs || []) as Profile[];
+      if (cols !== null) this.colleges = (cols || []) as College[];
+      if (progs !== null) this.programs = (progs || []) as Program[];
+      if (crses !== null) this.courses = (crses || []) as Course[];
+      if (defSyl !== null) this.defaultSyllabus = (defSyl || []) as CourseDefaultSyllabus[];
+      if (assTypes !== null) this.assessmentTypes = (assTypes || []) as AssessmentType[];
+      if (bts !== null) this.batches = (bts || []) as Batch[];
+      if (stds !== null) this.students = (stds || []) as Student[];
+      if (bCrs !== null) this.batchCourses = (bCrs || []) as BatchCourse[];
+      if (bSyl !== null) this.batchSyllabus = (bSyl || []) as BatchCourseSyllabus[];
+      if (sess !== null) this.sessions = (sess || []) as Session[];
+      if (atts !== null) this.attendance = (atts || []) as Attendance[];
+      if (asms !== null) this.assessments = (asms || []) as Assessment[];
+      if (marks !== null) this.assessmentMarks = (marks || []) as AssessmentMark[];
+      if (emails !== null) this.emailConfigs = (emails || []) as UserEmailConfig[];
+      if (logs !== null) this.notificationLogs = (logs || []) as NotificationLog[];
+      if (runs !== null) this.migrationRuns = (runs || []) as MigrationRun[];
+      if (mappings !== null) this.migrationMappings = (mappings || []) as MigrationMapping[];
+      if (tLogs !== null) this.trainerLogs = (tLogs || []) as TrainerLog[];
       if (eTLogs) console.warn('Supabase uct_trainer_logs warning:', eTLogs);
 
       if (eCols || eBts || eStds || eCrses || eProfs || eEmails || eLogs) {
