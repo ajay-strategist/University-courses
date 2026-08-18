@@ -28,6 +28,9 @@ DROP VIEW IF EXISTS public.uct_vw_dim_batch_course CASCADE;
 DROP VIEW IF EXISTS public.uct_vw_dim_course CASCADE;
 DROP VIEW IF EXISTS public.uct_vw_dim_batch CASCADE;
 DROP VIEW IF EXISTS public.uct_vw_dim_college CASCADE;
+DROP VIEW IF EXISTS public.uct_vw_students_data CASCADE;
+DROP VIEW IF EXISTS public.uct_vw_batch_course_syllabus CASCADE;
+DROP VIEW IF EXISTS public.uct_vw_course_default_syllabus CASCADE;
 
 -- 3. Create reporting views in public schema
 -- (Views are owned by the creator, e.g., postgres, meaning the read-only role doesn't need select permission on the underlying public.uct_ tables)
@@ -238,6 +241,58 @@ FROM public.uct_trainer_logs tl
 CROSS JOIN LATERAL unnest(tl.topics_covered) AS covered_topic_id
 JOIN public.uct_batch_course_syllabus syl ON syl.id = covered_topic_id;
 
+-- uct_vw_students_data (Flattened view linking student, batch, college, and active courses)
+CREATE OR REPLACE VIEW public.uct_vw_students_data AS
+SELECT 
+    s.id AS student_id,
+    s.register_no,
+    s.name AS student_name,
+    s.class,
+    s.phone,
+    b.code AS batch_code,
+    b.academic_year,
+    c.code AS college_code,
+    c.name AS college_name,
+    crs.code AS course_code,
+    crs.name AS course_name
+FROM public.uct_students s
+JOIN public.uct_batches b ON b.id = s.batch_id
+JOIN public.uct_colleges c ON c.id = b.college_id
+LEFT JOIN public.uct_batch_courses bc ON bc.batch_id = b.id
+LEFT JOIN public.uct_courses crs ON crs.id = bc.course_id;
+
+-- uct_vw_batch_course_syllabus (Syllabus details of courses assigned to batches)
+CREATE OR REPLACE VIEW public.uct_vw_batch_course_syllabus AS
+SELECT 
+    bcs.id AS syllabus_id,
+    c.code AS college_code,
+    b.code AS batch_code,
+    bc.semester,
+    crs.code AS course_code,
+    crs.name AS course_name,
+    bcs.topic_no,
+    bcs.topic_name,
+    bcs.planned_hours,
+    bcs.is_completed,
+    bcs.completed_date
+FROM public.uct_batch_course_syllabus bcs
+JOIN public.uct_batch_courses bc ON bc.id = bcs.batch_course_id
+JOIN public.uct_batches b ON b.id = bc.batch_id
+JOIN public.uct_colleges c ON c.id = b.college_id
+JOIN public.uct_courses crs ON crs.id = bc.course_id;
+
+-- uct_vw_course_default_syllabus (Default syllabus topics per course)
+CREATE OR REPLACE VIEW public.uct_vw_course_default_syllabus AS
+SELECT 
+    ds.id AS default_syllabus_id,
+    crs.code AS course_code,
+    crs.name AS course_name,
+    ds.topic_no,
+    ds.topic_name,
+    ds.planned_hours
+FROM public.uct_course_default_syllabus ds
+JOIN public.uct_courses crs ON crs.id = ds.course_id;
+
 -- 4. Grant permissions to the read-only role
 -- Grant usage on the public schema
 GRANT USAGE ON SCHEMA public TO pbi_reporting_role;
@@ -254,3 +309,6 @@ GRANT SELECT ON public.uct_vw_attendance_summary TO pbi_reporting_role;
 GRANT SELECT ON public.uct_vw_course_coverage TO pbi_reporting_role;
 GRANT SELECT ON public.uct_vw_trainer_logs TO pbi_reporting_role;
 GRANT SELECT ON public.uct_vw_trainer_log_topics TO pbi_reporting_role;
+GRANT SELECT ON public.uct_vw_students_data TO pbi_reporting_role;
+GRANT SELECT ON public.uct_vw_batch_course_syllabus TO pbi_reporting_role;
+GRANT SELECT ON public.uct_vw_course_default_syllabus TO pbi_reporting_role;
