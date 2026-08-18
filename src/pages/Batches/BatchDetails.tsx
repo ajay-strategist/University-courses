@@ -108,6 +108,7 @@ export default function BatchDetails() {
     notes: '',
   });
   const [trainerLogTopics, setTrainerLogTopics] = useState<string[]>([]); // selected topic IDs
+  const [showCompletedInLog, setShowCompletedInLog] = useState(false);
 
   // Student Form Inputs
   const [studentForm, setStudentForm] = useState({ register_no: '', name: '', class: 'Div A', phone: '' });
@@ -1961,6 +1962,7 @@ export default function BatchDetails() {
       {/* TAB 7.8: TRAINER LOG */}
       {activeTab === 'trainer_log' && (() => {
         const pendingTopics = currentSyllabus.filter(s => !s.is_completed);
+        const displayedTopics = showCompletedInLog ? currentSyllabus : pendingTopics;
         const batchTrainerId = store.batchCourses.find(bc => bc.id === selectedBatchCourseId)?.trainer_id || '';
         const courseTrainerLogs = store.trainerLogs
           .filter(l => l.batch_course_id === selectedBatchCourseId)
@@ -2084,32 +2086,58 @@ export default function BatchDetails() {
 
               {/* Pending Topics Checklist */}
               <div>
-                <div className="flex items-center justify-between mb-2">
+                <div className="flex flex-wrap items-center justify-between gap-2 mb-2">
                   <label className="text-xs font-mono font-medium text-muted-foreground">
                     Topics Covered in this Session
                   </label>
-                  {pendingTopics.length > 0 && (
+                  <div className="flex flex-wrap items-center gap-3">
                     <button
-                      className="text-xs font-mono text-primary hover:underline"
-                      onClick={() => setTrainerLogTopics(
-                        trainerLogTopics.length === pendingTopics.length
-                          ? []
-                          : pendingTopics.map(t => t.id)
-                      )}
+                      type="button"
+                      className="text-xs font-mono text-primary hover:underline flex items-center gap-1"
+                      onClick={() => {
+                        const nextNo = currentSyllabus.length > 0 ? Math.max(...currentSyllabus.map(s => s.topic_no)) + 1 : 1;
+                        setNewTopicForm({ topic_no: nextNo, topic_name: '', planned_hours: '' });
+                        setShowAddTopicModal(true);
+                      }}
                     >
-                      {trainerLogTopics.length === pendingTopics.length ? 'Deselect All' : 'Select All Pending'}
+                      <Plus className="h-3 w-3" /> Add Custom Topic
                     </button>
-                  )}
+                    <label className="flex items-center gap-1.5 text-xs font-mono text-muted-foreground cursor-pointer select-none">
+                      <input
+                        type="checkbox"
+                        checked={showCompletedInLog}
+                        onChange={e => setShowCompletedInLog(e.target.checked)}
+                        className="rounded border-border text-primary focus:ring-primary h-3.5 w-3.5"
+                      />
+                      Show Completed
+                    </label>
+                    {displayedTopics.length > 0 && (
+                      <button
+                        type="button"
+                        className="text-xs font-mono text-primary hover:underline"
+                        onClick={() => setTrainerLogTopics(
+                          trainerLogTopics.length === displayedTopics.length
+                            ? []
+                            : displayedTopics.map(t => t.id)
+                        )}
+                      >
+                        {trainerLogTopics.length === displayedTopics.length ? 'Deselect All' : 'Select All'}
+                      </button>
+                    )}
+                  </div>
                 </div>
 
-                {pendingTopics.length === 0 ? (
+                {displayedTopics.length === 0 ? (
                   <div className="bg-success/10 border border-success/30 rounded-xl p-4 text-center">
                     <CheckCircle2 className="h-5 w-5 text-success mx-auto mb-1" />
                     <p className="text-xs font-mono text-success font-bold">All topics completed! 🎉</p>
+                    <p className="text-[10px] font-mono text-muted-foreground mt-1">
+                      Toggle "Show Completed" or click "Add Custom Topic" to log additional topics.
+                    </p>
                   </div>
                 ) : (
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 max-h-64 overflow-y-auto pr-1">
-                    {pendingTopics.map(topic => {
+                    {displayedTopics.map(topic => {
                       const isChecked = trainerLogTopics.includes(topic.id);
                       return (
                         <div
@@ -2128,8 +2156,15 @@ export default function BatchDetails() {
                           }`}>
                             {isChecked && <Check className="h-3 w-3" />}
                           </div>
-                          <div className="min-w-0">
-                            <div className="text-xs font-mono text-muted-foreground">{topic.topic_no}.</div>
+                          <div className="min-w-0 flex-1">
+                            <div className="flex items-center justify-between">
+                              <span className="text-xs font-mono text-muted-foreground">{topic.topic_no}.</span>
+                              {topic.is_completed && (
+                                <span className="text-[9px] font-mono font-bold bg-success/20 text-success px-1.5 py-0.2 rounded">
+                                  Completed
+                                </span>
+                              )}
+                            </div>
                             <div className="text-sm font-medium text-foreground leading-tight truncate">{topic.topic_name}</div>
                             {topic.planned_hours > 0 && (
                               <div className="text-xs font-mono text-muted-foreground/70">{topic.planned_hours} hrs planned</div>
@@ -2609,13 +2644,16 @@ export default function BatchDetails() {
                     toast.error('Topic name is required');
                     return;
                   }
-                  await store.saveBatchSyllabusTopic({
+                  const newTopic = await store.saveBatchSyllabusTopic({
                     batch_course_id: selectedBatchCourseId,
                     topic_no: newTopicForm.topic_no,
                     topic_name: newTopicForm.topic_name.trim(),
                     planned_hours: newTopicForm.planned_hours !== '' ? Number(newTopicForm.planned_hours) : 0,
                     is_completed: false,
                   });
+                  if (activeTab === 'trainer_log') {
+                    setTrainerLogTopics(prev => [...prev, newTopic.id]);
+                  }
                   setShowAddTopicModal(false);
                   setRefreshTrigger(r => r + 1);
                   toast.success('Topic added!');
