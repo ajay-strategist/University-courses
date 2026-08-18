@@ -276,13 +276,20 @@ export default function BulkUpload() {
   };
 
   const cleanRows = (rows: any[]): any[] => {
+    const dateFields = ['start_date', 'end_date', 'completed_date', 'assessment_date', 'session_date', 'log_date'];
     return rows.map(r => {
       const cleaned: any = {};
       Object.keys(r).forEach(k => {
         // Trim keys and values, ignore empty fields
         const trimmedKey = k.trim();
         const rawVal = r[k];
-        cleaned[trimmedKey] = typeof rawVal === 'string' ? rawVal.trim() : rawVal;
+        let val = typeof rawVal === 'string' ? rawVal.trim() : rawVal;
+        
+        if (dateFields.includes(trimmedKey)) {
+          val = parseExcelDate(val);
+        }
+        
+        cleaned[trimmedKey] = val;
       });
       return cleaned;
     }).filter(r => {
