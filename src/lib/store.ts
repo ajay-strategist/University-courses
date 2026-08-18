@@ -1588,8 +1588,28 @@ class DataStore {
               durationMinutes = 0;
             }
 
-            // Covered topics are stored as notes (free-text) since we don't have syllabus UUIDs
+            // Resolve covered topics to syllabus UUIDs
             const coveredTopicsText = String(row.covered_topics || '').trim();
+            const topicNames = coveredTopicsText.split(',').map(s => s.trim()).filter(Boolean);
+            const syllabus = this.batchSyllabus.filter(s => s.batch_course_id === batchCourseId);
+
+            const topicsCoveredIds: string[] = [];
+            const unmatchedNames: string[] = [];
+
+            const clean = (s: string) => s.toLowerCase().replace(/[^a-z0-9]/g, '');
+            topicNames.forEach(name => {
+              const cName = clean(name);
+              const match = syllabus.find(s => {
+                const cSName = clean(s.topic_name);
+                return cSName === cName || cSName.includes(cName) || cName.includes(cSName);
+              });
+
+              if (match) {
+                topicsCoveredIds.push(match.id);
+              } else {
+                unmatchedNames.push(name);
+              }
+            });
 
             await this.saveTrainerLog({
               id: generateUUID(),
@@ -1600,8 +1620,8 @@ class DataStore {
               start_time: startTime,
               end_time: endTime,
               duration_minutes: durationMinutes,
-              topics_covered: [], // no syllabus UUID mapping in bulk import
-              notes: coveredTopicsText,
+              topics_covered: topicsCoveredIds,
+              notes: unmatchedNames.join(', '),
             });
 
             summary.trainer_logs.new++;
