@@ -58,9 +58,9 @@ export default function BulkUpload() {
     { key: 'programs', label: 'Programs', requiredFields: ['code', 'name'] },
     { key: 'courses', label: 'Courses', requiredFields: ['code', 'name'] },
     { key: 'courseDefaultSyllabus', label: 'Default Syllabus', requiredFields: ['course_code', 'topic_no', 'topic_name', 'planned_hours'] },
-    { key: 'users', label: 'Users & Roles', requiredFields: ['full_name', 'email', 'phone', 'role'] },
+    { key: 'users', label: 'Users & Roles', requiredFields: ['full_name', 'email', 'role'] },
     { key: 'batches', label: 'Batches', requiredFields: ['college_code', 'program_code', 'academic_year', 'current_semester', 'college_coordinator_email', 'student_coordinator_email', 'start_date', 'end_date'] },
-    { key: 'students', label: 'Students', requiredFields: ['batch_code', 'register_no', 'name', 'class', 'phone'] },
+    { key: 'students', label: 'Students', requiredFields: ['batch_code', 'register_no', 'name', 'class'] },
     { key: 'batchCourses', label: 'Course Assignments', requiredFields: ['batch_code', 'course_code', 'trainer_email', 'semester', 'planned_hours', 'start_date', 'end_date'] },
     { key: 'batchSyllabus', label: 'Batch Syllabus', requiredFields: ['batch_code', 'course_code', 'topic_no', 'topic_name', 'planned_hours', 'is_completed', 'completed_date'] },
     { key: 'assessments', label: 'Assessments', requiredFields: ['batch_code', 'course_code', 'assessment_name', 'type', 'max_mark', 'assessment_date'] },
@@ -397,7 +397,6 @@ export default function BulkUpload() {
         // Check required fields
         ent.requiredFields.forEach(field => {
           // attendance topic_no completed_date syllabusTopic topics might have some optional fields depending on state, handle specifically:
-          if (ent.key === 'students' && field === 'phone') return;
           if (ent.key === 'batchSyllabus' && (field === 'completed_date' || field === 'is_completed')) return;
           if (ent.key === 'batches' && (field === 'start_date' || field === 'end_date' || field === 'college_coordinator_email' || field === 'student_coordinator_email')) return;
           if (ent.key === 'batchCourses' && (field === 'start_date' || field === 'end_date' || field === 'trainer_email')) return;
