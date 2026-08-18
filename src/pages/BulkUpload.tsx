@@ -397,6 +397,7 @@ export default function BulkUpload() {
         // Check required fields
         ent.requiredFields.forEach(field => {
           // attendance topic_no completed_date syllabusTopic topics might have some optional fields depending on state, handle specifically:
+          if (ent.key === 'students' && field === 'phone') return;
           if (ent.key === 'batchSyllabus' && (field === 'completed_date' || field === 'is_completed')) return;
           if (ent.key === 'batches' && (field === 'start_date' || field === 'end_date' || field === 'college_coordinator_email' || field === 'student_coordinator_email')) return;
           if (ent.key === 'batchCourses' && (field === 'start_date' || field === 'end_date' || field === 'trainer_email')) return;
