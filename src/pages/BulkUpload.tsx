@@ -949,28 +949,53 @@ export default function BulkUpload() {
         const { data: sessionData } = await supabase.auth.getSession();
         
         const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || '';
-        const response = await fetch(`${supabaseUrl}/functions/v1/bulk-import`, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${sessionData.session?.access_token}`
-          },
-          body: JSON.stringify({
-            mode: uploadMode,
-            payload: parsedPayload,
-            skip_errored: skipErrored,
-            file_path: filePath
-          })
-        });
+        let useFallback = false;
 
-        setCommitProgress(80);
-        if (!response.ok) {
-          const errRes = await response.json();
-          errorOccurred = true;
-          errorMsg = errRes.error || 'Server returned an error';
-        } else {
-          const resData = await response.json();
-          summaryCounts = resData.summary;
+        try {
+          const response = await fetch(`${supabaseUrl}/functions/v1/bulk-import`, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': `Bearer ${sessionData.session?.access_token}`
+            },
+            body: JSON.stringify({
+              mode: uploadMode,
+              payload: parsedPayload,
+              skip_errored: skipErrored,
+              file_path: filePath
+            })
+          });
+
+          setCommitProgress(80);
+          if (!response.ok) {
+            if (response.status === 404) {
+              console.warn('Edge function bulk-import not found (404). Falling back to client-side import.');
+              useFallback = true;
+            } else {
+              const errRes = await response.json();
+              errorOccurred = true;
+              errorMsg = errRes.error || 'Server returned an error';
+            }
+          } else {
+            const resData = await response.json();
+            summaryCounts = resData.summary;
+          }
+        } catch (fetchErr: any) {
+          console.warn('Failed to contact Edge Function. Falling back to client-side import.', fetchErr);
+          useFallback = true;
+        }
+
+        if (useFallback) {
+          toast.info('Edge function not available. Committing directly from client...');
+          setCommitProgress(60);
+          const result = await store.commitMigrationDataLocal(parsedPayload, skipErrored);
+          setCommitProgress(90);
+          if (result.success) {
+            summaryCounts = result.summary;
+          } else {
+            errorOccurred = true;
+            errorMsg = result.error || 'Unknown local commit error';
+          }
         }
       }
 
