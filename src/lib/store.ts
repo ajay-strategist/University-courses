@@ -217,10 +217,12 @@ class DataStore {
       if (runs !== null) this.migrationRuns = (runs || []) as MigrationRun[];
       if (mappings !== null) this.migrationMappings = (mappings || []) as MigrationMapping[];
       if (tLogs !== null) this.trainerLogs = (tLogs || []) as TrainerLog[];
-      if (eTLogs) console.warn('Supabase uct_trainer_logs warning:', eTLogs);
-
-      if (eCols || eBts || eStds || eCrses || eProfs || eEmails || eLogs) {
-        console.warn('Supabase fetch returned RLS or table warnings:', { eCols, eBts, eStds, eCrses, eProfs, eEmails, eLogs });
+      const allErrors = {
+        eProfs, eCols, eProgs, eCrses, eDefSyl, eAssTypes, eBts, eStds, eBCrs, eBSyl, eSess, eAtts, eAsms, eMarks, eEmails, eLogs, eRuns, eMappings, eTLogs
+      };
+      const errorCount = Object.values(allErrors).filter(Boolean).length;
+      if (errorCount > 0) {
+        console.warn('Supabase fetch returned warnings/errors:', allErrors);
       }
 
       this.saveLocalCache();
@@ -815,9 +817,13 @@ class DataStore {
 
     try {
       const { error } = await supabase.from('uct_assessment_marks').upsert(mark, { onConflict: 'assessment_id,student_id' });
-      if (error) console.error('Supabase saveAssessmentMark error:', error.message);
+      if (error) {
+        console.error('Supabase saveAssessmentMark error:', error.message);
+        throw error;
+      }
     } catch (e) {
       console.warn('Supabase assessment mark sync warning:', e);
+      throw e;
     }
     return mark;
   }
@@ -837,9 +843,13 @@ class DataStore {
 
     try {
       const { error } = await supabase.from('uct_assessment_marks').upsert(marks, { onConflict: 'assessment_id,student_id' });
-      if (error) console.error('Supabase saveAssessmentMarks error:', error.message);
+      if (error) {
+        console.error('Supabase saveAssessmentMarks error:', error.message);
+        throw error;
+      }
     } catch (e) {
       console.warn('Supabase assessment marks sync warning:', e);
+      throw e;
     }
   }
 

@@ -316,15 +316,20 @@ export default function BatchDetails() {
     }
 
     const existingMark = store.assessmentMarks.find(m => m.assessment_id === curAsm.id && m.student_id === studentId);
-    await store.saveAssessmentMark({
-      id: existingMark?.id || generateUUID(),
-      assessment_id: curAsm.id,
-      student_id: studentId,
-      mark: num,
-    });
+    try {
+      await store.saveAssessmentMark({
+        id: existingMark?.id || generateUUID(),
+        assessment_id: curAsm.id,
+        student_id: studentId,
+        mark: num,
+      });
 
-    setMarksState(prev => ({ ...prev, [studentId]: num }));
-    toast.success('Mark saved');
+      setMarksState(prev => ({ ...prev, [studentId]: num }));
+      toast.success('Mark saved');
+    } catch (err: any) {
+      console.error('Error saving mark:', err);
+      toast.error(`Failed to save mark: ${err.message || 'Database error'}`);
+    }
   };
 
   if (!batch) {
@@ -823,9 +828,14 @@ export default function BatchDetails() {
       });
     });
 
-    await store.saveAssessmentMarks(marksToSave);
-    setMarksImportPreview(null);
-    toast.success(`Successfully committed marks for ${marksImportPreview.validRows.length} students!`);
+    try {
+      await store.saveAssessmentMarks(marksToSave);
+      setMarksImportPreview(null);
+      toast.success(`Successfully committed marks for ${marksImportPreview.validRows.length} students!`);
+    } catch (err: any) {
+      console.error('Error committing marks:', err);
+      toast.error(`Failed to commit marks: ${err.message || 'Database error'}`);
+    }
   };
 
   // -------------------------------------------------------------------------------------
