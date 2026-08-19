@@ -2,14 +2,36 @@
 -- FIX LOGINS SCRIPT (Copy and run this in Supabase SQL Editor)
 -- =====================================================================================
 
--- 1) Create or update the trigger function to populate email_confirmed_at
-CREATE OR REPLACE FUNCTION public.uct_tg_sync_profile_to_auth()
-RETURNS TRIGGER AS $$
+DO $$
+DECLARE
+  v_rec RECORD;
+  v_auth_id UUID;
 BEGIN
-  -- Check if the user ID already exists in auth.users
-  IF NOT EXISTS (SELECT 1 FROM auth.users WHERE id = NEW.id) THEN
-    -- Check if email is already taken in auth.users (to avoid duplicate email key violation)
-    IF NOT EXISTS (SELECT 1 FROM auth.users WHERE email = NEW.email) THEN
+  -- 1) Fix any ID mismatches between public.uct_profiles and auth.users
+  FOR v_rec IN SELECT * FROM public.uct_profiles LOOP
+    -- Check if the email exists in auth.users under a DIFFERENT ID
+    SELECT id INTO v_auth_id FROM auth.users WHERE email = v_rec.email;
+    
+    IF v_auth_id IS NOT NULL AND v_auth_id <> v_rec.id THEN
+      RAISE NOTICE 'ID Mismatch for email %: profile ID %, auth ID %. Aligning profile ID to match auth ID.', v_rec.email, v_rec.id, v_auth_id;
+      
+      -- Update referencing tables to prevent foreign key violations before updating uct_profiles
+      UPDATE public.uct_batches SET student_coordinator_id = v_auth_id WHERE student_coordinator_id = v_rec.id;
+      UPDATE public.uct_batch_courses SET trainer_id = v_auth_id WHERE trainer_id = v_rec.id;
+      UPDATE public.uct_trainer_logs SET trainer_id = v_auth_id WHERE trainer_id = v_rec.id;
+      UPDATE public.uct_migration_runs SET uploaded_by = v_auth_id WHERE uploaded_by = v_rec.id;
+      UPDATE public.uct_migration_mappings SET owner_id = v_auth_id WHERE owner_id = v_rec.id;
+      
+      -- Update uct_profiles primary key to match auth.users ID
+      UPDATE public.uct_profiles SET id = v_auth_id WHERE id = v_rec.id;
+    END IF;
+  END LOOP;
+
+  -- 2) Ensure all profiles have a login account in auth.users with password 'password' and confirmed email
+  FOR v_rec IN SELECT * FROM public.uct_profiles LOOP
+    -- Check if they exist in auth.users (now they have the same ID if they existed)
+    IF NOT EXISTS (SELECT 1 FROM auth.users WHERE id = v_rec.id) THEN
+      RAISE NOTICE 'Creating missing auth user for: % (%)', v_rec.full_name, v_rec.email;
       INSERT INTO auth.users (
         id,
         aud,
@@ -22,10 +44,10 @@ BEGIN
         raw_app_meta_data,
         raw_user_meta_data
       ) VALUES (
-        NEW.id,
+        v_rec.id,
         'authenticated',
         'authenticated',
-        NEW.email,
+        v_rec.email,
         crypt('password', gen_salt('bf', 10)), -- default password: 'password'
         now(),
         now(),
@@ -33,71 +55,12 @@ BEGIN
         '{"provider":"email","providers":["email"]}'::jsonb,
         '{"iss":"supabase"}'::jsonb
       );
-    END IF;
-  ELSE
-    -- If user exists, confirm their email and update email if changed
-    UPDATE auth.users
-    SET email = NEW.email,
-        email_confirmed_at = COALESCE(email_confirmed_at, now()),
-        updated_at = now()
-      WHERE id = NEW.id;
-  END IF;
-  
-  RETURN NEW;
-END;
-$$ LANGUAGE plpgsql SECURITY DEFINER;
-
--- 2) Re-bind the trigger
-DROP TRIGGER IF EXISTS uct_trg_sync_profile_to_auth ON public.uct_profiles;
-CREATE TRIGGER uct_trg_sync_profile_to_auth
-AFTER INSERT OR UPDATE ON public.uct_profiles
-FOR EACH ROW EXECUTE FUNCTION public.uct_tg_sync_profile_to_auth();
-
--- 3) Run a one-time sync to confirm all existing profiles and reset admin password to 'password'
-DO $$
-DECLARE
-  v_rec RECORD;
-BEGIN
-  -- Reset admin password and confirmation
-  UPDATE auth.users 
-  SET encrypted_password = crypt('password', gen_salt('bf', 10)),
-      email_confirmed_at = COALESCE(email_confirmed_at, now()),
-      updated_at = now()
-  WHERE email = 'mail@thestrategist.co.in';
-
-  FOR v_rec IN SELECT * FROM public.uct_profiles LOOP
-    -- Check if user ID already exists in auth.users
-    IF NOT EXISTS (SELECT 1 FROM auth.users WHERE id = v_rec.id) THEN
-      -- Check if email is already taken in auth.users
-      IF NOT EXISTS (SELECT 1 FROM auth.users WHERE email = v_rec.email) THEN
-        INSERT INTO auth.users (
-          id,
-          aud,
-          role,
-          email,
-          encrypted_password,
-          email_confirmed_at,
-          created_at,
-          updated_at,
-          raw_app_meta_data,
-          raw_user_meta_data
-        ) VALUES (
-          v_rec.id,
-          'authenticated',
-          'authenticated',
-          v_rec.email,
-          crypt('password', gen_salt('bf', 10)),
-          now(),
-          now(),
-          now(),
-          '{"provider":"email","providers":["email"]}'::jsonb,
-          '{"iss":"supabase"}'::jsonb
-        );
-      END IF;
     ELSE
-      -- Confirm email of existing user
+      -- Reset password and confirm email
+      RAISE NOTICE 'Resetting password and confirming email for: % (%)', v_rec.full_name, v_rec.email;
       UPDATE auth.users
-      SET email_confirmed_at = COALESCE(email_confirmed_at, now()),
+      SET encrypted_password = crypt('password', gen_salt('bf', 10)),
+          email_confirmed_at = COALESCE(email_confirmed_at, now()),
           updated_at = now()
       WHERE id = v_rec.id;
     END IF;
