@@ -66,7 +66,7 @@ BEGIN
         created_at,
         updated_at
       ) VALUES (
-        v_rec.id::text,
+        v_rec.id,
         v_rec.id,
         jsonb_build_object('sub', v_rec.id::text, 'email', v_rec.email),
         'email',
@@ -93,7 +93,7 @@ BEGIN
         created_at,
         updated_at
       ) VALUES (
-        v_rec.id::text,
+        v_rec.id,
         v_rec.id,
         jsonb_build_object('sub', v_rec.id::text, 'email', v_rec.email),
         'email',
