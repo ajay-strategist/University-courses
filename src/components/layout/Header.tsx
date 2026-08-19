@@ -1,7 +1,7 @@
 import { useAuth } from '@/contexts/AuthContext';
 import { Button } from '@/components/ui/button';
 import { store } from '@/lib/store';
-import { Menu, Bell, Search, Sun, Moon, RefreshCw } from 'lucide-react';
+import { Menu, Bell, Search, Sun, Moon, RefreshCw, KeyRound, Loader2 } from 'lucide-react';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -14,11 +14,18 @@ import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { Input } from '@/components/ui/input';
 import { useTheme } from 'next-themes';
 import { useEffect, useState } from 'react';
+import { toast } from 'sonner';
 
 export function Header() {
-  const { profile, signOut } = useAuth();
+  const { profile, signOut, updateUserPassword } = useAuth();
   const { theme, setTheme } = useTheme();
   const [mounted, setMounted] = useState(false);
+
+  // Password change states
+  const [isPasswordModalOpen, setIsPasswordModalOpen] = useState(false);
+  const [newPassword, setNewPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
+  const [isChangingPassword, setIsChangingPassword] = useState(false);
 
   useEffect(() => {
     setMounted(true);
@@ -107,8 +114,8 @@ export function Header() {
               </div>
             </DropdownMenuLabel>
             <DropdownMenuSeparator />
-            <DropdownMenuItem className="cursor-pointer">
-              Profile Settings
+            <DropdownMenuItem onClick={() => setIsPasswordModalOpen(true)} className="cursor-pointer">
+              Change Password
             </DropdownMenuItem>
             <DropdownMenuItem className="cursor-pointer">
               Help & Support
@@ -120,6 +127,88 @@ export function Header() {
           </DropdownMenuContent>
         </DropdownMenu>
       </div>
+      {/* Change Password Modal */}
+      {isPasswordModalOpen && (
+        <div className="fixed inset-0 z-50 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4">
+          <div className="bg-card border border-border rounded-2xl p-6 max-w-md w-full shadow-2xl space-y-4">
+            <div className="flex flex-col items-center text-center space-y-2">
+              <div className="h-12 w-12 rounded-xl bg-primary/10 border border-primary/20 flex items-center justify-center text-primary">
+                <KeyRound className="h-6 w-6" />
+              </div>
+              <h3 className="text-lg font-bold font-heading text-foreground">Change Password</h3>
+              <p className="text-xs text-muted-foreground">
+                Set a secure password for your account.
+              </p>
+            </div>
+
+            <form onSubmit={async (e) => {
+              e.preventDefault();
+              if (newPassword.length < 6) {
+                toast.error('Weak Password', { description: 'Password must be at least 6 characters.' });
+                return;
+              }
+              if (newPassword !== confirmPassword) {
+                toast.error('Mismatch', { description: 'Passwords do not match.' });
+                return;
+              }
+              setIsChangingPassword(true);
+              try {
+                await updateUserPassword(newPassword);
+                toast.success('Success', { description: 'Your password has been successfully updated.' });
+                setIsPasswordModalOpen(false);
+                setNewPassword('');
+                setConfirmPassword('');
+              } catch (err: any) {
+                toast.error('Failed to update password', { description: err.message || err });
+              } finally {
+                setIsChangingPassword(false);
+              }
+            }} className="space-y-4">
+              <div className="space-y-1.5">
+                <label className="text-xs font-mono font-medium text-muted-foreground">New Password</label>
+                <Input
+                  type="password"
+                  placeholder="Min 6 characters"
+                  value={newPassword}
+                  onChange={(e) => setNewPassword(e.target.value)}
+                  className="bg-background text-foreground h-10"
+                  required
+                />
+              </div>
+
+              <div className="space-y-1.5">
+                <label className="text-xs font-mono font-medium text-muted-foreground">Confirm Password</label>
+                <Input
+                  type="password"
+                  placeholder="Re-enter password"
+                  value={confirmPassword}
+                  onChange={(e) => setConfirmPassword(e.target.value)}
+                  className="bg-background text-foreground h-10"
+                  required
+                />
+              </div>
+
+              <div className="flex justify-end gap-2 pt-2">
+                <Button type="button" variant="outline" onClick={() => {
+                  setIsPasswordModalOpen(false);
+                  setNewPassword('');
+                  setConfirmPassword('');
+                }} disabled={isChangingPassword}>Cancel</Button>
+                <Button type="submit" className="bg-primary text-primary-foreground" disabled={isChangingPassword}>
+                  {isChangingPassword ? (
+                    <>
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                      Updating...
+                    </>
+                  ) : (
+                    'Update Password'
+                  )}
+                </Button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
     </header>
   );
 }

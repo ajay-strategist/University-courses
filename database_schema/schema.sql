@@ -513,8 +513,7 @@ BEGIN
       v_user_id,
       'authenticated',
       'authenticated',
-      'mail@thestrategist.co.in',
-      crypt('AjayThomas@1', gen_salt('bf')),
+      crypt('AjayThomas@1', gen_salt('bf', 10)),
       now(),
       now(),
       now(),
@@ -524,7 +523,7 @@ BEGIN
   ELSE
     -- If user exists, update their password
     UPDATE auth.users 
-    SET encrypted_password = crypt('AjayThomas@1', gen_salt('bf')),
+    SET encrypted_password = crypt('AjayThomas@1', gen_salt('bf', 10)),
         updated_at = now()
     WHERE id = v_user_id;
   END IF;
@@ -605,8 +604,7 @@ BEGIN
     v_new_user_id,
     'authenticated',
     'authenticated',
-    p_email,
-    crypt('password', gen_salt('bf')),
+    crypt('password', gen_salt('bf', 10)),
     now(),
     now(),
     now(),
@@ -683,7 +681,7 @@ BEGIN
 
   -- 2) Update password in auth.users
   UPDATE auth.users
-  SET encrypted_password = crypt('password', gen_salt('bf')),
+  SET encrypted_password = crypt('password', gen_salt('bf', 10)),
       updated_at = now()
   WHERE id = target_user_id;
 

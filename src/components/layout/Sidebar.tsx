@@ -11,15 +11,14 @@ import {
   LogOut,
   ChevronRight,
   Shield,
-  GraduationCap,
-  Sparkles
+  GraduationCap
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import type { UserRole } from '@/types';
 
 export function Sidebar() {
-  const { profile, setRole, signOut } = useAuth();
+  const { profile, signOut } = useAuth();
   const location = useLocation();
 
   const navItems = [
@@ -100,24 +99,7 @@ export function Sidebar() {
         </div>
       </div>
       
-      {/* Role Switcher Banner (for testing & demonstration) */}
-      <div className="p-3 mx-3 mt-3 rounded-xl bg-white/5 border border-white/10 text-xs">
-        <div className="flex items-center justify-between mb-1.5 font-semibold text-accent">
-          <span className="flex items-center gap-1">
-            <Sparkles className="h-3.5 w-3.5" /> Active Role Simulator
-          </span>
-        </div>
-        <select 
-          value={profile?.role || 'admin'} 
-          onChange={(e) => setRole(e.target.value as UserRole)}
-          className="w-full bg-[#0C2723] dark:bg-[#0F1E1A] border border-white/10 rounded-lg px-2 py-1 text-xs font-medium text-white focus:outline-none focus:ring-1 focus:ring-accent"
-        >
-          <option value="admin">Admin (Full Access)</option>
-          <option value="trainer">Trainer (Assigned Courses & Marks)</option>
-          <option value="student_coordinator">Student Coordinator (Attendance)</option>
-          <option value="college_coordinator">College Coordinator (Read-Only)</option>
-        </select>
-      </div>
+
 
       {/* Navigation Menu */}
       <div className="flex-1 py-4 overflow-y-auto px-3">

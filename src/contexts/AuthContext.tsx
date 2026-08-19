@@ -48,36 +48,15 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
           if (data && mounted) {
             setProfile(data as Profile);
           } else if (mounted) {
-            setProfile(store.profiles[0] || null);
+            setProfile(null);
           }
-        } else if (mounted && localStorage.getItem('acts_demo_mode') === 'true') {
-          // Fallback to active demo profile (Admin default) if demo mode is explicitly enabled
-          const defaultProfile = store.profiles[0] || {
-            id: 'usr-admin-temp',
-            email: 'admin@university.edu',
-            full_name: 'Demo Admin',
-            role: 'admin',
-          };
-          setProfile(defaultProfile);
-          setUser({ id: defaultProfile.id, email: defaultProfile.email } as User);
-          setSession({ user: { id: defaultProfile.id } } as Session);
         } else if (mounted) {
           setSession(null);
           setUser(null);
           setProfile(null);
         }
       } catch {
-        if (mounted && localStorage.getItem('acts_demo_mode') === 'true') {
-          const defaultProfile = store.profiles[0] || {
-            id: 'usr-admin-temp',
-            email: 'admin@university.edu',
-            full_name: 'Demo Admin',
-            role: 'admin',
-          };
-          setProfile(defaultProfile);
-          setUser({ id: defaultProfile.id, email: defaultProfile.email } as User);
-          setSession({ user: { id: defaultProfile.id } } as Session);
-        } else if (mounted) {
+        if (mounted) {
           setSession(null);
           setUser(null);
           setProfile(null);
@@ -98,14 +77,12 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
         if (data) {
           setProfile(data as Profile);
         } else {
-          setProfile(store.profiles[0] || null);
-        }
-      } else {
-        if (localStorage.getItem('acts_demo_mode') !== 'true') {
-          setSession(null);
-          setUser(null);
           setProfile(null);
         }
+      } else {
+        setSession(null);
+        setUser(null);
+        setProfile(null);
       }
     });
 
@@ -115,18 +92,11 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     };
   }, []);
 
-  const setRole = (role: UserRole) => {
-    const matched = store.profiles.find(p => p.role === role) || {
-      id: `usr-${role}-temp`,
-      email: `${role}@university.edu`,
-      full_name: `Demo ${role.replace('_', ' ').toUpperCase()}`,
-      role,
-    };
-    setProfile(matched);
+  const setRole = (_role: UserRole) => {
+    // No-op: Demo role simulation removed
   };
 
   const signOut = async () => {
-    localStorage.setItem('acts_demo_mode', 'false');
     await supabase.auth.signOut();
     setSession(null);
     setUser(null);
