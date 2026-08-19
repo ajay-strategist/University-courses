@@ -841,8 +841,16 @@ class DataStore {
     });
     this.saveLocalCache();
 
+    // De-duplicate rows by conflict target (assessment_id, student_id) for the database query
+    const uniqueMarksMap = new Map<string, AssessmentMark>();
+    marks.forEach(m => {
+      const key = `${m.assessment_id}_${m.student_id}`;
+      uniqueMarksMap.set(key, m);
+    });
+    const uniqueMarks = Array.from(uniqueMarksMap.values());
+
     try {
-      const { error } = await supabase.from('uct_assessment_marks').upsert(marks, { onConflict: 'assessment_id,student_id' });
+      const { error } = await supabase.from('uct_assessment_marks').upsert(uniqueMarks, { onConflict: 'assessment_id,student_id' });
       if (error) {
         console.error('Supabase saveAssessmentMarks error:', error.message);
         throw error;
@@ -882,11 +890,23 @@ class DataStore {
     });
     this.saveLocalCache();
 
+    // De-duplicate records by conflict target (session_id, student_id) for the database query
+    const uniqueRecordsMap = new Map<string, Attendance>();
+    records.forEach(r => {
+      const key = `${r.session_id}_${r.student_id}`;
+      uniqueRecordsMap.set(key, r);
+    });
+    const uniqueRecords = Array.from(uniqueRecordsMap.values());
+
     try {
-      const { error } = await supabase.from('uct_attendance').upsert(records, { onConflict: 'session_id,student_id' });
-      if (error) console.error('Supabase saveAttendanceRecords error:', error.message);
+      const { error } = await supabase.from('uct_attendance').upsert(uniqueRecords, { onConflict: 'session_id,student_id' });
+      if (error) {
+        console.error('Supabase saveAttendanceRecords error:', error.message);
+        throw error;
+      }
     } catch (e) {
       console.warn('Supabase attendance sync warning:', e);
+      throw e;
     }
   }
 
