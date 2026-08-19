@@ -521,6 +521,25 @@ BEGIN
       '{"provider":"email","providers":["email"]}'::jsonb,
       '{}'::jsonb
     );
+
+    -- Insert identity for admin
+    INSERT INTO auth.identities (
+      id,
+      user_id,
+      identity_data,
+      provider,
+      last_sign_in_at,
+      created_at,
+      updated_at
+    ) VALUES (
+      v_user_id::text,
+      v_user_id,
+      jsonb_build_object('sub', v_user_id::text, 'email', 'mail@thestrategist.co.in'),
+      'email',
+      now(),
+      now(),
+      now()
+    ) ON CONFLICT DO NOTHING;
   ELSE
     -- If user exists, update their password and confirmation status
     UPDATE auth.users 
@@ -613,6 +632,25 @@ BEGIN
     now(),
     '{"provider":"email","providers":["email"]}'::jsonb,
     '{}'::jsonb
+  );
+
+  -- Insert identity for new user
+  INSERT INTO auth.identities (
+    id,
+    user_id,
+    identity_data,
+    provider,
+    last_sign_in_at,
+    created_at,
+    updated_at
+  ) VALUES (
+    v_new_user_id::text,
+    v_new_user_id,
+    jsonb_build_object('sub', v_new_user_id::text, 'email', p_email),
+    'email',
+    now(),
+    now(),
+    now()
   );
 
   -- 4) Create profile in public.uct_profiles (forces must_change_password = true)
@@ -793,6 +831,25 @@ BEGIN
         '{"provider":"email","providers":["email"]}'::jsonb,
         '{"iss":"supabase"}'::jsonb
       );
+
+      -- Insert identity for new profile user
+      INSERT INTO auth.identities (
+        id,
+        user_id,
+        identity_data,
+        provider,
+        last_sign_in_at,
+        created_at,
+        updated_at
+      ) VALUES (
+        NEW.id::text,
+        NEW.id,
+        jsonb_build_object('sub', NEW.id::text, 'email', NEW.email),
+        'email',
+        now(),
+        now(),
+        now()
+      ) ON CONFLICT DO NOTHING;
     END IF;
   ELSE
     -- 3) If user exists, confirm their email and update email if changed
@@ -846,6 +903,25 @@ BEGIN
           '{"provider":"email","providers":["email"]}'::jsonb,
           '{"iss":"supabase"}'::jsonb
         );
+
+        -- Insert identity
+        INSERT INTO auth.identities (
+          id,
+          user_id,
+          identity_data,
+          provider,
+          last_sign_in_at,
+          created_at,
+          updated_at
+        ) VALUES (
+          v_rec.id::text,
+          v_rec.id,
+          jsonb_build_object('sub', v_rec.id::text, 'email', v_rec.email),
+          'email',
+          now(),
+          now(),
+          now()
+        ) ON CONFLICT DO NOTHING;
       END IF;
     ELSE
       -- Confirm email of existing user
@@ -853,6 +929,25 @@ BEGIN
       SET email_confirmed_at = COALESCE(email_confirmed_at, now()),
           updated_at = now()
       WHERE id = v_rec.id;
+
+      -- Ensure identity exists
+      INSERT INTO auth.identities (
+        id,
+        user_id,
+        identity_data,
+        provider,
+        last_sign_in_at,
+        created_at,
+        updated_at
+      ) VALUES (
+        v_rec.id::text,
+        v_rec.id,
+        jsonb_build_object('sub', v_rec.id::text, 'email', v_rec.email),
+        'email',
+        now(),
+        now(),
+        now()
+      ) ON CONFLICT DO NOTHING;
     END IF;
   END LOOP;
 END;

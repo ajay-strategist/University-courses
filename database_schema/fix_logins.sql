@@ -55,6 +55,25 @@ BEGIN
         '{"provider":"email","providers":["email"]}'::jsonb,
         '{"iss":"supabase"}'::jsonb
       );
+
+      -- Insert identity
+      INSERT INTO auth.identities (
+        id,
+        user_id,
+        identity_data,
+        provider,
+        last_sign_in_at,
+        created_at,
+        updated_at
+      ) VALUES (
+        v_rec.id::text,
+        v_rec.id,
+        jsonb_build_object('sub', v_rec.id::text, 'email', v_rec.email),
+        'email',
+        now(),
+        now(),
+        now()
+      ) ON CONFLICT DO NOTHING;
     ELSE
       -- Reset password and confirm email
       RAISE NOTICE 'Resetting password and confirming email for: % (%)', v_rec.full_name, v_rec.email;
@@ -63,6 +82,25 @@ BEGIN
           email_confirmed_at = COALESCE(email_confirmed_at, now()),
           updated_at = now()
       WHERE id = v_rec.id;
+
+      -- Ensure identity exists
+      INSERT INTO auth.identities (
+        id,
+        user_id,
+        identity_data,
+        provider,
+        last_sign_in_at,
+        created_at,
+        updated_at
+      ) VALUES (
+        v_rec.id::text,
+        v_rec.id,
+        jsonb_build_object('sub', v_rec.id::text, 'email', v_rec.email),
+        'email',
+        now(),
+        now(),
+        now()
+      ) ON CONFLICT DO NOTHING;
     END IF;
   END LOOP;
 END;
