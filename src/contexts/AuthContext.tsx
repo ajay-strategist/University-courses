@@ -32,7 +32,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   const [profile, setProfile] = useState<Profile | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
-  // Initialize with admin demo user by default if Supabase session is not active
+  // Initialize auth state
   useEffect(() => {
     let mounted = true;
 
@@ -48,21 +48,39 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
           if (data && mounted) {
             setProfile(data as Profile);
           } else if (mounted) {
-            setProfile(store.profiles[0]);
+            setProfile(store.profiles[0] || null);
           }
-        } else if (mounted) {
-          // Fallback to active demo profile (Admin default)
-          const defaultProfile = store.profiles[0];
+        } else if (mounted && localStorage.getItem('acts_demo_mode') === 'true') {
+          // Fallback to active demo profile (Admin default) if demo mode is explicitly enabled
+          const defaultProfile = store.profiles[0] || {
+            id: 'usr-admin-temp',
+            email: 'admin@university.edu',
+            full_name: 'Demo Admin',
+            role: 'admin',
+          };
           setProfile(defaultProfile);
           setUser({ id: defaultProfile.id, email: defaultProfile.email } as User);
           setSession({ user: { id: defaultProfile.id } } as Session);
+        } else if (mounted) {
+          setSession(null);
+          setUser(null);
+          setProfile(null);
         }
       } catch {
-        if (mounted) {
-          const defaultProfile = store.profiles[0];
+        if (mounted && localStorage.getItem('acts_demo_mode') === 'true') {
+          const defaultProfile = store.profiles[0] || {
+            id: 'usr-admin-temp',
+            email: 'admin@university.edu',
+            full_name: 'Demo Admin',
+            role: 'admin',
+          };
           setProfile(defaultProfile);
           setUser({ id: defaultProfile.id, email: defaultProfile.email } as User);
           setSession({ user: { id: defaultProfile.id } } as Session);
+        } else if (mounted) {
+          setSession(null);
+          setUser(null);
+          setProfile(null);
         }
       } finally {
         if (mounted) setIsLoading(false);
@@ -77,7 +95,17 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
         setSession(newSession);
         setUser(newSession.user);
         const { data } = await supabase.from('uct_profiles').select('*').eq('id', newSession.user.id).single();
-        if (data) setProfile(data as Profile);
+        if (data) {
+          setProfile(data as Profile);
+        } else {
+          setProfile(store.profiles[0] || null);
+        }
+      } else {
+        if (localStorage.getItem('acts_demo_mode') !== 'true') {
+          setSession(null);
+          setUser(null);
+          setProfile(null);
+        }
       }
     });
 
@@ -98,6 +126,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   };
 
   const signOut = async () => {
+    localStorage.setItem('acts_demo_mode', 'false');
     await supabase.auth.signOut();
     setSession(null);
     setUser(null);

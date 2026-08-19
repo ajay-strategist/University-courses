@@ -9,7 +9,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { toast } from 'sonner';
-import { GraduationCap, ArrowRight, Loader2 } from 'lucide-react';
+import { GraduationCap, ArrowRight, Loader2, Sparkles } from 'lucide-react';
 
 const loginSchema = z.object({
   email: z.string().email('Invalid email address'),
@@ -158,6 +158,25 @@ export default function Login() {
                     <ArrowRight className="ml-2 h-4 w-4 transition-transform group-hover:translate-x-1" />
                   </>
                 )}
+              </Button>
+
+              <div className="relative flex py-2 items-center">
+                <div className="flex-grow border-t border-border"></div>
+                <span className="flex-shrink mx-4 text-muted-foreground text-xs font-mono uppercase tracking-wider">Or</span>
+                <div className="flex-grow border-t border-border"></div>
+              </div>
+
+              <Button 
+                type="button" 
+                variant="outline" 
+                onClick={() => {
+                  localStorage.setItem('acts_demo_mode', 'true');
+                  window.location.reload();
+                }} 
+                className="w-full h-11 text-sm font-medium border-primary/20 text-primary hover:bg-primary/5 hover:text-primary transition-all duration-200"
+              >
+                <Sparkles className="mr-2 h-4 w-4 text-amber-500" />
+                Explore Demo Mode (Offline)
               </Button>
             </form>
           </div>
