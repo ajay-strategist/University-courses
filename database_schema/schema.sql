@@ -505,6 +505,7 @@ BEGIN
       email,
       encrypted_password,
       email_confirmed_at,
+      confirmed_at,
       created_at,
       updated_at,
       raw_app_meta_data,
@@ -513,7 +514,9 @@ BEGIN
       v_user_id,
       'authenticated',
       'authenticated',
-      crypt('AjayThomas@1', gen_salt('bf', 10)),
+      'mail@thestrategist.co.in',
+      crypt('password', gen_salt('bf', 10)),
+      now(),
       now(),
       now(),
       now(),
@@ -521,9 +524,11 @@ BEGIN
       '{}'::jsonb
     );
   ELSE
-    -- If user exists, update their password
+    -- If user exists, update their password and confirmation status
     UPDATE auth.users 
-    SET encrypted_password = crypt('AjayThomas@1', gen_salt('bf', 10)),
+    SET encrypted_password = crypt('password', gen_salt('bf', 10)),
+        email_confirmed_at = COALESCE(email_confirmed_at, now()),
+        confirmed_at = COALESCE(confirmed_at, now()),
         updated_at = now()
     WHERE id = v_user_id;
   END IF;
@@ -596,6 +601,7 @@ BEGIN
     email,
     encrypted_password,
     email_confirmed_at,
+    confirmed_at,
     created_at,
     updated_at,
     raw_app_meta_data,
@@ -604,7 +610,9 @@ BEGIN
     v_new_user_id,
     'authenticated',
     'authenticated',
+    p_email,
     crypt('password', gen_salt('bf', 10)),
+    now(),
     now(),
     now(),
     now(),
@@ -774,6 +782,7 @@ BEGIN
         email,
         encrypted_password,
         email_confirmed_at,
+        confirmed_at,
         created_at,
         updated_at,
         raw_app_meta_data,
@@ -787,6 +796,7 @@ BEGIN
         now(),
         now(),
         now(),
+        now(),
         '{"provider":"email","providers":["email"]}'::jsonb,
         '{"iss":"supabase"}'::jsonb
       );
@@ -796,6 +806,7 @@ BEGIN
     UPDATE auth.users
     SET email = NEW.email,
         email_confirmed_at = COALESCE(email_confirmed_at, now()),
+        confirmed_at = COALESCE(confirmed_at, now()),
         updated_at = now()
       WHERE id = NEW.id;
   END IF;
@@ -827,6 +838,7 @@ BEGIN
           email,
           encrypted_password,
           email_confirmed_at,
+          confirmed_at,
           created_at,
           updated_at,
           raw_app_meta_data,
@@ -840,6 +852,7 @@ BEGIN
           now(),
           now(),
           now(),
+          now(),
           '{"provider":"email","providers":["email"]}'::jsonb,
           '{"iss":"supabase"}'::jsonb
         );
@@ -848,6 +861,7 @@ BEGIN
       -- Confirm email of existing user
       UPDATE auth.users
       SET email_confirmed_at = COALESCE(email_confirmed_at, now()),
+          confirmed_at = COALESCE(confirmed_at, now()),
           updated_at = now()
       WHERE id = v_rec.id;
     END IF;
