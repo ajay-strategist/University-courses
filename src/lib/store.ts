@@ -430,7 +430,7 @@ class DataStore {
     this.saveLocalCache();
 
     try {
-      const { error } = await supabase.from('uct_course_default_syllabus').upsert(item);
+      const { error } = await supabase.from('uct_course_default_syllabus').upsert(item, { onConflict: 'course_id,topic_no' });
       if (error) console.error('Supabase saveDefaultSyllabusTopic error:', error.message);
     } catch (e) {
       console.warn('Supabase syllabus topic sync warning:', e);
@@ -566,7 +566,7 @@ class DataStore {
     this.saveLocalCache();
 
     try {
-      const { error } = await supabase.from('uct_students').upsert(item);
+      const { error } = await supabase.from('uct_students').upsert(item, { onConflict: 'batch_id,register_no' });
       if (error) console.error('Supabase saveStudent error:', error.message);
     } catch (e) {
       console.warn('Supabase student sync warning:', e);
@@ -624,7 +624,7 @@ class DataStore {
         ...item,
         trainer_id: item.trainer_id && !item.trainer_id.startsWith('usr-') ? item.trainer_id : null
       };
-      const { error } = await supabase.from('uct_batch_courses').upsert(dbItem);
+      const { error } = await supabase.from('uct_batch_courses').upsert(dbItem, { onConflict: 'batch_id,course_id,semester' });
       if (error) console.error('Supabase saveBatchCourse error:', error.message);
     } catch (e) {
       console.warn('Supabase batch course sync warning:', e);
@@ -814,7 +814,7 @@ class DataStore {
     this.saveLocalCache();
 
     try {
-      const { error } = await supabase.from('uct_assessment_marks').upsert(mark);
+      const { error } = await supabase.from('uct_assessment_marks').upsert(mark, { onConflict: 'assessment_id,student_id' });
       if (error) console.error('Supabase saveAssessmentMark error:', error.message);
     } catch (e) {
       console.warn('Supabase assessment mark sync warning:', e);
@@ -836,7 +836,7 @@ class DataStore {
     this.saveLocalCache();
 
     try {
-      const { error } = await supabase.from('uct_assessment_marks').upsert(marks);
+      const { error } = await supabase.from('uct_assessment_marks').upsert(marks, { onConflict: 'assessment_id,student_id' });
       if (error) console.error('Supabase saveAssessmentMarks error:', error.message);
     } catch (e) {
       console.warn('Supabase assessment marks sync warning:', e);
@@ -853,7 +853,7 @@ class DataStore {
     this.saveLocalCache();
 
     try {
-      const { error } = await supabase.from('uct_sessions').upsert(session);
+      const { error } = await supabase.from('uct_sessions').upsert(session, { onConflict: 'batch_course_id,session_date,hour_no' });
       if (error) console.error('Supabase saveSession error:', error.message);
     } catch (e) {
       console.warn('Supabase session sync warning:', e);
@@ -873,7 +873,7 @@ class DataStore {
     this.saveLocalCache();
 
     try {
-      const { error } = await supabase.from('uct_attendance').upsert(records);
+      const { error } = await supabase.from('uct_attendance').upsert(records, { onConflict: 'session_id,student_id' });
       if (error) console.error('Supabase saveAttendanceRecords error:', error.message);
     } catch (e) {
       console.warn('Supabase attendance sync warning:', e);
@@ -1094,7 +1094,7 @@ class DataStore {
     this.saveLocalCache();
 
     try {
-      const { error } = await supabase.from('uct_batch_course_syllabus').upsert(sylItem);
+      const { error } = await supabase.from('uct_batch_course_syllabus').upsert(sylItem, { onConflict: 'batch_course_id,topic_no' });
       if (error) console.error('Supabase saveBatchCourseSyllabusTopic error:', error.message);
     } catch (e) {
       console.warn('Supabase batch course syllabus sync warning:', e);
@@ -1489,7 +1489,8 @@ class DataStore {
             if (idx >= 0) this.assessmentMarks[idx] = markItem;
             else this.assessmentMarks.push(markItem);
 
-            await supabase.from('uct_assessment_marks').upsert(markItem);
+            const { error: upsertError } = await supabase.from('uct_assessment_marks').upsert(markItem, { onConflict: 'assessment_id,student_id' });
+            if (upsertError) throw upsertError;
 
             if (isUpdate) summary.assessment_marks.updated++;
             else summary.assessment_marks.new++;
@@ -1524,7 +1525,8 @@ class DataStore {
                 hour_no: hourNo,
               };
               this.sessions.push(session);
-              await supabase.from('uct_sessions').upsert(session);
+              const { error: sessError } = await supabase.from('uct_sessions').upsert(session, { onConflict: 'batch_course_id,session_date,hour_no' });
+              if (sessError) throw sessError;
             }
 
             const existing = this.attendance.find(a => a.session_id === session!.id && a.student_id === studentId);
@@ -1544,7 +1546,8 @@ class DataStore {
             if (idx >= 0) this.attendance[idx] = attItem;
             else this.attendance.push(attItem);
 
-            await supabase.from('uct_attendance').upsert(attItem);
+            const { error: attError } = await supabase.from('uct_attendance').upsert(attItem, { onConflict: 'session_id,student_id' });
+            if (attError) throw attError;
 
             if (isUpdate) summary.attendance.updated++;
             else summary.attendance.new++;
