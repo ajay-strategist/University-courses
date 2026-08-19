@@ -699,7 +699,10 @@ BEGIN
     RAISE EXCEPTION 'You cannot delete your own admin account';
   END IF;
 
-  -- 2) Delete user (cascades to uct_profiles)
+  -- 2) Delete profile first (no FK cascade from auth.users to uct_profiles)
+  DELETE FROM public.uct_profiles WHERE id = target_user_id;
+
+  -- 3) Delete auth user
   DELETE FROM auth.users WHERE id = target_user_id;
 END;
 $$;
