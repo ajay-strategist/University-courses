@@ -10,7 +10,6 @@ SECURITY DEFINER
 SET search_path = public
 AS $$
 BEGIN
-  -- 1) Verify caller is an admin
   IF NOT EXISTS (
     SELECT 1 FROM public.uct_profiles
     WHERE id = auth.uid() AND role = 'admin'
@@ -18,21 +17,18 @@ BEGIN
     RAISE EXCEPTION 'Only administrators can delete users';
   END IF;
 
-  -- Prevent deleting oneself
   IF target_user_id = auth.uid() THEN
     RAISE EXCEPTION 'You cannot delete your own admin account';
   END IF;
 
-  -- 2) Delete profile first (uct_profiles has no FK cascade from auth.users)
+  -- Delete profile first (uct_profiles has no FK cascade from auth.users)
   DELETE FROM public.uct_profiles WHERE id = target_user_id;
-
-  -- 3) Delete auth user
+  -- Then delete auth user
   DELETE FROM auth.users WHERE id = target_user_id;
 END;
 $$;
 
 -- ── STEP 2: Fix / sync logins for all profiles ────────────────────────────────────
-
 DO $$
 DECLARE
   v_rec RECORD;
@@ -40,66 +36,42 @@ DECLARE
 BEGIN
   -- 1) Fix any ID mismatches between public.uct_profiles and auth.users
   FOR v_rec IN SELECT * FROM public.uct_profiles LOOP
-    -- Check if the email exists in auth.users under a DIFFERENT ID
     SELECT id INTO v_auth_id FROM auth.users WHERE email = v_rec.email;
-    
     IF v_auth_id IS NOT NULL AND v_auth_id <> v_rec.id THEN
-      RAISE NOTICE 'ID Mismatch for email %: profile ID %, auth ID %. Aligning profile ID to match auth ID.', v_rec.email, v_rec.id, v_auth_id;
-      
-      -- Update referencing tables to prevent foreign key violations
+      RAISE NOTICE 'ID Mismatch for %: aligning profile % -> auth %', v_rec.email, v_rec.id, v_auth_id;
       UPDATE public.uct_batches SET student_coordinator_id = v_auth_id WHERE student_coordinator_id = v_rec.id;
       UPDATE public.uct_batch_courses SET trainer_id = v_auth_id WHERE trainer_id = v_rec.id;
       UPDATE public.uct_trainer_logs SET trainer_id = v_auth_id WHERE trainer_id = v_rec.id;
       UPDATE public.uct_migration_runs SET uploaded_by = v_auth_id WHERE uploaded_by = v_rec.id;
       UPDATE public.uct_migration_mappings SET owner_id = v_auth_id WHERE owner_id = v_rec.id;
-      
-      -- Update uct_profiles primary key to match auth.users ID
       UPDATE public.uct_profiles SET id = v_auth_id WHERE id = v_rec.id;
     END IF;
   END LOOP;
 
-  -- 2) Ensure all profiles have a login account with password 'password' and confirmed email
+  -- 2) Reset passwords, confirm emails, and fix identity records for ALL profiles
   FOR v_rec IN SELECT * FROM public.uct_profiles LOOP
     IF NOT EXISTS (SELECT 1 FROM auth.users WHERE id = v_rec.id) THEN
-      RAISE NOTICE 'Creating missing auth user for: % (%)', v_rec.full_name, v_rec.email;
-      INSERT INTO auth.users (
-        id, aud, role, email, encrypted_password,
-        email_confirmed_at, created_at, updated_at,
-        raw_app_meta_data, raw_user_meta_data
-      ) VALUES (
-        v_rec.id, 'authenticated', 'authenticated', v_rec.email,
-        crypt('password', gen_salt('bf', 10)),
-        now(), now(), now(),
-        '{"provider":"email","providers":["email"]}'::jsonb,
-        '{"iss":"supabase"}'::jsonb
-      );
-
-      INSERT INTO auth.identities (
-        provider_id, user_id, identity_data, provider,
-        last_sign_in_at, created_at, updated_at
-      ) VALUES (
-        v_rec.id::text, v_rec.id,
-        jsonb_build_object('sub', v_rec.id::text, 'email', v_rec.email),
-        'email', now(), now(), now()
-      ) ON CONFLICT DO NOTHING;
-
+      -- Create missing auth user
+      RAISE NOTICE 'Creating auth user for: % (%)', v_rec.full_name, v_rec.email;
+      INSERT INTO auth.users (id, aud, role, email, encrypted_password, email_confirmed_at, created_at, updated_at, raw_app_meta_data, raw_user_meta_data)
+      VALUES (v_rec.id, 'authenticated', 'authenticated', v_rec.email, crypt('password', gen_salt('bf', 10)), now(), now(), now(),
+        '{"provider":"email","providers":["email"]}'::jsonb, '{"iss":"supabase"}'::jsonb);
     ELSE
-      RAISE NOTICE 'Resetting password and confirming email for: % (%)', v_rec.full_name, v_rec.email;
+      -- Reset password and confirm email for existing user
+      RAISE NOTICE 'Resetting credentials for: % (%)', v_rec.full_name, v_rec.email;
       UPDATE auth.users
       SET encrypted_password = crypt('password', gen_salt('bf', 10)),
           email_confirmed_at = COALESCE(email_confirmed_at, now()),
           updated_at = now()
       WHERE id = v_rec.id;
-
-      INSERT INTO auth.identities (
-        provider_id, user_id, identity_data, provider,
-        last_sign_in_at, created_at, updated_at
-      ) VALUES (
-        v_rec.id::text, v_rec.id,
-        jsonb_build_object('sub', v_rec.id::text, 'email', v_rec.email),
-        'email', now(), now(), now()
-      ) ON CONFLICT DO NOTHING;
     END IF;
+
+    -- Wipe stale identity rows for this user and re-insert a clean one
+    DELETE FROM auth.identities WHERE user_id = v_rec.id;
+    INSERT INTO auth.identities (provider_id, user_id, identity_data, provider, last_sign_in_at, created_at, updated_at)
+    VALUES (v_rec.id::text, v_rec.id, jsonb_build_object('sub', v_rec.id::text, 'email', v_rec.email), 'email', now(), now(), now());
+
+    RAISE NOTICE 'Done for: %', v_rec.email;
   END LOOP;
 END;
 $$;
