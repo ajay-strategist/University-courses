@@ -58,7 +58,7 @@ BEGIN
 
       -- Insert identity
       INSERT INTO auth.identities (
-        id,
+        provider_id,
         user_id,
         identity_data,
         provider,
@@ -66,7 +66,7 @@ BEGIN
         created_at,
         updated_at
       ) VALUES (
-        v_rec.id,
+        v_rec.id::text,
         v_rec.id,
         jsonb_build_object('sub', v_rec.id::text, 'email', v_rec.email),
         'email',
@@ -85,7 +85,7 @@ BEGIN
 
       -- Ensure identity exists
       INSERT INTO auth.identities (
-        id,
+        provider_id,
         user_id,
         identity_data,
         provider,
@@ -93,7 +93,7 @@ BEGIN
         created_at,
         updated_at
       ) VALUES (
-        v_rec.id,
+        v_rec.id::text,
         v_rec.id,
         jsonb_build_object('sub', v_rec.id::text, 'email', v_rec.email),
         'email',

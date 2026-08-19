@@ -524,7 +524,7 @@ BEGIN
 
     -- Insert identity for admin
     INSERT INTO auth.identities (
-      id,
+      provider_id,
       user_id,
       identity_data,
       provider,
@@ -532,7 +532,7 @@ BEGIN
       created_at,
       updated_at
     ) VALUES (
-      v_user_id,
+      v_user_id::text,
       v_user_id,
       jsonb_build_object('sub', v_user_id::text, 'email', 'mail@thestrategist.co.in'),
       'email',
@@ -636,7 +636,7 @@ BEGIN
 
   -- Insert identity for new user
   INSERT INTO auth.identities (
-    id,
+    provider_id,
     user_id,
     identity_data,
     provider,
@@ -644,7 +644,7 @@ BEGIN
     created_at,
     updated_at
   ) VALUES (
-    v_new_user_id,
+    v_new_user_id::text,
     v_new_user_id,
     jsonb_build_object('sub', v_new_user_id::text, 'email', p_email),
     'email',
@@ -834,7 +834,7 @@ BEGIN
 
       -- Insert identity for new profile user
       INSERT INTO auth.identities (
-        id,
+        provider_id,
         user_id,
         identity_data,
         provider,
@@ -842,7 +842,7 @@ BEGIN
         created_at,
         updated_at
       ) VALUES (
-        NEW.id,
+        NEW.id::text,
         NEW.id,
         jsonb_build_object('sub', NEW.id::text, 'email', NEW.email),
         'email',
@@ -906,7 +906,7 @@ BEGIN
 
         -- Insert identity
         INSERT INTO auth.identities (
-          id,
+          provider_id,
           user_id,
           identity_data,
           provider,
@@ -914,7 +914,7 @@ BEGIN
           created_at,
           updated_at
         ) VALUES (
-          v_rec.id,
+          v_rec.id::text,
           v_rec.id,
           jsonb_build_object('sub', v_rec.id::text, 'email', v_rec.email),
           'email',
@@ -932,7 +932,7 @@ BEGIN
 
       -- Ensure identity exists
       INSERT INTO auth.identities (
-        id,
+        provider_id,
         user_id,
         identity_data,
         provider,
@@ -940,7 +940,7 @@ BEGIN
         created_at,
         updated_at
       ) VALUES (
-        v_rec.id,
+        v_rec.id::text,
         v_rec.id,
         jsonb_build_object('sub', v_rec.id::text, 'email', v_rec.email),
         'email',
