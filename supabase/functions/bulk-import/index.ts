@@ -131,10 +131,25 @@ serve(async (req) => {
     const { data: attendance } = await adminClient.from("uct_attendance").select("id, session_id, student_id");
     const { data: assessmentMarks } = await adminClient.from("uct_assessment_marks").select("id, assessment_id, student_id");
 
+    const getConflictTarget = (table: string): string | undefined => {
+      switch (table) {
+        case "uct_course_default_syllabus": return "course_id,topic_no";
+        case "uct_students": return "batch_id,register_no";
+        case "uct_batch_courses": return "batch_id,course_id,semester";
+        case "uct_batch_course_syllabus": return "batch_course_id,topic_no";
+        case "uct_sessions": return "batch_course_id,session_date,hour_no";
+        case "uct_attendance": return "session_id,student_id";
+        case "uct_assessment_marks": return "assessment_id,student_id";
+        default: return undefined;
+      }
+    };
+
     // Upsert helper with error catching
     const runUpsert = async (table: string, item: any, isUpdate: boolean, countsKey: string) => {
       try {
-        const { data, error } = await adminClient.from(table).upsert(item).select("id").single();
+        const conflictTarget = getConflictTarget(table);
+        const upsertOptions = conflictTarget ? { onConflict: conflictTarget } : undefined;
+        const { data, error } = await adminClient.from(table).upsert(item, upsertOptions).select("id").single();
         if (error) throw error;
         if (isUpdate) summary[countsKey].updated++;
         else summary[countsKey].new++;

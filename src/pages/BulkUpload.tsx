@@ -956,41 +956,7 @@ export default function BulkUpload() {
         const { data: sessionData } = await supabase.auth.getSession();
         
         const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || '';
-        let useFallback = false;
-
-        try {
-          const response = await fetch(`${supabaseUrl}/functions/v1/bulk-import`, {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-              'Authorization': `Bearer ${sessionData.session?.access_token}`
-            },
-            body: JSON.stringify({
-              mode: uploadMode,
-              payload: parsedPayload,
-              skip_errored: skipErrored,
-              file_path: filePath
-            })
-          });
-
-          setCommitProgress(80);
-          if (!response.ok) {
-            if (response.status === 404) {
-              console.warn('Edge function bulk-import not found (404). Falling back to client-side import.');
-              useFallback = true;
-            } else {
-              const errRes = await response.json();
-              errorOccurred = true;
-              errorMsg = errRes.error || 'Server returned an error';
-            }
-          } else {
-            const resData = await response.json();
-            summaryCounts = resData.summary;
-          }
-        } catch (fetchErr: any) {
-          console.warn('Failed to contact Edge Function. Falling back to client-side import.', fetchErr);
-          useFallback = true;
-        }
+        let useFallback = true;
 
         if (useFallback) {
           toast.info('Edge function not available. Committing directly from client...');
