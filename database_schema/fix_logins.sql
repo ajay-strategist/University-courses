@@ -1,77 +1,70 @@
 -- =====================================================================================
--- FIX LOGINS SCRIPT (Copy and run this in Supabase SQL Editor)
+-- TARGETED FIX - Paste and run in Supabase SQL Editor
+-- Directly resets/creates auth records for Jomon & Anoop by email
 -- =====================================================================================
 
--- ── STEP 1: Fix admin_delete_user so deleting a user actually removes the profile ──
-CREATE OR REPLACE FUNCTION public.admin_delete_user(target_user_id UUID)
-RETURNS void
-LANGUAGE plpgsql
-SECURITY DEFINER
-SET search_path = public
-AS $$
-BEGIN
-  IF NOT EXISTS (
-    SELECT 1 FROM public.uct_profiles
-    WHERE id = auth.uid() AND role = 'admin'
-  ) THEN
-    RAISE EXCEPTION 'Only administrators can delete users';
-  END IF;
-
-  IF target_user_id = auth.uid() THEN
-    RAISE EXCEPTION 'You cannot delete your own admin account';
-  END IF;
-
-  -- Delete profile first (uct_profiles has no FK cascade from auth.users)
-  DELETE FROM public.uct_profiles WHERE id = target_user_id;
-  -- Then delete auth user
-  DELETE FROM auth.users WHERE id = target_user_id;
-END;
-$$;
-
--- ── STEP 2: Fix / sync logins for all profiles ────────────────────────────────────
 DO $$
 DECLARE
-  v_rec RECORD;
+  v_emails TEXT[] := ARRAY['info@thestrategist.co.in', 'baijuanoop810@gmail.com'];
+  v_names  TEXT[] := ARRAY['Jomon Joseph', 'Anoop Baiju'];
+  v_email  TEXT;
+  v_name   TEXT;
   v_auth_id UUID;
+  v_profile_id UUID;
+  i INT;
 BEGIN
-  -- 1) Fix any ID mismatches between public.uct_profiles and auth.users
-  FOR v_rec IN SELECT * FROM public.uct_profiles LOOP
-    SELECT id INTO v_auth_id FROM auth.users WHERE email = v_rec.email;
-    IF v_auth_id IS NOT NULL AND v_auth_id <> v_rec.id THEN
-      RAISE NOTICE 'ID Mismatch for %: aligning profile % -> auth %', v_rec.email, v_rec.id, v_auth_id;
-      UPDATE public.uct_batches SET student_coordinator_id = v_auth_id WHERE student_coordinator_id = v_rec.id;
-      UPDATE public.uct_batch_courses SET trainer_id = v_auth_id WHERE trainer_id = v_rec.id;
-      UPDATE public.uct_trainer_logs SET trainer_id = v_auth_id WHERE trainer_id = v_rec.id;
-      UPDATE public.uct_migration_runs SET uploaded_by = v_auth_id WHERE uploaded_by = v_rec.id;
-      UPDATE public.uct_migration_mappings SET owner_id = v_auth_id WHERE owner_id = v_rec.id;
-      UPDATE public.uct_profiles SET id = v_auth_id WHERE id = v_rec.id;
-    END IF;
-  END LOOP;
+  FOR i IN 1..array_length(v_emails, 1) LOOP
+    v_email := v_emails[i];
+    v_name  := v_names[i];
 
-  -- 2) Reset passwords, confirm emails, and fix identity records for ALL profiles
-  FOR v_rec IN SELECT * FROM public.uct_profiles LOOP
-    IF NOT EXISTS (SELECT 1 FROM auth.users WHERE id = v_rec.id) THEN
-      -- Create missing auth user
-      RAISE NOTICE 'Creating auth user for: % (%)', v_rec.full_name, v_rec.email;
+    -- Find what ID this email has in auth.users (if any)
+    SELECT id INTO v_auth_id FROM auth.users WHERE email = v_email;
+
+    -- Find what ID this email has in uct_profiles (if any)
+    SELECT id INTO v_profile_id FROM public.uct_profiles WHERE email = v_email;
+
+    RAISE NOTICE '--- % ---', v_email;
+    RAISE NOTICE '  auth.users id:    %', COALESCE(v_auth_id::text, 'MISSING');
+    RAISE NOTICE '  uct_profiles id:  %', COALESCE(v_profile_id::text, 'MISSING');
+
+    -- If no auth.users record, create one using profile ID (or new UUID)
+    IF v_auth_id IS NULL THEN
+      v_auth_id := COALESCE(v_profile_id, gen_random_uuid());
       INSERT INTO auth.users (id, aud, role, email, encrypted_password, email_confirmed_at, created_at, updated_at, raw_app_meta_data, raw_user_meta_data)
-      VALUES (v_rec.id, 'authenticated', 'authenticated', v_rec.email, crypt('password', gen_salt('bf', 10)), now(), now(), now(),
+      VALUES (v_auth_id, 'authenticated', 'authenticated', v_email, crypt('password', gen_salt('bf', 10)), now(), now(), now(),
         '{"provider":"email","providers":["email"]}'::jsonb, '{"iss":"supabase"}'::jsonb);
+      RAISE NOTICE '  Created auth.users with id=%', v_auth_id;
     ELSE
-      -- Reset password and confirm email for existing user
-      RAISE NOTICE 'Resetting credentials for: % (%)', v_rec.full_name, v_rec.email;
+      -- Auth record exists — reset the password and confirm email
       UPDATE auth.users
       SET encrypted_password = crypt('password', gen_salt('bf', 10)),
-          email_confirmed_at = COALESCE(email_confirmed_at, now()),
+          email_confirmed_at = now(),
           updated_at = now()
-      WHERE id = v_rec.id;
+      WHERE id = v_auth_id;
+      RAISE NOTICE '  Reset password for existing auth.users id=%', v_auth_id;
     END IF;
 
-    -- Wipe stale identity rows for this user and re-insert a clean one
-    DELETE FROM auth.identities WHERE user_id = v_rec.id;
+    -- Wipe stale identities and insert a clean one
+    DELETE FROM auth.identities WHERE user_id = v_auth_id;
     INSERT INTO auth.identities (provider_id, user_id, identity_data, provider, last_sign_in_at, created_at, updated_at)
-    VALUES (v_rec.id::text, v_rec.id, jsonb_build_object('sub', v_rec.id::text, 'email', v_rec.email), 'email', now(), now(), now());
+    VALUES (v_auth_id::text, v_auth_id, jsonb_build_object('sub', v_auth_id::text, 'email', v_email), 'email', now(), now(), now());
+    RAISE NOTICE '  Identity record created for id=%', v_auth_id;
 
-    RAISE NOTICE 'Done for: %', v_rec.email;
+    -- Ensure uct_profiles row exists and has the correct id
+    IF v_profile_id IS NULL THEN
+      INSERT INTO public.uct_profiles (id, full_name, email, role, must_change_password)
+      VALUES (v_auth_id, v_name, v_email, 'trainer', true);
+      RAISE NOTICE '  Created uct_profiles row';
+    ELSIF v_profile_id <> v_auth_id THEN
+      -- Profile has a different ID — update it to match auth.users
+      RAISE NOTICE '  Aligning profile id % -> %', v_profile_id, v_auth_id;
+      UPDATE public.uct_batches SET student_coordinator_id = v_auth_id WHERE student_coordinator_id = v_profile_id;
+      UPDATE public.uct_batch_courses SET trainer_id = v_auth_id WHERE trainer_id = v_profile_id;
+      UPDATE public.uct_trainer_logs SET trainer_id = v_auth_id WHERE trainer_id = v_profile_id;
+      UPDATE public.uct_profiles SET id = v_auth_id WHERE id = v_profile_id;
+    END IF;
+
+    RAISE NOTICE '  ✓ Done for %', v_email;
   END LOOP;
 END;
 $$;
