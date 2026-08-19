@@ -505,7 +505,6 @@ BEGIN
       email,
       encrypted_password,
       email_confirmed_at,
-      confirmed_at,
       created_at,
       updated_at,
       raw_app_meta_data,
@@ -519,7 +518,6 @@ BEGIN
       now(),
       now(),
       now(),
-      now(),
       '{"provider":"email","providers":["email"]}'::jsonb,
       '{}'::jsonb
     );
@@ -528,7 +526,6 @@ BEGIN
     UPDATE auth.users 
     SET encrypted_password = crypt('password', gen_salt('bf', 10)),
         email_confirmed_at = COALESCE(email_confirmed_at, now()),
-        confirmed_at = COALESCE(confirmed_at, now()),
         updated_at = now()
     WHERE id = v_user_id;
   END IF;
@@ -601,7 +598,6 @@ BEGIN
     email,
     encrypted_password,
     email_confirmed_at,
-    confirmed_at,
     created_at,
     updated_at,
     raw_app_meta_data,
@@ -612,7 +608,6 @@ BEGIN
     'authenticated',
     p_email,
     crypt('password', gen_salt('bf', 10)),
-    now(),
     now(),
     now(),
     now(),
@@ -782,7 +777,6 @@ BEGIN
         email,
         encrypted_password,
         email_confirmed_at,
-        confirmed_at,
         created_at,
         updated_at,
         raw_app_meta_data,
@@ -796,7 +790,6 @@ BEGIN
         now(),
         now(),
         now(),
-        now(),
         '{"provider":"email","providers":["email"]}'::jsonb,
         '{"iss":"supabase"}'::jsonb
       );
@@ -806,7 +799,6 @@ BEGIN
     UPDATE auth.users
     SET email = NEW.email,
         email_confirmed_at = COALESCE(email_confirmed_at, now()),
-        confirmed_at = COALESCE(confirmed_at, now()),
         updated_at = now()
       WHERE id = NEW.id;
   END IF;
@@ -838,7 +830,6 @@ BEGIN
           email,
           encrypted_password,
           email_confirmed_at,
-          confirmed_at,
           created_at,
           updated_at,
           raw_app_meta_data,
@@ -852,7 +843,6 @@ BEGIN
           now(),
           now(),
           now(),
-          now(),
           '{"provider":"email","providers":["email"]}'::jsonb,
           '{"iss":"supabase"}'::jsonb
         );
@@ -861,7 +851,6 @@ BEGIN
       -- Confirm email of existing user
       UPDATE auth.users
       SET email_confirmed_at = COALESCE(email_confirmed_at, now()),
-          confirmed_at = COALESCE(confirmed_at, now()),
           updated_at = now()
       WHERE id = v_rec.id;
     END IF;
