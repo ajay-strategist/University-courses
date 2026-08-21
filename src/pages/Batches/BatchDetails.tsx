@@ -275,22 +275,29 @@ export default function BatchDetails() {
       return;
     }
 
-    await store.saveTrainerLog({
-      ...editingTrainerLog,
-      log_date: editTrainerLogForm.log_date,
-      trainer_id: editTrainerLogForm.trainer_id || undefined,
-      start_time: editTrainerLogForm.start_time,
-      end_time: editTrainerLogForm.end_time,
-      duration_minutes: durationMins,
-      topics_covered: editTrainerLogTopics,
-      notes: editTrainerLogForm.notes || undefined,
-    });
+    try {
+      await store.saveTrainerLog({
+        ...editingTrainerLog,
+        log_date: editTrainerLogForm.log_date,
+        trainer_id: editTrainerLogForm.trainer_id || undefined,
+        start_time: editTrainerLogForm.start_time,
+        end_time: editTrainerLogForm.end_time,
+        duration_minutes: durationMins,
+        topics_covered: editTrainerLogTopics,
+        notes: editTrainerLogForm.notes || undefined,
+      });
 
-    setShowEditTrainerLogModal(false);
-    setEditingTrainerLog(null);
-    setEditTrainerLogSearch('');
-    setRefreshTrigger(r => r + 1);
-    toast.success('Session log updated successfully!');
+      setShowEditTrainerLogModal(false);
+      setEditingTrainerLog(null);
+      setEditTrainerLogSearch('');
+      setRefreshTrigger(r => r + 1);
+      toast.success('Session log updated successfully!');
+    } catch (err: any) {
+      console.error(err);
+      toast.error('Failed to update session log', {
+        description: err.message || 'Unknown database error',
+      });
+    }
   };
 
   const handleDeleteStudent = async (stuId: string, stuName: string) => {
@@ -1644,8 +1651,15 @@ export default function BatchDetails() {
                         max_mark: assessmentMaxMark,
                         assignment_category: assessmentCategory.trim() || undefined,
                       };
-                      await store.saveAssessment(updated);
-                      toast.success('Assessment details updated successfully!');
+                      try {
+                        await store.saveAssessment(updated);
+                        toast.success('Assessment details updated successfully!');
+                      } catch (err: any) {
+                        console.error(err);
+                        toast.error('Failed to update assessment details', {
+                          description: err.message || 'Unknown database error',
+                        });
+                      }
                     }
                   }}
                   className="h-8 px-3 bg-secondary text-secondary-foreground hover:bg-secondary/80 text-xs font-semibold"
@@ -2070,21 +2084,28 @@ export default function BatchDetails() {
             toast.error('End time must be after start time');
             return;
           }
-          await store.saveTrainerLog({
-            batch_course_id: selectedBatchCourseId,
-            trainer_id: trainerLogForm.trainer_id || batchTrainerId || undefined,
-            log_date: trainerLogForm.log_date,
-            start_time: trainerLogForm.start_time,
-            end_time: trainerLogForm.end_time,
-            duration_minutes: durationMins,
-            topics_covered: trainerLogTopics,
-            notes: trainerLogForm.notes || undefined,
-          });
-          setTrainerLogForm({ log_date: today, trainer_id: '', start_time: '', end_time: '', notes: '' });
-          setTrainerLogTopics([]);
-          setRefreshTrigger(r => r + 1);
-          const coveredCount = trainerLogTopics.length;
-          toast.success(`Session logged! ${coveredCount > 0 ? `${coveredCount} topic(s) marked as completed.` : 'No topics marked.'}`);
+          try {
+            await store.saveTrainerLog({
+              batch_course_id: selectedBatchCourseId,
+              trainer_id: trainerLogForm.trainer_id || batchTrainerId || undefined,
+              log_date: trainerLogForm.log_date,
+              start_time: trainerLogForm.start_time,
+              end_time: trainerLogForm.end_time,
+              duration_minutes: durationMins,
+              topics_covered: trainerLogTopics,
+              notes: trainerLogForm.notes || undefined,
+            });
+            setTrainerLogForm({ log_date: today, trainer_id: '', start_time: '', end_time: '', notes: '' });
+            setTrainerLogTopics([]);
+            setRefreshTrigger(r => r + 1);
+            const coveredCount = trainerLogTopics.length;
+            toast.success(`Session logged! ${coveredCount > 0 ? `${coveredCount} topic(s) marked as completed.` : 'No topics marked.'}`);
+          } catch (err: any) {
+            console.error(err);
+            toast.error('Failed to log session', {
+              description: err.message || 'Unknown database error',
+            });
+          }
         };
 
         return (
@@ -2705,10 +2726,17 @@ export default function BatchDetails() {
                   max_mark: assessmentForm.max_mark,
                   assignment_category: assessmentForm.assignment_category.trim() || undefined,
                 };
-                await store.saveAssessment(newAsm);
-                setSelectedAssessmentId(newAsm.id);
-                setShowAddAssessmentModal(false);
-                toast.success('Assessment created!');
+                try {
+                  await store.saveAssessment(newAsm);
+                  setSelectedAssessmentId(newAsm.id);
+                  setShowAddAssessmentModal(false);
+                  toast.success('Assessment created!');
+                } catch (err: any) {
+                  console.error(err);
+                  toast.error('Failed to create assessment', {
+                    description: err.message || 'Unknown database error',
+                  });
+                }
               }} className="bg-primary text-primary-foreground">Create Assessment</Button>
             </div>
           </div>

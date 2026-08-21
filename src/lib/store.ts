@@ -271,13 +271,13 @@ class DataStore {
         if (sylIdx >= 0) {
           this.batchSyllabus[sylIdx].is_completed = false;
           this.batchSyllabus[sylIdx].completed_date = undefined;
-          try {
-            await supabase.from('uct_batch_course_syllabus').update({
-              is_completed: false,
-              completed_date: null,
-            }).eq('id', topicId);
-          } catch (e) {
-            console.warn('Auto-uncomplete topic warning:', e);
+          const { error } = await supabase.from('uct_batch_course_syllabus').update({
+            is_completed: false,
+            completed_date: null,
+          }).eq('id', topicId);
+          if (error) {
+            console.error('Auto-uncomplete topic error:', error.message);
+            throw new Error(`Failed to update topic completion in database: ${error.message}`);
           }
         }
       }
@@ -289,28 +289,28 @@ class DataStore {
       if (sylIdx >= 0) {
         this.batchSyllabus[sylIdx].is_completed = true;
         this.batchSyllabus[sylIdx].completed_date = today;
-        try {
-          await supabase.from('uct_batch_course_syllabus').update({
-            is_completed: true,
-            completed_date: today,
-          }).eq('id', topicId);
-        } catch (e) {
-          console.warn('Auto-complete topic warning:', e);
+        const { error } = await supabase.from('uct_batch_course_syllabus').update({
+          is_completed: true,
+          completed_date: today,
+        }).eq('id', topicId);
+        if (error) {
+          console.error('Auto-complete topic error:', error.message);
+          throw new Error(`Failed to update topic completion in database: ${error.message}`);
         }
       }
     }
     this.saveLocalCache();
 
-    try {
-      const dbItem = {
-        ...item,
-        trainer_id: item.trainer_id && !item.trainer_id.startsWith('usr-') ? item.trainer_id : null,
-        topics_covered: item.topics_covered, // stored as jsonb array
-      };
-      const { error } = await supabase.from('uct_trainer_logs').upsert(dbItem);
-      if (error) console.error('Supabase saveTrainerLog error:', error.message);
-    } catch (e) {
-      console.warn('Supabase trainer log sync warning:', e);
+    const dbItem = {
+      ...item,
+      trainer_id: item.trainer_id && !item.trainer_id.startsWith('usr-') ? item.trainer_id : null,
+      notes: item.notes || null,
+      topics_covered: item.topics_covered, // stored as jsonb array
+    };
+    const { error } = await supabase.from('uct_trainer_logs').upsert(dbItem);
+    if (error) {
+      console.error('Supabase saveTrainerLog error:', error.message);
+      throw new Error(`Failed to save trainer log in database: ${error.message}`);
     }
     return item;
   }
@@ -704,7 +704,7 @@ class DataStore {
       try {
         const { error } = await supabase.from('uct_batch_course_syllabus').update({
           is_completed: isCompleted,
-          completed_date: this.batchSyllabus[idx].completed_date,
+          completed_date: this.batchSyllabus[idx].completed_date || null,
         }).eq('id', id);
         if (error) console.error('Supabase toggleBatchSyllabusTopic error:', error.message);
       } catch (e) {
@@ -721,7 +721,7 @@ class DataStore {
       topic_name: topic.topic_name!,
       planned_hours: topic.planned_hours ?? 0,
       is_completed: topic.is_completed ?? false,
-      completed_date: topic.completed_date,
+      completed_date: topic.completed_date || null,
     };
     const idx = this.batchSyllabus.findIndex(s => s.id === item.id);
     if (idx >= 0) this.batchSyllabus[idx] = item;
@@ -1068,6 +1068,7 @@ class DataStore {
     const item: Assessment = {
       ...assessment,
       type_id: typeId,
+      assignment_category: assessment.assignment_category || null,
     };
 
     const idx = this.assessments.findIndex(a => a.id === item.id);
@@ -1076,11 +1077,10 @@ class DataStore {
 
     this.saveLocalCache();
 
-    try {
-      const { error } = await supabase.from('uct_assessments').upsert(item);
-      if (error) console.error('Supabase saveAssessment error:', error.message);
-    } catch (e) {
-      console.warn('Supabase assessment sync warning:', e);
+    const { error } = await supabase.from('uct_assessments').upsert(item);
+    if (error) {
+      console.error('Supabase saveAssessment error:', error.message);
+      throw new Error(`Failed to save assessment in database: ${error.message}`);
     }
     return item;
   }

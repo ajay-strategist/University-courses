@@ -131,7 +131,7 @@ export interface BatchCourseSyllabus {
   topic_name: string;
   planned_hours: number;
   is_completed: boolean;
-  completed_date?: string;
+  completed_date?: string | null;
 }
 
 export interface Session {
@@ -170,7 +170,7 @@ export interface Assessment {
   max_mark: number;
   assessment_date?: string;
   type?: AssessmentType;
-  assignment_category?: string;
+  assignment_category?: string | null;
 }
 
 export interface AssessmentMark {
