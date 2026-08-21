@@ -234,6 +234,7 @@ CREATE TABLE public.uct_assessments (
     type_id UUID NOT NULL REFERENCES public.uct_assessment_types(id) ON DELETE RESTRICT,
     max_mark NUMERIC(5,2) NOT NULL,
     assessment_date DATE,
+    assignment_category TEXT,
     created_at TIMESTAMPTZ DEFAULT NOW(),
     updated_at TIMESTAMPTZ DEFAULT NOW()
 );
@@ -418,6 +419,7 @@ SELECT
     crs.name AS course_name,
     a.name AS assessment_name,
     atp.name AS assessment_type,
+    a.assignment_category,
     st.register_no,
     st.name AS student_name,
     m.mark,

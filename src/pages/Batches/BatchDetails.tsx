@@ -2,16 +2,16 @@ import { useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { store, generateUUID } from '@/lib/store';
 import { useAuth } from '@/contexts/AuthContext';
-import type { 
-  Student, BatchCourse, BatchCourseSyllabus, Session, Attendance, 
-  Assessment, AssessmentMark, Course, AbsenteePreview 
+import type {
+  Student, BatchCourse, BatchCourseSyllabus, Session, Attendance,
+  Assessment, AssessmentMark, Course, AbsenteePreview, TrainerLog
 } from '@/types';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { toast } from 'sonner';
-import { 
-  ArrowLeft, Users, BookOpen, CalendarCheck, Award, FileCheck2, 
-  CheckSquare, Plus, Download, Upload, Mail, CheckCircle2, Clock, 
+import {
+  ArrowLeft, Users, BookOpen, CalendarCheck, Award, FileCheck2,
+  CheckSquare, Plus, Download, Upload, Mail, CheckCircle2, Clock,
   AlertTriangle, Check, X, FileSpreadsheet, Send, Edit2, Trash2,
   ListTodo
 } from 'lucide-react';
@@ -150,17 +150,22 @@ export default function BatchDetails() {
   const [assessmentMaxMark, setAssessmentMaxMark] = useState<number>(
     initialAssessments[0]?.max_mark || 100
   );
+  const [assessmentCategory, setAssessmentCategory] = useState<string>(
+    initialAssessments[0]?.assignment_category || ''
+  );
 
   const changeSelectedAssessment = (id: string) => {
     setSelectedAssessmentId(id);
     if (id === 'new') {
       setAssessmentName('');
       setAssessmentMaxMark(100);
+      setAssessmentCategory('');
     } else {
       const ass = store.assessments.find(a => a.id === id);
       if (ass) {
         setAssessmentName(ass.name);
         setAssessmentMaxMark(ass.max_mark);
+        setAssessmentCategory(ass.assignment_category || '');
       }
     }
   };
@@ -172,10 +177,22 @@ export default function BatchDetails() {
   } | null>(null);
 
   // Assessment Form Input
-  const [assessmentForm, setAssessmentForm] = useState({ name: '', type_id: store.assessmentTypes[0]?.id || '', max_mark: 50 });
+  const [assessmentForm, setAssessmentForm] = useState({ name: '', type_id: store.assessmentTypes[0]?.id || '', max_mark: 50, assignment_category: '' });
 
   // Absentee Email Preview Modal State
   const [absenteePreview, setAbsenteePreview] = useState<AbsenteePreview | null>(null);
+
+  // Trainer Log Edit Modal State
+  const [showEditTrainerLogModal, setShowEditTrainerLogModal] = useState(false);
+  const [editingTrainerLog, setEditingTrainerLog] = useState<TrainerLog | null>(null);
+  const [editTrainerLogForm, setEditTrainerLogForm] = useState({
+    log_date: '',
+    trainer_id: '',
+    start_time: '',
+    end_time: '',
+    notes: '',
+  });
+  const [editTrainerLogTopics, setEditTrainerLogTopics] = useState<string[]>([]);
 
   const [refreshTrigger, setRefreshTrigger] = useState(0);
 
@@ -238,6 +255,41 @@ export default function BatchDetails() {
     }
   };
 
+  const handleSaveEditTrainerLog = async () => {
+    if (!editingTrainerLog) return;
+    if (!editTrainerLogForm.log_date || !editTrainerLogForm.start_time || !editTrainerLogForm.end_time) {
+      toast.error('Date, Start Time, and End Time are required');
+      return;
+    }
+    const calcDuration = (start: string, end: string): number => {
+      if (!start || !end) return 0;
+      const [sh, sm] = start.split(':').map(Number);
+      const [eh, em] = end.split(':').map(Number);
+      return Math.max(0, (eh * 60 + em) - (sh * 60 + sm));
+    };
+    const durationMins = calcDuration(editTrainerLogForm.start_time, editTrainerLogForm.end_time);
+    if (durationMins <= 0) {
+      toast.error('End time must be after start time');
+      return;
+    }
+
+    await store.saveTrainerLog({
+      ...editingTrainerLog,
+      log_date: editTrainerLogForm.log_date,
+      trainer_id: editTrainerLogForm.trainer_id || undefined,
+      start_time: editTrainerLogForm.start_time,
+      end_time: editTrainerLogForm.end_time,
+      duration_minutes: durationMins,
+      topics_covered: editTrainerLogTopics,
+      notes: editTrainerLogForm.notes || undefined,
+    });
+
+    setShowEditTrainerLogModal(false);
+    setEditingTrainerLog(null);
+    setRefreshTrigger(r => r + 1);
+    toast.success('Session log updated successfully!');
+  };
+
   const handleDeleteStudent = async (stuId: string, stuName: string) => {
     if (confirm(`Are you sure you want to delete student "${stuName}"?`)) {
       await store.deleteStudent(stuId);
@@ -297,6 +349,7 @@ export default function BatchDetails() {
         batch_course_id: selectedBatchCourseId,
         name: assessmentName.trim(),
         max_mark: assessmentMaxMark,
+        assignment_category: assessmentCategory.trim() || undefined,
       };
       const saved = await store.saveAssessment(newAsm);
       targetAssessmentId = saved.id;
@@ -471,7 +524,7 @@ export default function BatchDetails() {
     toast.success('Course allocation updated successfully!');
   };
 
-  const filteredBatchCourses = batchCourses.filter(bc => 
+  const filteredBatchCourses = batchCourses.filter(bc =>
     selectedSemesterFilter === 'all' || bc.semester === Number(selectedSemesterFilter)
   );
 
@@ -560,13 +613,13 @@ export default function BatchDetails() {
 
   const getSessionHeaders = () => {
     if (!absenteePreview) return [];
-    
+
     const isRange = absenteePreview.session_date.includes(' to ');
     if (!isRange) {
       const daySessions = store.sessions.filter(
         s => s.batch_course_id === selectedBatchCourseId && s.session_date === absenteePreview.session_date
       ).sort((a, b) => a.hour_no - b.hour_no);
-      
+
       if (daySessions.length === 0) {
         return [`Hour ${attendanceHour}`];
       }
@@ -577,9 +630,9 @@ export default function BatchDetails() {
     const start = parts[0];
     const end = parts[1];
     const rangeSessions = store.sessions.filter(
-      s => s.batch_course_id === selectedBatchCourseId && 
-           s.session_date >= start && 
-           s.session_date <= end
+      s => s.batch_course_id === selectedBatchCourseId &&
+        s.session_date >= start &&
+        s.session_date <= end
     ).sort((a, b) => {
       if (a.session_date !== b.session_date) return a.session_date.localeCompare(b.session_date);
       return a.hour_no - b.hour_no;
@@ -602,13 +655,13 @@ export default function BatchDetails() {
       titleDate = attendanceDate;
     } else {
       daySessions = store.sessions.filter(
-        s => s.batch_course_id === selectedBatchCourseId && 
-             s.session_date >= attendanceStartDate && 
-             s.session_date <= attendanceEndDate
+        s => s.batch_course_id === selectedBatchCourseId &&
+          s.session_date >= attendanceStartDate &&
+          s.session_date <= attendanceEndDate
       );
       titleDate = `${attendanceStartDate} to ${attendanceEndDate}`;
     }
-    
+
     daySessions.sort((a, b) => {
       if (a.session_date !== b.session_date) {
         return a.session_date.localeCompare(b.session_date);
@@ -772,11 +825,11 @@ export default function BatchDetails() {
           } else if (isNaN(markVal) || markVal < 0) {
             errorRows.push({ register_no: student.register_no, name: student.name, mark: markVal, error: 'Invalid mark value (must be >= 0)' });
           } else if (markVal > limitMark) {
-            errorRows.push({ 
-              register_no: student.register_no, 
-              name: student.name, 
-              mark: markVal, 
-              error: `Mark (${markVal}) exceeds assessment max mark limit of ${limitMark}` 
+            errorRows.push({
+              register_no: student.register_no,
+              name: student.name,
+              mark: markVal,
+              error: `Mark (${markVal}) exceeds assessment max mark limit of ${limitMark}`
             });
           } else {
             validRows.push({ student_id: student.id, register_no: student.register_no, name: student.name, mark: markVal });
@@ -802,16 +855,22 @@ export default function BatchDetails() {
         batch_course_id: selectedBatchCourseId,
         name: assessmentName.trim() || 'New Assessment',
         max_mark: assessmentMaxMark,
+        assignment_category: assessmentCategory.trim() || undefined,
       };
       const savedAsm = await store.saveAssessment(newAsm);
       targetAssessmentId = savedAsm.id;
       setSelectedAssessmentId(savedAsm.id);
     } else if (currentAssessment) {
-      if (currentAssessment.name !== assessmentName.trim() || currentAssessment.max_mark !== assessmentMaxMark) {
+      if (
+        currentAssessment.name !== assessmentName.trim() ||
+        currentAssessment.max_mark !== assessmentMaxMark ||
+        currentAssessment.assignment_category !== assessmentCategory.trim()
+      ) {
         const updatedAsm: Assessment = {
           ...currentAssessment,
           name: assessmentName.trim(),
           max_mark: assessmentMaxMark,
+          assignment_category: assessmentCategory.trim() || undefined,
         };
         await store.saveAssessment(updatedAsm);
       }
@@ -934,7 +993,7 @@ export default function BatchDetails() {
   const totalTopics = currentSyllabus.length;
   const completedTopics = currentSyllabus.filter(s => s.is_completed).length;
   const coveragePct = totalTopics > 0 ? Math.round((completedTopics / totalTopics) * 100) : 0;
-  
+
   const plannedHours = store.batchCourses.find(bc => bc.id === selectedBatchCourseId)?.planned_hours || 30;
   const deliveredHours = currentSyllabus.filter(s => s.is_completed).reduce((sum, s) => sum + s.planned_hours, 0);
   const remainingHours = Math.max(0, plannedHours - deliveredHours);
@@ -961,9 +1020,9 @@ export default function BatchDetails() {
 
             {/* College Logo */}
             {batch.college?.logo_url ? (
-              <img 
-                src={batch.college.logo_url} 
-                alt={batch.college.name} 
+              <img
+                src={batch.college.logo_url}
+                alt={batch.college.name}
                 className="h-14 w-14 rounded-xl object-contain p-1 border border-border bg-background shadow-xs shrink-0 mt-1 sm:mt-0"
               />
             ) : (
@@ -984,9 +1043,9 @@ export default function BatchDetails() {
               </p>
               {!isStudentCoordinator && (
                 <div className="flex items-center gap-2 pt-0.5">
-                  <Button 
-                    size="sm" 
-                    variant="outline" 
+                  <Button
+                    size="sm"
+                    variant="outline"
                     onClick={() => {
                       setEditBatchForm({
                         code: batch.code,
@@ -999,15 +1058,15 @@ export default function BatchDetails() {
                         academic_year: batch.academic_year || '',
                       });
                       setShowEditBatchModal(true);
-                    }} 
+                    }}
                     className="h-7 text-xs rounded-xl"
                   >
                     <Edit2 className="h-3.5 w-3.5 mr-1" /> Edit Batch
                   </Button>
-                  <Button 
-                    size="sm" 
-                    variant="outline" 
-                    onClick={handleDeleteBatch} 
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={handleDeleteBatch}
                     className="h-7 text-xs rounded-xl text-destructive hover:bg-destructive/10 border-destructive/30"
                   >
                     <Trash2 className="h-3.5 w-3.5 mr-1" /> Delete Batch
@@ -1033,7 +1092,7 @@ export default function BatchDetails() {
                   className="bg-background border border-border rounded-lg px-3 py-1.5 text-sm font-semibold text-primary focus:outline-none"
                 >
                   <option value="all">All Semesters</option>
-                  {[1,2,3,4,5,6,7,8].map(s => (
+                  {[1, 2, 3, 4, 5, 6, 7, 8].map(s => (
                     <option key={s} value={s}>Semester {s}</option>
                   ))}
                 </select>
@@ -1071,17 +1130,15 @@ export default function BatchDetails() {
           <>
             <button
               onClick={() => setActiveTab('students')}
-              className={`flex items-center gap-2 px-4 py-2 text-xs font-semibold rounded-xl transition-all whitespace-nowrap ${
-                activeTab === 'students' ? 'bg-primary text-primary-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground'
-              }`}
+              className={`flex items-center gap-2 px-4 py-2 text-xs font-semibold rounded-xl transition-all whitespace-nowrap ${activeTab === 'students' ? 'bg-primary text-primary-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground'
+                }`}
             >
               <Users className="h-3.5 w-3.5" /> 7.1 Students ({students.length})
             </button>
             <button
               onClick={() => setActiveTab('courses')}
-              className={`flex items-center gap-2 px-4 py-2 text-xs font-semibold rounded-xl transition-all whitespace-nowrap ${
-                activeTab === 'courses' ? 'bg-primary text-primary-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground'
-              }`}
+              className={`flex items-center gap-2 px-4 py-2 text-xs font-semibold rounded-xl transition-all whitespace-nowrap ${activeTab === 'courses' ? 'bg-primary text-primary-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground'
+                }`}
             >
               <BookOpen className="h-3.5 w-3.5" /> 7.2 Courses ({batchCourses.length})
             </button>
@@ -1089,9 +1146,8 @@ export default function BatchDetails() {
         )}
         <button
           onClick={() => setActiveTab('attendance')}
-          className={`flex items-center gap-2 px-4 py-2 text-xs font-semibold rounded-xl transition-all whitespace-nowrap ${
-            activeTab === 'attendance' ? 'bg-primary text-primary-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground'
-          }`}
+          className={`flex items-center gap-2 px-4 py-2 text-xs font-semibold rounded-xl transition-all whitespace-nowrap ${activeTab === 'attendance' ? 'bg-primary text-primary-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground'
+            }`}
         >
           <CalendarCheck className="h-3.5 w-3.5" /> 7.3 Attendance Register & Matrix
         </button>
@@ -1099,49 +1155,43 @@ export default function BatchDetails() {
           <>
             <button
               onClick={() => setActiveTab('marks')}
-              className={`flex items-center gap-2 px-4 py-2 text-xs font-semibold rounded-xl transition-all whitespace-nowrap ${
-                activeTab === 'marks' ? 'bg-primary text-primary-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground'
-              }`}
+              className={`flex items-center gap-2 px-4 py-2 text-xs font-semibold rounded-xl transition-all whitespace-nowrap ${activeTab === 'marks' ? 'bg-primary text-primary-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground'
+                }`}
             >
               <Award className="h-3.5 w-3.5" /> 7.4 Marks & Excel Import
             </button>
             <button
               onClick={() => setActiveTab('assessment_types')}
-              className={`flex items-center gap-2 px-4 py-2 text-xs font-semibold rounded-xl transition-all whitespace-nowrap ${
-                activeTab === 'assessment_types' ? 'bg-primary text-primary-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground'
-              }`}
+              className={`flex items-center gap-2 px-4 py-2 text-xs font-semibold rounded-xl transition-all whitespace-nowrap ${activeTab === 'assessment_types' ? 'bg-primary text-primary-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground'
+                }`}
             >
               <FileCheck2 className="h-3.5 w-3.5" /> 7.5 Assessment Types
             </button>
             <button
               onClick={() => setActiveTab('syllabus')}
-              className={`flex items-center gap-2 px-4 py-2 text-xs font-semibold rounded-xl transition-all whitespace-nowrap ${
-                activeTab === 'syllabus' ? 'bg-primary text-primary-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground'
-              }`}
+              className={`flex items-center gap-2 px-4 py-2 text-xs font-semibold rounded-xl transition-all whitespace-nowrap ${activeTab === 'syllabus' ? 'bg-primary text-primary-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground'
+                }`}
             >
               <CheckSquare className="h-3.5 w-3.5" /> 7.6 Syllabus
             </button>
             <button
               onClick={() => setActiveTab('coverage')}
-              className={`flex items-center gap-2 px-4 py-2 text-xs font-semibold rounded-xl transition-all whitespace-nowrap ${
-                activeTab === 'coverage' ? 'bg-primary text-primary-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground'
-              }`}
+              className={`flex items-center gap-2 px-4 py-2 text-xs font-semibold rounded-xl transition-all whitespace-nowrap ${activeTab === 'coverage' ? 'bg-primary text-primary-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground'
+                }`}
             >
               <CheckCircle2 className="h-3.5 w-3.5" /> 7.7 Course Coverage ({coveragePct}%)
             </button>
             <button
               onClick={() => setActiveTab('trainer_log')}
-              className={`flex items-center gap-2 px-4 py-2 text-xs font-semibold rounded-xl transition-all whitespace-nowrap ${
-                activeTab === 'trainer_log' ? 'bg-primary text-primary-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground'
-              }`}
+              className={`flex items-center gap-2 px-4 py-2 text-xs font-semibold rounded-xl transition-all whitespace-nowrap ${activeTab === 'trainer_log' ? 'bg-primary text-primary-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground'
+                }`}
             >
               <Clock className="h-3.5 w-3.5" /> 7.8 Trainer Log
             </button>
             <button
               onClick={() => setActiveTab('task_list')}
-              className={`flex items-center gap-2 px-4 py-2 text-xs font-semibold rounded-xl transition-all whitespace-nowrap ${
-                activeTab === 'task_list' ? 'bg-primary text-primary-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground'
-              }`}
+              className={`flex items-center gap-2 px-4 py-2 text-xs font-semibold rounded-xl transition-all whitespace-nowrap ${activeTab === 'task_list' ? 'bg-primary text-primary-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground'
+                }`}
             >
               <ListTodo className="h-3.5 w-3.5" /> 7.9 Task List
             </button>
@@ -1157,9 +1207,9 @@ export default function BatchDetails() {
             <h2 className="text-lg font-semibold font-heading">Student Roster</h2>
             <div className="flex items-center gap-2">
               {selectedStudentIds.length > 0 && (
-                <Button 
-                  size="sm" 
-                  variant="destructive" 
+                <Button
+                  size="sm"
+                  variant="destructive"
                   onClick={handleBulkDeleteStudents}
                   className="h-8 text-xs bg-destructive hover:bg-destructive/90 text-destructive-foreground animate-in fade-in zoom-in duration-200"
                 >
@@ -1184,8 +1234,8 @@ export default function BatchDetails() {
               <thead className="bg-muted/50 border-b border-border text-muted-foreground font-mono text-xs uppercase">
                 <tr>
                   <th className="p-4 pl-6 w-12">
-                    <input 
-                      type="checkbox" 
+                    <input
+                      type="checkbox"
                       checked={selectedStudentIds.length === students.length && students.length > 0}
                       onChange={(e) => {
                         if (e.target.checked) {
@@ -1211,8 +1261,8 @@ export default function BatchDetails() {
                   return (
                     <tr key={stu.id} className="hover:bg-muted/30 transition-colors">
                       <td className="p-4 pl-6">
-                        <input 
-                          type="checkbox" 
+                        <input
+                          type="checkbox"
                           checked={selectedStudentIds.includes(stu.id)}
                           onChange={(e) => {
                             if (e.target.checked) {
@@ -1229,9 +1279,8 @@ export default function BatchDetails() {
                       <td className="p-4 text-muted-foreground font-mono text-xs">{stu.class}</td>
                       <td className="p-4 text-muted-foreground font-mono text-xs">{stu.phone || '—'}</td>
                       <td className="p-4 text-center">
-                        <span className={`font-mono text-xs font-bold px-2.5 py-1 rounded-full ${
-                          attPct >= 85 ? 'bg-success/15 text-success' : attPct >= 75 ? 'bg-warning/15 text-warning' : 'bg-destructive/15 text-destructive'
-                        }`}>
+                        <span className={`font-mono text-xs font-bold px-2.5 py-1 rounded-full ${attPct >= 85 ? 'bg-success/15 text-success' : attPct >= 75 ? 'bg-warning/15 text-warning' : 'bg-destructive/15 text-destructive'
+                          }`}>
                           {attPct}%
                         </span>
                       </td>
@@ -1281,18 +1330,18 @@ export default function BatchDetails() {
                       <span className="text-xs font-mono px-2.5 py-1 rounded-full bg-success/15 text-success font-bold">
                         {bc.status}
                       </span>
-                      <Button 
-                        size="sm" 
-                        variant="ghost" 
-                        onClick={() => handleOpenEditBatchCourse(bc)} 
+                      <Button
+                        size="sm"
+                        variant="ghost"
+                        onClick={() => handleOpenEditBatchCourse(bc)}
                         className="h-8 w-8 p-0 text-muted-foreground hover:text-primary transition-colors"
                       >
                         <Edit2 className="h-3.5 w-3.5" />
                       </Button>
-                      <Button 
-                        size="sm" 
-                        variant="ghost" 
-                        onClick={() => handleDeleteBatchCourse(bc.id, crs?.name || '')} 
+                      <Button
+                        size="sm"
+                        variant="ghost"
+                        onClick={() => handleDeleteBatchCourse(bc.id, crs?.name || '')}
                         className="h-8 w-8 p-0 text-muted-foreground hover:text-destructive transition-colors"
                       >
                         <Trash2 className="h-3.5 w-3.5" />
@@ -1433,25 +1482,22 @@ export default function BatchDetails() {
                           <div className="inline-flex rounded-xl bg-sunken p-1 border border-border gap-1">
                             <button
                               onClick={() => setRegisterStatusMap({ ...registerStatusMap, [stu.id]: 'present' })}
-                              className={`px-3 py-1 rounded-lg text-xs font-bold transition-colors ${
-                                status === 'present' ? 'bg-success text-white' : 'text-muted-foreground hover:text-foreground'
-                              }`}
+                              className={`px-3 py-1 rounded-lg text-xs font-bold transition-colors ${status === 'present' ? 'bg-success text-white' : 'text-muted-foreground hover:text-foreground'
+                                }`}
                             >
                               Present
                             </button>
                             <button
                               onClick={() => setRegisterStatusMap({ ...registerStatusMap, [stu.id]: 'absent' })}
-                              className={`px-3 py-1 rounded-lg text-xs font-bold transition-colors ${
-                                status === 'absent' ? 'bg-destructive text-white' : 'text-muted-foreground hover:text-foreground'
-                              }`}
+                              className={`px-3 py-1 rounded-lg text-xs font-bold transition-colors ${status === 'absent' ? 'bg-destructive text-white' : 'text-muted-foreground hover:text-foreground'
+                                }`}
                             >
                               Absent
                             </button>
                             <button
                               onClick={() => setRegisterStatusMap({ ...registerStatusMap, [stu.id]: 'late' })}
-                              className={`px-3 py-1 rounded-lg text-xs font-bold transition-colors ${
-                                status === 'late' ? 'bg-warning text-white' : 'text-muted-foreground hover:text-foreground'
-                              }`}
+                              className={`px-3 py-1 rounded-lg text-xs font-bold transition-colors ${status === 'late' ? 'bg-warning text-white' : 'text-muted-foreground hover:text-foreground'
+                                }`}
                             >
                               Late
                             </button>
@@ -1564,6 +1610,16 @@ export default function BatchDetails() {
                 />
               </div>
 
+              <div className="flex items-center gap-2">
+                <label className="text-xs font-mono font-medium text-muted-foreground whitespace-nowrap">Category:</label>
+                <Input
+                  value={assessmentCategory}
+                  onChange={(e) => setAssessmentCategory(e.target.value)}
+                  placeholder="e.g. Theory"
+                  className="w-32 h-8 text-sm"
+                />
+              </div>
+
               {selectedAssessmentId !== 'new' && (
                 <Button
                   size="sm"
@@ -1577,7 +1633,8 @@ export default function BatchDetails() {
                       const updated = {
                         ...existing,
                         name: assessmentName.trim(),
-                        max_mark: assessmentMaxMark
+                        max_mark: assessmentMaxMark,
+                        assignment_category: assessmentCategory.trim() || undefined,
                       };
                       await store.saveAssessment(updated);
                       toast.success('Assessment details updated successfully!');
@@ -1645,6 +1702,7 @@ export default function BatchDetails() {
                   <th className="p-3">Student Name</th>
                   <th className="p-3">Tool</th>
                   <th className="p-3">Assignment</th>
+                  <th className="p-3">Category</th>
                   <th className="p-3 text-center">Marks Obtained</th>
                   <th className="p-3 text-center">Max Mark</th>
                   <th className="p-3 text-center">Percentage</th>
@@ -1664,6 +1722,9 @@ export default function BatchDetails() {
                       <td className="p-3 text-xs font-mono">{activeCourse?.name}</td>
                       <td className="p-3 text-xs font-mono font-semibold text-primary">
                         {selectedAssessmentId === 'new' ? (assessmentName || 'New Assessment') : (currentAssessment?.name || '—')}
+                      </td>
+                      <td className="p-3 text-xs font-mono text-muted-foreground">
+                        {(selectedAssessmentId === 'new' ? assessmentCategory : currentAssessment?.assignment_category) || <span className="text-muted-foreground/30 italic">None</span>}
                       </td>
                       <td className="p-3 text-center font-mono">
                         <div className="flex items-center justify-center gap-1">
@@ -1811,9 +1872,8 @@ export default function BatchDetails() {
                         ) : (topic.planned_hours ? `${topic.planned_hours} hrs` : '')}
                       </td>
                       <td className="p-2 text-center">
-                        <span className={`font-mono text-xs font-bold px-2 py-0.5 rounded-full ${
-                          topic.is_completed ? 'bg-success/15 text-success' : 'bg-muted text-muted-foreground'
-                        }`}>
+                        <span className={`font-mono text-xs font-bold px-2 py-0.5 rounded-full ${topic.is_completed ? 'bg-success/15 text-success' : 'bg-muted text-muted-foreground'
+                          }`}>
                           {topic.is_completed ? 'Completed' : 'Pending'}
                         </span>
                       </td>
@@ -1942,14 +2002,12 @@ export default function BatchDetails() {
                     setSelectedBatchCourseId(selectedBatchCourseId);
                     toast.success(`Topic "${topic.topic_name}" status updated!`);
                   }}
-                  className={`flex items-center justify-between p-3.5 rounded-xl border cursor-pointer transition-all ${
-                    topic.is_completed ? 'bg-primary-tint/50 border-primary/30 text-foreground' : 'bg-sunken border-border/80 text-muted-foreground'
-                  }`}
+                  className={`flex items-center justify-between p-3.5 rounded-xl border cursor-pointer transition-all ${topic.is_completed ? 'bg-primary-tint/50 border-primary/30 text-foreground' : 'bg-sunken border-border/80 text-muted-foreground'
+                    }`}
                 >
                   <div className="flex items-center gap-3">
-                    <div className={`h-5 w-5 rounded-md flex items-center justify-center border ${
-                      topic.is_completed ? 'bg-primary text-primary-foreground border-primary' : 'border-border bg-background'
-                    }`}>
+                    <div className={`h-5 w-5 rounded-md flex items-center justify-center border ${topic.is_completed ? 'bg-primary text-primary-foreground border-primary' : 'border-border bg-background'
+                      }`}>
                       {topic.is_completed && <Check className="h-3.5 w-3.5" />}
                     </div>
                     <span className="font-mono text-xs font-bold w-6">{topic.topic_no}.</span>
@@ -2155,15 +2213,13 @@ export default function BatchDetails() {
                           onClick={() => setTrainerLogTopics(prev =>
                             isChecked ? prev.filter(id => id !== topic.id) : [...prev, topic.id]
                           )}
-                          className={`flex items-center gap-3 p-3 rounded-xl border cursor-pointer transition-all select-none ${
-                            isChecked
+                          className={`flex items-center gap-3 p-3 rounded-xl border cursor-pointer transition-all select-none ${isChecked
                               ? 'bg-primary/10 border-primary/40 text-foreground'
                               : 'bg-sunken border-border/80 text-muted-foreground hover:border-primary/30'
-                          }`}
+                            }`}
                         >
-                          <div className={`flex-shrink-0 h-5 w-5 rounded-md flex items-center justify-center border ${
-                            isChecked ? 'bg-primary text-primary-foreground border-primary' : 'border-border bg-background'
-                          }`}>
+                          <div className={`flex-shrink-0 h-5 w-5 rounded-md flex items-center justify-center border ${isChecked ? 'bg-primary text-primary-foreground border-primary' : 'border-border bg-background'
+                            }`}>
                             {isChecked && <Check className="h-3 w-3" />}
                           </div>
                           <div className="min-w-0 flex-1">
@@ -2221,7 +2277,7 @@ export default function BatchDetails() {
                       <th className="p-3 text-center">Duration</th>
                       <th className="p-3 text-center">Topics Covered</th>
                       <th className="p-3 text-left">Notes</th>
-                      <th className="p-3 text-center w-16">Del</th>
+                      <th className="p-3 text-center w-24">Actions</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-border">
@@ -2258,20 +2314,43 @@ export default function BatchDetails() {
                             {log.notes || <span className="text-muted-foreground/40 italic">—</span>}
                           </td>
                           <td className="p-3 text-center">
-                            <Button
-                              size="icon"
-                              variant="ghost"
-                              className="h-7 w-7 text-muted-foreground hover:text-destructive"
-                              onClick={async () => {
-                                if (confirm('Delete this session log? Note: completed topics will NOT be un-marked.')) {
-                                  await store.deleteTrainerLog(log.id);
-                                  setRefreshTrigger(r => r + 1);
-                                  toast.success('Session log deleted');
-                                }
-                              }}
-                            >
-                              <Trash2 className="h-3.5 w-3.5" />
-                            </Button>
+                            <div className="flex items-center justify-center gap-1.5">
+                              {profile?.role === 'admin' && (
+                                <Button
+                                  size="icon"
+                                  variant="ghost"
+                                  className="h-7 w-7 text-muted-foreground hover:text-primary"
+                                  onClick={() => {
+                                    setEditingTrainerLog(log);
+                                    setEditTrainerLogForm({
+                                      log_date: log.log_date,
+                                      trainer_id: log.trainer_id || '',
+                                      start_time: log.start_time,
+                                      end_time: log.end_time,
+                                      notes: log.notes || '',
+                                    });
+                                    setEditTrainerLogTopics(log.topics_covered || []);
+                                    setShowEditTrainerLogModal(true);
+                                  }}
+                                >
+                                  <Edit2 className="h-3.5 w-3.5" />
+                                </Button>
+                              )}
+                              <Button
+                                size="icon"
+                                variant="ghost"
+                                className="h-7 w-7 text-muted-foreground hover:text-destructive"
+                                onClick={async () => {
+                                  if (confirm('Delete this session log? Note: completed topics will NOT be un-marked.')) {
+                                    await store.deleteTrainerLog(log.id);
+                                    setRefreshTrigger(r => r + 1);
+                                    toast.success('Session log deleted');
+                                  }
+                                }}
+                              >
+                                <Trash2 className="h-3.5 w-3.5" />
+                              </Button>
+                            </div>
                           </td>
                         </tr>
                       );
@@ -2332,9 +2411,8 @@ export default function BatchDetails() {
                         onChange={() => handleToggleCustomTask(task.id)}
                         className="w-4 h-4 rounded border-border text-primary focus:ring-primary focus:ring-offset-background cursor-pointer"
                       />
-                      <span className={`text-xs flex-1 truncate ${
-                        task.completed ? 'line-through text-muted-foreground' : 'text-foreground font-medium'
-                      }`}>
+                      <span className={`text-xs flex-1 truncate ${task.completed ? 'line-through text-muted-foreground' : 'text-foreground font-medium'
+                        }`}>
                         {task.text}
                       </span>
                       <Button
@@ -2403,9 +2481,8 @@ export default function BatchDetails() {
                                 const isAbsent = a.hours_absent.includes(hIdx);
                                 return (
                                   <td key={hIdx} className="p-2.5 text-center">
-                                    <span className={`px-2 py-0.5 rounded text-[10px] font-bold ${
-                                      isAbsent ? 'bg-destructive/15 text-destructive' : 'bg-success/15 text-success'
-                                    }`}>
+                                    <span className={`px-2 py-0.5 rounded text-[10px] font-bold ${isAbsent ? 'bg-destructive/15 text-destructive' : 'bg-success/15 text-success'
+                                      }`}>
                                       {isAbsent ? 'Absent' : 'Present'}
                                     </span>
                                   </td>
@@ -2487,7 +2564,7 @@ export default function BatchDetails() {
               <div>
                 <label className="text-xs font-mono font-medium text-muted-foreground">Semester</label>
                 <select value={newCourseSemester} onChange={(e) => setNewCourseSemester(Number(e.target.value))} className="w-full mt-1 bg-background border border-border rounded-xl p-2 text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-primary">
-                  {[1,2,3,4,5,6,7,8].map(s => <option key={s} value={s}>Semester {s}</option>)}
+                  {[1, 2, 3, 4, 5, 6, 7, 8].map(s => <option key={s} value={s}>Semester {s}</option>)}
                 </select>
               </div>
             </div>
@@ -2507,17 +2584,17 @@ export default function BatchDetails() {
             <div className="space-y-3">
               <div>
                 <label className="text-xs font-mono font-medium text-muted-foreground">Course</label>
-                <Input 
-                  value={store.courses.find(c => c.id === editingBatchCourse.course_id)?.name || ''} 
-                  disabled 
-                  className="mt-1 bg-muted font-bold font-sans" 
+                <Input
+                  value={store.courses.find(c => c.id === editingBatchCourse.course_id)?.name || ''}
+                  disabled
+                  className="mt-1 bg-muted font-bold font-sans"
                 />
               </div>
               <div>
                 <label className="text-xs font-mono font-medium text-muted-foreground">Assigned Trainer</label>
-                <select 
-                  value={editCourseTrainerId} 
-                  onChange={(e) => setEditCourseTrainerId(e.target.value)} 
+                <select
+                  value={editCourseTrainerId}
+                  onChange={(e) => setEditCourseTrainerId(e.target.value)}
                   className="w-full mt-1 bg-background border border-border rounded-xl p-2 text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-primary"
                 >
                   <option value="">Unassigned</option>
@@ -2528,28 +2605,28 @@ export default function BatchDetails() {
               </div>
               <div>
                 <label className="text-xs font-mono font-medium text-muted-foreground">Planned Hours</label>
-                <Input 
-                  type="number" 
-                  value={editCoursePlannedHours} 
-                  onChange={(e) => setEditCoursePlannedHours(Number(e.target.value))} 
-                  className="mt-1 font-mono" 
+                <Input
+                  type="number"
+                  value={editCoursePlannedHours}
+                  onChange={(e) => setEditCoursePlannedHours(Number(e.target.value))}
+                  className="mt-1 font-mono"
                 />
               </div>
               <div>
                 <label className="text-xs font-mono font-medium text-muted-foreground">Semester</label>
-                <select 
-                  value={editCourseSemester} 
-                  onChange={(e) => setEditCourseSemester(Number(e.target.value))} 
+                <select
+                  value={editCourseSemester}
+                  onChange={(e) => setEditCourseSemester(Number(e.target.value))}
                   className="w-full mt-1 bg-background border border-border rounded-xl p-2 text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-primary"
                 >
-                  {[1,2,3,4,5,6,7,8].map(s => <option key={s} value={s}>Semester {s}</option>)}
+                  {[1, 2, 3, 4, 5, 6, 7, 8].map(s => <option key={s} value={s}>Semester {s}</option>)}
                 </select>
               </div>
               <div>
                 <label className="text-xs font-mono font-medium text-muted-foreground">Status</label>
-                <select 
-                  value={editCourseStatus} 
-                  onChange={(e) => setEditCourseStatus(e.target.value as 'Active' | 'Completed')} 
+                <select
+                  value={editCourseStatus}
+                  onChange={(e) => setEditCourseStatus(e.target.value as 'Active' | 'Completed')}
                   className="w-full mt-1 bg-background border border-border rounded-xl p-2 text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-primary"
                 >
                   <option value="Active">Active</option>
@@ -2585,6 +2662,10 @@ export default function BatchDetails() {
                 <label className="text-xs font-mono font-medium text-muted-foreground">Max Mark (Specific to this Assessment)</label>
                 <Input type="number" value={assessmentForm.max_mark} onChange={(e) => setAssessmentForm({ ...assessmentForm, max_mark: Number(e.target.value) })} className="mt-1 font-mono" />
               </div>
+              <div>
+                <label className="text-xs font-mono font-medium text-muted-foreground">Assignment Category</label>
+                <Input value={assessmentForm.assignment_category} onChange={(e) => setAssessmentForm({ ...assessmentForm, assignment_category: e.target.value })} placeholder="e.g. Theory, Practical, Homework" className="mt-1" />
+              </div>
             </div>
             <div className="flex justify-end gap-2 pt-2">
               <Button variant="outline" onClick={() => setShowAddAssessmentModal(false)}>Cancel</Button>
@@ -2596,6 +2677,7 @@ export default function BatchDetails() {
                   name: assessmentForm.name,
                   type_id: assessmentForm.type_id,
                   max_mark: assessmentForm.max_mark,
+                  assignment_category: assessmentForm.assignment_category.trim() || undefined,
                 };
                 await store.saveAssessment(newAsm);
                 setSelectedAssessmentId(newAsm.id);
@@ -2713,8 +2795,8 @@ export default function BatchDetails() {
 
               <div>
                 <label className="font-medium text-muted-foreground">Current Semester</label>
-                <select 
-                  value={editBatchForm.current_semester} 
+                <select
+                  value={editBatchForm.current_semester}
                   onChange={(e) => setEditBatchForm({ ...editBatchForm, current_semester: Number(e.target.value) })}
                   className="w-full mt-1 bg-background border border-border rounded-xl p-2.5 text-sm font-sans font-semibold text-foreground focus:outline-none"
                 >
@@ -2726,8 +2808,8 @@ export default function BatchDetails() {
 
               <div>
                 <label className="font-medium text-muted-foreground">Batch Status</label>
-                <select 
-                  value={editBatchForm.status} 
+                <select
+                  value={editBatchForm.status}
                   onChange={(e) => setEditBatchForm({ ...editBatchForm, status: e.target.value as any })}
                   className="w-full mt-1 bg-background border border-border rounded-xl p-2.5 text-sm font-sans font-semibold text-foreground focus:outline-none"
                 >
@@ -2738,8 +2820,8 @@ export default function BatchDetails() {
 
               <div>
                 <label className="font-medium text-muted-foreground">College Coordinator</label>
-                <select 
-                  value={editBatchForm.college_coordinator_id} 
+                <select
+                  value={editBatchForm.college_coordinator_id}
                   onChange={(e) => setEditBatchForm({ ...editBatchForm, college_coordinator_id: e.target.value })}
                   className="w-full mt-1 bg-background border border-border rounded-xl p-2.5 text-sm font-sans text-foreground focus:outline-none"
                 >
@@ -2752,8 +2834,8 @@ export default function BatchDetails() {
 
               <div>
                 <label className="font-medium text-muted-foreground">Student Coordinator</label>
-                <select 
-                  value={editBatchForm.student_coordinator_id} 
+                <select
+                  value={editBatchForm.student_coordinator_id}
                   onChange={(e) => setEditBatchForm({ ...editBatchForm, student_coordinator_id: e.target.value })}
                   className="w-full mt-1 bg-background border border-border rounded-xl p-2.5 text-sm font-sans text-foreground focus:outline-none"
                 >
@@ -2767,19 +2849,19 @@ export default function BatchDetails() {
               <div className="grid grid-cols-2 gap-2">
                 <div>
                   <label className="font-medium text-muted-foreground">Start Date</label>
-                  <Input 
-                    type="date" 
-                    value={editBatchForm.start_date} 
-                    onChange={(e) => setEditBatchForm({ ...editBatchForm, start_date: e.target.value })} 
+                  <Input
+                    type="date"
+                    value={editBatchForm.start_date}
+                    onChange={(e) => setEditBatchForm({ ...editBatchForm, start_date: e.target.value })}
                     className="mt-1 font-sans"
                   />
                 </div>
                 <div>
                   <label className="font-medium text-muted-foreground">End Date</label>
-                  <Input 
-                    type="date" 
-                    value={editBatchForm.end_date} 
-                    onChange={(e) => setEditBatchForm({ ...editBatchForm, end_date: e.target.value })} 
+                  <Input
+                    type="date"
+                    value={editBatchForm.end_date}
+                    onChange={(e) => setEditBatchForm({ ...editBatchForm, end_date: e.target.value })}
                     className="mt-1 font-sans"
                   />
                 </div>
@@ -2808,34 +2890,34 @@ export default function BatchDetails() {
             <div className="space-y-3">
               <div>
                 <label className="text-xs font-mono font-medium text-muted-foreground">Register Number</label>
-                <Input 
-                  value={studentEditForm.register_no} 
-                  onChange={(e) => setStudentEditForm({ ...studentEditForm, register_no: e.target.value })} 
-                  className="mt-1 font-mono font-bold" 
+                <Input
+                  value={studentEditForm.register_no}
+                  onChange={(e) => setStudentEditForm({ ...studentEditForm, register_no: e.target.value })}
+                  className="mt-1 font-mono font-bold"
                 />
               </div>
               <div>
                 <label className="text-xs font-mono font-medium text-muted-foreground">Student Name</label>
-                <Input 
-                  value={studentEditForm.name} 
-                  onChange={(e) => setStudentEditForm({ ...studentEditForm, name: e.target.value })} 
-                  className="mt-1" 
+                <Input
+                  value={studentEditForm.name}
+                  onChange={(e) => setStudentEditForm({ ...studentEditForm, name: e.target.value })}
+                  className="mt-1"
                 />
               </div>
               <div>
                 <label className="text-xs font-mono font-medium text-muted-foreground">Class / Division</label>
-                <Input 
-                  value={studentEditForm.class} 
-                  onChange={(e) => setStudentEditForm({ ...studentEditForm, class: e.target.value })} 
-                  className="mt-1" 
+                <Input
+                  value={studentEditForm.class}
+                  onChange={(e) => setStudentEditForm({ ...studentEditForm, class: e.target.value })}
+                  className="mt-1"
                 />
               </div>
               <div>
                 <label className="text-xs font-mono font-medium text-muted-foreground">Phone Number</label>
-                <Input 
-                  value={studentEditForm.phone} 
-                  onChange={(e) => setStudentEditForm({ ...studentEditForm, phone: e.target.value })} 
-                  className="mt-1 font-mono" 
+                <Input
+                  value={studentEditForm.phone}
+                  onChange={(e) => setStudentEditForm({ ...studentEditForm, phone: e.target.value })}
+                  className="mt-1 font-mono"
                 />
               </div>
             </div>
@@ -2843,6 +2925,149 @@ export default function BatchDetails() {
             <div className="flex justify-end gap-2 pt-2 border-t border-border">
               <Button variant="outline" onClick={() => setShowEditStudentModal(false)}>Cancel</Button>
               <Button onClick={handleSaveEditStudent} className="bg-primary text-primary-foreground">Save Changes</Button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {showEditTrainerLogModal && editingTrainerLog && (
+        <div className="fixed inset-0 z-50 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4">
+          <div className="bg-card border border-border rounded-2xl p-6 max-w-2xl w-full shadow-2xl space-y-4 max-h-[90vh] overflow-y-auto">
+            <div className="flex justify-between items-center border-b border-border pb-3">
+              <h3 className="text-lg font-bold font-heading">Edit Trainer Log Session</h3>
+              <Button variant="ghost" size="icon" onClick={() => { setShowEditTrainerLogModal(false); setEditingTrainerLog(null); }} className="h-8 w-8">
+                <X className="h-4 w-4" />
+              </Button>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              {/* Date */}
+              <div>
+                <label className="text-xs font-mono font-medium text-muted-foreground">Date <span className="text-destructive">*</span></label>
+                <Input
+                  type="date"
+                  value={editTrainerLogForm.log_date}
+                  onChange={e => setEditTrainerLogForm({ ...editTrainerLogForm, log_date: e.target.value })}
+                  className="mt-1 font-mono text-sm"
+                />
+              </div>
+
+              {/* Trainer */}
+              <div>
+                <label className="text-xs font-mono font-medium text-muted-foreground">Trainer</label>
+                <select
+                  value={editTrainerLogForm.trainer_id}
+                  onChange={e => setEditTrainerLogForm({ ...editTrainerLogForm, trainer_id: e.target.value })}
+                  className="w-full mt-1 bg-background border border-border rounded-xl p-2.5 text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-primary"
+                >
+                  <option value="">Select Trainer</option>
+                  {store.profiles.filter(p => p.role === 'trainer' || p.role === 'admin').map(p => (
+                    <option key={p.id} value={p.id}>{p.full_name}</option>
+                  ))}
+                </select>
+              </div>
+
+              {/* Start Time */}
+              <div>
+                <label className="text-xs font-mono font-medium text-muted-foreground">Start Time <span className="text-destructive">*</span></label>
+                <Input
+                  type="time"
+                  value={editTrainerLogForm.start_time}
+                  onChange={e => setEditTrainerLogForm({ ...editTrainerLogForm, start_time: e.target.value })}
+                  className="mt-1 font-mono text-sm"
+                />
+              </div>
+
+              {/* End Time */}
+              <div>
+                <label className="text-xs font-mono font-medium text-muted-foreground">End Time <span className="text-destructive">*</span></label>
+                <Input
+                  type="time"
+                  value={editTrainerLogForm.end_time}
+                  onChange={e => setEditTrainerLogForm({ ...editTrainerLogForm, end_time: e.target.value })}
+                  className="mt-1 font-mono text-sm"
+                />
+              </div>
+            </div>
+
+            {/* Notes */}
+            <div>
+              <label className="text-xs font-mono font-medium text-muted-foreground">Notes (optional)</label>
+              <textarea
+                value={editTrainerLogForm.notes}
+                onChange={e => setEditTrainerLogForm({ ...editTrainerLogForm, notes: e.target.value })}
+                placeholder="Any remarks, observations, or session notes..."
+                rows={2}
+                className="w-full mt-1 bg-background border border-border rounded-xl p-2.5 text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-primary resize-none"
+              />
+            </div>
+
+            {/* Syllabus Topics Checklist */}
+            <div className="space-y-2">
+              <div className="flex items-center justify-between">
+                <label className="text-xs font-mono font-medium text-muted-foreground">
+                  Topics Covered in this Session
+                </label>
+                {currentSyllabus.length > 0 && (
+                  <button
+                    type="button"
+                    className="text-xs font-mono text-primary hover:underline"
+                    onClick={() => setEditTrainerLogTopics(
+                      editTrainerLogTopics.length === currentSyllabus.length
+                        ? []
+                        : currentSyllabus.map(t => t.id)
+                    )}
+                  >
+                    {editTrainerLogTopics.length === currentSyllabus.length ? 'Deselect All' : 'Select All'}
+                  </button>
+                )}
+              </div>
+
+              {currentSyllabus.length === 0 ? (
+                <p className="text-xs text-muted-foreground font-mono italic">No syllabus topics defined for this course.</p>
+              ) : (
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 max-h-60 overflow-y-auto pr-1">
+                  {currentSyllabus.map(topic => {
+                    const isChecked = editTrainerLogTopics.includes(topic.id);
+                    return (
+                      <div
+                        key={topic.id}
+                        onClick={() => setEditTrainerLogTopics(prev =>
+                          isChecked ? prev.filter(id => id !== topic.id) : [...prev, topic.id]
+                        )}
+                        className={`flex items-center gap-3 p-3 rounded-xl border cursor-pointer transition-all select-none ${isChecked
+                            ? 'bg-primary/10 border-primary/40 text-foreground'
+                            : 'bg-sunken border-border/80 text-muted-foreground hover:border-primary/30'
+                          }`}
+                      >
+                        <div className={`flex-shrink-0 h-5 w-5 rounded-md flex items-center justify-center border ${isChecked ? 'bg-primary text-primary-foreground border-primary' : 'border-border bg-background'
+                          }`}>
+                          {isChecked && <Check className="h-3 w-3" />}
+                        </div>
+                        <div className="min-w-0 flex-1">
+                          <div className="flex items-center justify-between">
+                            <span className="text-xs font-mono text-muted-foreground">{topic.topic_no}.</span>
+                            {topic.is_completed && !isChecked && (
+                              <span className="text-[9px] font-mono font-bold bg-success/20 text-success px-1.5 py-0.2 rounded">
+                                Completed in other session
+                              </span>
+                            )}
+                          </div>
+                          <div className="text-sm font-medium text-foreground leading-tight truncate">{topic.topic_name}</div>
+                          {topic.planned_hours > 0 && (
+                            <div className="text-xs font-mono text-muted-foreground/70">{topic.planned_hours} hrs planned</div>
+                          )}
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+
+            <div className="flex justify-end gap-2 pt-2 border-t border-border">
+              <Button variant="outline" onClick={() => { setShowEditTrainerLogModal(false); setEditingTrainerLog(null); }}>Cancel</Button>
+              <Button onClick={handleSaveEditTrainerLog} className="bg-primary text-primary-foreground">Save Changes</Button>
             </div>
           </div>
         </div>

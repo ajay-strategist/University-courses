@@ -254,15 +254,39 @@ class DataStore {
     };
 
     const idx = this.trainerLogs.findIndex(l => l.id === item.id);
+    const oldLog = idx >= 0 ? { ...this.trainerLogs[idx] } : null;
+
     if (idx >= 0) this.trainerLogs[idx] = item;
     else this.trainerLogs.push(item);
     this.saveLocalCache();
 
-    // Auto-mark covered topics as completed in the batch syllabus
+    // Auto-mark covered topics as completed / uncompleted in the batch syllabus
     const today = item.log_date;
+
+    // 1. Un-mark removed topics
+    if (oldLog) {
+      const removedTopics = oldLog.topics_covered.filter(id => !item.topics_covered.includes(id));
+      for (const topicId of removedTopics) {
+        const sylIdx = this.batchSyllabus.findIndex(s => s.id === topicId);
+        if (sylIdx >= 0) {
+          this.batchSyllabus[sylIdx].is_completed = false;
+          this.batchSyllabus[sylIdx].completed_date = undefined;
+          try {
+            await supabase.from('uct_batch_course_syllabus').update({
+              is_completed: false,
+              completed_date: null,
+            }).eq('id', topicId);
+          } catch (e) {
+            console.warn('Auto-uncomplete topic warning:', e);
+          }
+        }
+      }
+    }
+
+    // 2. Mark current topics as completed
     for (const topicId of item.topics_covered) {
       const sylIdx = this.batchSyllabus.findIndex(s => s.id === topicId);
-      if (sylIdx >= 0 && !this.batchSyllabus[sylIdx].is_completed) {
+      if (sylIdx >= 0) {
         this.batchSyllabus[sylIdx].is_completed = true;
         this.batchSyllabus[sylIdx].completed_date = today;
         try {
@@ -1479,6 +1503,7 @@ class DataStore {
               type_id: typeObj.id,
               max_mark: Number(row.max_mark) || 100,
               assessment_date: row.assessment_date || undefined,
+              assignment_category: row.assignment_category || undefined,
             });
 
             assessmentKeyToId[`${batchCourseId}_${nameUpper}`] = saved.id;

@@ -170,6 +170,7 @@ export interface Assessment {
   max_mark: number;
   assessment_date?: string;
   type?: AssessmentType;
+  assignment_category?: string;
 }
 
 export interface AssessmentMark {
