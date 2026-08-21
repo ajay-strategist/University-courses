@@ -15,14 +15,8 @@ WHERE batch_course_id IN (
   'b4eeaef2-6d11-422b-b5a3-d5844e695476'  -- MIM-BCOM-2025-29 PBI
 );
 
--- 3. Delete existing trainer logs for the 4 batch courses to prevent duplicates
-DELETE FROM public.uct_trainer_logs
-WHERE batch_course_id IN (
-  'dc4d7721-01df-4b96-b67e-6626d3242f7f',
-  '672addb5-e47e-4f51-824e-e7f43d869d05',
-  'cc7fb7bd-e34f-4a1b-b85e-6116a35eb87b',
-  'b4eeaef2-6d11-422b-b5a3-d5844e695476'
-);
+-- 3. Delete ALL existing trainer logs to ensure a clean state
+DELETE FROM public.uct_trainer_logs;
 
 -- 4. Insert newly identified custom syllabus topics
 INSERT INTO public.uct_batch_course_syllabus (id, batch_course_id, topic_no, topic_name, planned_hours, is_completed, completed_date) VALUES
@@ -37,7 +31,10 @@ INSERT INTO public.uct_batch_course_syllabus (id, batch_course_id, topic_no, top
   ('c2e8ac2a-5b30-4d7b-aa3e-c80b340b7cfa', '672addb5-e47e-4f51-824e-e7f43d869d05', 156, 'create columns', 0, true, '2026-07-14'),
   ('f8f75256-5e4e-4d8d-b7c1-78955597ca5c', '672addb5-e47e-4f51-824e-e7f43d869d05', 157, 'create table', 0, true, '2026-07-15'),
   ('89ca6514-f4bc-40f5-8a54-fae07e67da8b', '672addb5-e47e-4f51-824e-e7f43d869d05', 158, 'XLookup', 0, true, '2026-07-22'),
-  ('fb873e26-1da5-4673-86f6-513038cf9e81', '672addb5-e47e-4f51-824e-e7f43d869d05', 159, 'VLookup', 0, true, '2026-07-22');
+  ('fb873e26-1da5-4673-86f6-513038cf9e81', '672addb5-e47e-4f51-824e-e7f43d869d05', 159, 'VLookup', 0, true, '2026-07-22')
+ON CONFLICT (id) DO UPDATE SET
+  is_completed = EXCLUDED.is_completed,
+  completed_date = EXCLUDED.completed_date;
 
 -- 5. Insert trainer logs
 INSERT INTO public.uct_trainer_logs (id, batch_course_id, trainer_name, trainer_id, log_date, start_time, end_time, duration_minutes, topics_covered, notes) VALUES
