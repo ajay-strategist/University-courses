@@ -193,6 +193,8 @@ export default function BatchDetails() {
     notes: '',
   });
   const [editTrainerLogTopics, setEditTrainerLogTopics] = useState<string[]>([]);
+  const [trainerLogSearch, setTrainerLogSearch] = useState('');
+  const [editTrainerLogSearch, setEditTrainerLogSearch] = useState('');
 
   const [refreshTrigger, setRefreshTrigger] = useState(0);
 
@@ -286,6 +288,7 @@ export default function BatchDetails() {
 
     setShowEditTrainerLogModal(false);
     setEditingTrainerLog(null);
+    setEditTrainerLogSearch('');
     setRefreshTrigger(r => r + 1);
     toast.success('Session log updated successfully!');
   };
@@ -990,6 +993,11 @@ export default function BatchDetails() {
   // 7.7 SYLLABUS & COVERAGE COMPUTATIONS
   // -------------------------------------------------------------------------------------
   const currentSyllabus = store.batchSyllabus.filter(s => s.batch_course_id === selectedBatchCourseId).sort((a, b) => a.topic_no - b.topic_no);
+  const displayedEditTopics = currentSyllabus.filter(t => {
+    if (!editTrainerLogSearch.trim()) return true;
+    const query = editTrainerLogSearch.trim().toLowerCase();
+    return t.topic_name.toLowerCase().includes(query) || String(t.topic_no).includes(query);
+  });
   const totalTopics = currentSyllabus.length;
   const completedTopics = currentSyllabus.filter(s => s.is_completed).length;
   const coveragePct = totalTopics > 0 ? Math.round((completedTopics / totalTopics) * 100) : 0;
@@ -2030,7 +2038,15 @@ export default function BatchDetails() {
       {/* TAB 7.8: TRAINER LOG */}
       {activeTab === 'trainer_log' && (() => {
         const pendingTopics = currentSyllabus.filter(s => !s.is_completed);
-        const displayedTopics = showCompletedInLog ? currentSyllabus : pendingTopics;
+        const searchFiltered = (topics: typeof currentSyllabus) => {
+          if (!trainerLogSearch.trim()) return topics;
+          const query = trainerLogSearch.trim().toLowerCase();
+          return topics.filter(t => 
+            t.topic_name.toLowerCase().includes(query) || 
+            String(t.topic_no).includes(query)
+          );
+        };
+        const displayedTopics = searchFiltered(showCompletedInLog ? currentSyllabus : pendingTopics);
         const batchTrainerId = store.batchCourses.find(bc => bc.id === selectedBatchCourseId)?.trainer_id || '';
         const courseTrainerLogs = store.trainerLogs
           .filter(l => l.batch_course_id === selectedBatchCourseId)
@@ -2193,6 +2209,16 @@ export default function BatchDetails() {
                       </button>
                     )}
                   </div>
+                </div>
+
+                <div className="mb-3 max-w-md">
+                  <Input
+                    type="text"
+                    value={trainerLogSearch}
+                    onChange={e => setTrainerLogSearch(e.target.value)}
+                    placeholder="Search topics..."
+                    className="text-xs h-9 rounded-xl bg-background border border-border"
+                  />
                 </div>
 
                 {displayedTopics.length === 0 ? (
@@ -3004,30 +3030,55 @@ export default function BatchDetails() {
 
             {/* Syllabus Topics Checklist */}
             <div className="space-y-2">
-              <div className="flex items-center justify-between">
+              <div className="flex flex-wrap items-center justify-between gap-2">
                 <label className="text-xs font-mono font-medium text-muted-foreground">
                   Topics Covered in this Session
                 </label>
-                {currentSyllabus.length > 0 && (
+                <div className="flex flex-wrap items-center gap-3">
                   <button
                     type="button"
-                    className="text-xs font-mono text-primary hover:underline"
-                    onClick={() => setEditTrainerLogTopics(
-                      editTrainerLogTopics.length === currentSyllabus.length
-                        ? []
-                        : currentSyllabus.map(t => t.id)
-                    )}
+                    className="text-xs font-mono text-primary hover:underline flex items-center gap-1"
+                    onClick={() => {
+                      const nextNo = currentSyllabus.length > 0 ? Math.max(...currentSyllabus.map(s => s.topic_no)) + 1 : 1;
+                      setNewTopicForm({ topic_no: nextNo, topic_name: '', planned_hours: '' });
+                      setShowAddTopicModal(true);
+                    }}
                   >
-                    {editTrainerLogTopics.length === currentSyllabus.length ? 'Deselect All' : 'Select All'}
+                    <Plus className="h-3 w-3" /> Add Custom Topic
                   </button>
-                )}
+                  {displayedEditTopics.length > 0 && (
+                    <button
+                      type="button"
+                      className="text-xs font-mono text-primary hover:underline"
+                      onClick={() => setEditTrainerLogTopics(
+                        editTrainerLogTopics.length === displayedEditTopics.length
+                          ? []
+                          : displayedEditTopics.map(t => t.id)
+                      )}
+                    >
+                      {editTrainerLogTopics.length === displayedEditTopics.length ? 'Deselect All' : 'Select All'}
+                    </button>
+                  )}
+                </div>
+              </div>
+
+              <div className="mb-2 max-w-md">
+                <Input
+                  type="text"
+                  value={editTrainerLogSearch}
+                  onChange={e => setEditTrainerLogSearch(e.target.value)}
+                  placeholder="Search topics..."
+                  className="text-xs h-9 rounded-xl bg-background border border-border"
+                />
               </div>
 
               {currentSyllabus.length === 0 ? (
                 <p className="text-xs text-muted-foreground font-mono italic">No syllabus topics defined for this course.</p>
+              ) : displayedEditTopics.length === 0 ? (
+                <p className="text-xs text-muted-foreground font-mono italic">No matching syllabus topics found.</p>
               ) : (
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 max-h-60 overflow-y-auto pr-1">
-                  {currentSyllabus.map(topic => {
+                  {displayedEditTopics.map(topic => {
                     const isChecked = editTrainerLogTopics.includes(topic.id);
                     return (
                       <div
