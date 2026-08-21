@@ -701,14 +701,13 @@ class DataStore {
       this.batchSyllabus[idx].is_completed = isCompleted;
       this.batchSyllabus[idx].completed_date = isCompleted ? (completedDate || new Date().toISOString().split('T')[0]) : undefined;
       this.saveLocalCache();
-      try {
-        const { error } = await supabase.from('uct_batch_course_syllabus').update({
-          is_completed: isCompleted,
-          completed_date: this.batchSyllabus[idx].completed_date || null,
-        }).eq('id', id);
-        if (error) console.error('Supabase toggleBatchSyllabusTopic error:', error.message);
-      } catch (e) {
-        console.warn('Supabase syllabus toggle warning:', e);
+      const { error } = await supabase.from('uct_batch_course_syllabus').update({
+        is_completed: isCompleted,
+        completed_date: this.batchSyllabus[idx].completed_date || null,
+      }).eq('id', id);
+      if (error) {
+        console.error('Supabase toggleBatchSyllabusTopic error:', error.message);
+        throw new Error(`Failed to toggle syllabus topic in database: ${error.message}`);
       }
     }
   }
@@ -727,11 +726,10 @@ class DataStore {
     if (idx >= 0) this.batchSyllabus[idx] = item;
     else this.batchSyllabus.push(item);
     this.saveLocalCache();
-    try {
-      const { error } = await supabase.from('uct_batch_course_syllabus').upsert(item);
-      if (error) console.error('Supabase saveBatchSyllabusTopic error:', error.message);
-    } catch (e) {
-      console.warn('Supabase batch syllabus topic save warning:', e);
+    const { error } = await supabase.from('uct_batch_course_syllabus').upsert(item);
+    if (error) {
+      console.error('Supabase saveBatchSyllabusTopic error:', error.message);
+      throw new Error(`Failed to save syllabus topic in database: ${error.message}`);
     }
     return item;
   }
@@ -739,11 +737,10 @@ class DataStore {
   async deleteBatchSyllabusTopic(id: string): Promise<void> {
     this.batchSyllabus = this.batchSyllabus.filter(s => s.id !== id);
     this.saveLocalCache();
-    try {
-      const { error } = await supabase.from('uct_batch_course_syllabus').delete().eq('id', id);
-      if (error) console.error('Supabase deleteBatchSyllabusTopic error:', error.message);
-    } catch (e) {
-      console.warn('Supabase batch syllabus topic delete warning:', e);
+    const { error } = await supabase.from('uct_batch_course_syllabus').delete().eq('id', id);
+    if (error) {
+      console.error('Supabase deleteBatchSyllabusTopic error:', error.message);
+      throw new Error(`Failed to delete syllabus topic in database: ${error.message}`);
     }
   }
 

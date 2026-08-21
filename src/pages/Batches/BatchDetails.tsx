@@ -1910,15 +1910,22 @@ export default function BatchDetails() {
                                   toast.error('Topic name is required');
                                   return;
                                 }
-                                await store.saveBatchSyllabusTopic({
-                                  ...topic,
-                                  topic_no: topicEditForm.topic_no,
-                                  topic_name: topicEditForm.topic_name.trim(),
-                                  planned_hours: topicEditForm.planned_hours !== '' ? Number(topicEditForm.planned_hours) : 0,
-                                });
-                                setEditingTopicId(null);
-                                setRefreshTrigger(r => r + 1);
-                                toast.success('Topic updated!');
+                                try {
+                                  await store.saveBatchSyllabusTopic({
+                                    ...topic,
+                                    topic_no: topicEditForm.topic_no,
+                                    topic_name: topicEditForm.topic_name.trim(),
+                                    planned_hours: topicEditForm.planned_hours !== '' ? Number(topicEditForm.planned_hours) : 0,
+                                  });
+                                  setEditingTopicId(null);
+                                  setRefreshTrigger(r => r + 1);
+                                  toast.success('Topic updated!');
+                                } catch (err: any) {
+                                  console.error(err);
+                                  toast.error('Failed to update topic', {
+                                    description: err.message || 'Unknown database error',
+                                  });
+                                }
                               }}
                             >
                               <Check className="h-3.5 w-3.5" />
@@ -1955,9 +1962,16 @@ export default function BatchDetails() {
                               className="h-7 w-7 text-muted-foreground hover:text-destructive"
                               onClick={async () => {
                                 if (confirm(`Delete topic "${topic.topic_name}"?`)) {
-                                  await store.deleteBatchSyllabusTopic(topic.id);
-                                  setRefreshTrigger(r => r + 1);
-                                  toast.success('Topic deleted');
+                                  try {
+                                    await store.deleteBatchSyllabusTopic(topic.id);
+                                    setRefreshTrigger(r => r + 1);
+                                    toast.success('Topic deleted');
+                                  } catch (err: any) {
+                                    console.error(err);
+                                    toast.error('Failed to delete topic', {
+                                      description: err.message || 'Unknown database error',
+                                    });
+                                  }
                                 }
                               }}
                             >
@@ -2790,19 +2804,26 @@ export default function BatchDetails() {
                     toast.error('Topic name is required');
                     return;
                   }
-                  const newTopic = await store.saveBatchSyllabusTopic({
-                    batch_course_id: selectedBatchCourseId,
-                    topic_no: newTopicForm.topic_no,
-                    topic_name: newTopicForm.topic_name.trim(),
-                    planned_hours: newTopicForm.planned_hours !== '' ? Number(newTopicForm.planned_hours) : 0,
-                    is_completed: false,
-                  });
-                  if (activeTab === 'trainer_log') {
-                    setTrainerLogTopics(prev => [...prev, newTopic.id]);
+                  try {
+                    const newTopic = await store.saveBatchSyllabusTopic({
+                      batch_course_id: selectedBatchCourseId,
+                      topic_no: newTopicForm.topic_no,
+                      topic_name: newTopicForm.topic_name.trim(),
+                      planned_hours: newTopicForm.planned_hours !== '' ? Number(newTopicForm.planned_hours) : 0,
+                      is_completed: false,
+                    });
+                    if (activeTab === 'trainer_log') {
+                      setTrainerLogTopics(prev => [...prev, newTopic.id]);
+                    }
+                    setShowAddTopicModal(false);
+                    setRefreshTrigger(r => r + 1);
+                    toast.success('Topic added!');
+                  } catch (err: any) {
+                    console.error(err);
+                    toast.error('Failed to add topic', {
+                      description: err.message || 'Unknown database error',
+                    });
                   }
-                  setShowAddTopicModal(false);
-                  setRefreshTrigger(r => r + 1);
-                  toast.success('Topic added!');
                 }}
                 className="bg-primary text-primary-foreground"
               >
