@@ -2371,12 +2371,20 @@ export default function BatchDetails() {
                           </td>
                           <td className="p-3 text-center">
                             {log.topics_covered.length > 0 ? (
-                              <span
-                                title={topicNames}
-                                className="bg-success/10 text-success font-mono text-xs font-bold px-2 py-0.5 rounded-full cursor-help"
-                              >
-                                {log.topics_covered.length} topic(s)
-                              </span>
+                              <div className="flex flex-wrap gap-1 justify-center max-w-[320px] mx-auto">
+                                {log.topics_covered.map(tid => {
+                                  const name = currentSyllabus.find(s => s.id === tid)?.topic_name || tid;
+                                  return (
+                                    <span
+                                      key={tid}
+                                      className="bg-success/10 text-success text-[11px] font-medium px-2 py-0.5 rounded"
+                                      title={name}
+                                    >
+                                      {name}
+                                    </span>
+                                  );
+                                })}
+                              </div>
                             ) : (
                               <span className="text-muted-foreground/40 text-xs font-mono">—</span>
                             )}
