@@ -1910,6 +1910,16 @@ export default function BatchDetails() {
                                   toast.error('Topic name is required');
                                   return;
                                 }
+                                // Validate: topic_no must be unique (ignoring the topic being edited)
+                                const duplicateNo = currentSyllabus.some(
+                                  s => s.topic_no === topicEditForm.topic_no && s.id !== topic.id
+                                );
+                                if (duplicateNo) {
+                                  toast.error(`Topic No. ${topicEditForm.topic_no} already exists`, {
+                                    description: `Choose a different number. Next available: ${Math.max(...currentSyllabus.map(s => s.topic_no)) + 1}`,
+                                  });
+                                  return;
+                                }
                                 try {
                                   await store.saveBatchSyllabusTopic({
                                     ...topic,
@@ -2802,6 +2812,16 @@ export default function BatchDetails() {
                 onClick={async () => {
                   if (!newTopicForm.topic_name.trim()) {
                     toast.error('Topic name is required');
+                    return;
+                  }
+                  // Validate: topic_no must be unique within this batch course
+                  const duplicateNo = currentSyllabus.some(
+                    s => s.topic_no === newTopicForm.topic_no
+                  );
+                  if (duplicateNo) {
+                    toast.error(`Topic No. ${newTopicForm.topic_no} already exists`, {
+                      description: `Choose a different number. Next available: ${Math.max(...currentSyllabus.map(s => s.topic_no)) + 1}`,
+                    });
                     return;
                   }
                   try {

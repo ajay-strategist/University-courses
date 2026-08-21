@@ -722,15 +722,16 @@ class DataStore {
       is_completed: topic.is_completed ?? false,
       completed_date: topic.completed_date || null,
     };
-    const idx = this.batchSyllabus.findIndex(s => s.id === item.id);
-    if (idx >= 0) this.batchSyllabus[idx] = item;
-    else this.batchSyllabus.push(item);
-    this.saveLocalCache();
+    // DB call FIRST — only update local state if DB succeeds
     const { error } = await supabase.from('uct_batch_course_syllabus').upsert(item);
     if (error) {
       console.error('Supabase saveBatchSyllabusTopic error:', error.message);
       throw new Error(`Failed to save syllabus topic in database: ${error.message}`);
     }
+    const idx = this.batchSyllabus.findIndex(s => s.id === item.id);
+    if (idx >= 0) this.batchSyllabus[idx] = item;
+    else this.batchSyllabus.push(item);
+    this.saveLocalCache();
     return item;
   }
 
