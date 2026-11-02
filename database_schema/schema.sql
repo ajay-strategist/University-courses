@@ -24,6 +24,8 @@ DROP VIEW IF EXISTS public.uct_vw_dim_batch CASCADE;
 DROP VIEW IF EXISTS public.uct_vw_dim_college CASCADE;
 
 -- Drop uct_ tables if they exist
+DROP TABLE IF EXISTS public.uct_academic_activities CASCADE;
+DROP TABLE IF EXISTS public.uct_academic_semesters CASCADE;
 DROP TABLE IF EXISTS public.uct_batch_tasks CASCADE;
 DROP TABLE IF EXISTS public.uct_migration_mappings CASCADE;
 DROP TABLE IF EXISTS public.uct_migration_runs CASCADE;
@@ -302,6 +304,47 @@ CREATE TABLE public.uct_batch_tasks (
 );
 
 -- -------------------------------------------------------------------------------------
+-- 7.3. ACADEMIC CALENDAR & ACTIVITIES
+-- -------------------------------------------------------------------------------------
+CREATE TABLE public.uct_academic_semesters (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    college_id UUID NOT NULL REFERENCES public.uct_colleges(id) ON DELETE CASCADE,
+    program_id UUID NOT NULL REFERENCES public.uct_programs(id) ON DELETE CASCADE,
+    academic_year TEXT NOT NULL,
+    semester_no INT NOT NULL,
+    start_date DATE NOT NULL,
+    end_date DATE NOT NULL,
+    is_active BOOLEAN NOT NULL DEFAULT true,
+    created_at TIMESTAMPTZ DEFAULT NOW(),
+    updated_at TIMESTAMPTZ DEFAULT NOW(),
+    UNIQUE(college_id, program_id, academic_year, semester_no),
+    CONSTRAINT check_semester_dates CHECK (end_date >= start_date)
+);
+
+CREATE TABLE public.uct_academic_activities (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    college_id UUID NOT NULL REFERENCES public.uct_colleges(id) ON DELETE CASCADE,
+    batch_id UUID REFERENCES public.uct_batches(id) ON DELETE CASCADE,
+    semester_no INT,
+    title TEXT NOT NULL,
+    description TEXT,
+    activity_type TEXT NOT NULL CHECK (activity_type IN (
+        'Exam Window',
+        'Marks Deadline',
+        'Holiday / Break',
+        'Syllabus Milestone',
+        'Guest Lecture / Workshop',
+        'General Event'
+    )),
+    start_date DATE NOT NULL,
+    end_date DATE NOT NULL,
+    status TEXT NOT NULL DEFAULT 'Planned' CHECK (status IN ('Planned', 'Completed', 'Cancelled')),
+    created_at TIMESTAMPTZ DEFAULT NOW(),
+    updated_at TIMESTAMPTZ DEFAULT NOW(),
+    CONSTRAINT check_activity_dates CHECK (end_date >= start_date)
+);
+
+-- -------------------------------------------------------------------------------------
 -- 8. INDEXES
 -- -------------------------------------------------------------------------------------
 CREATE INDEX idx_uct_students_batch_id ON public.uct_students(batch_id);
@@ -316,6 +359,8 @@ CREATE INDEX idx_uct_assessments_batch_course_id ON public.uct_assessments(batch
 CREATE INDEX idx_uct_assessment_marks_assessment_id ON public.uct_assessment_marks(assessment_id);
 CREATE INDEX idx_uct_trainer_logs_batch_course_id ON public.uct_trainer_logs(batch_course_id);
 CREATE INDEX idx_uct_batch_tasks_lookup ON public.uct_batch_tasks(batch_id, course_id, semester);
+CREATE INDEX idx_uct_academic_semesters_lookup ON public.uct_academic_semesters(college_id, program_id, academic_year);
+CREATE INDEX idx_uct_academic_activities_dates ON public.uct_academic_activities(start_date, end_date);
 
 -- -------------------------------------------------------------------------------------
 -- 9. ROW-LEVEL SECURITY (RLS) POLICIES & PERMISSIONS
@@ -338,6 +383,8 @@ ALTER TABLE public.uct_user_email_config DISABLE ROW LEVEL SECURITY;
 ALTER TABLE public.uct_notification_log DISABLE ROW LEVEL SECURITY;
 ALTER TABLE public.uct_trainer_logs DISABLE ROW LEVEL SECURITY;
 ALTER TABLE public.uct_batch_tasks DISABLE ROW LEVEL SECURITY;
+ALTER TABLE public.uct_academic_semesters DISABLE ROW LEVEL SECURITY;
+ALTER TABLE public.uct_academic_activities DISABLE ROW LEVEL SECURITY;
 
 GRANT ALL ON ALL TABLES IN SCHEMA public TO anon, authenticated, service_role;
 

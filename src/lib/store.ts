@@ -2,7 +2,7 @@ import type {
   College, Program, Course, CourseDefaultSyllabus, AssessmentType, 
   Batch, Student, BatchCourse, BatchCourseSyllabus, Session, TrainerLog,
   Attendance, Assessment, AssessmentMark, Profile, UserEmailConfig, NotificationLog,
-  MigrationRun, MigrationMapping, BatchTask
+  MigrationRun, MigrationMapping, BatchTask, AcademicSemester, AcademicActivity
 } from '@/types';
 import { supabase } from './supabase';
 
@@ -40,6 +40,8 @@ class DataStore {
   migrationMappings: MigrationMapping[] = [];
   trainerLogs: TrainerLog[] = [];
   batchTasks: BatchTask[] = [];
+  academicSemesters: AcademicSemester[] = [];
+  academicActivities: AcademicActivity[] = [];
 
   powerBiUrl = "https://app.powerbi.com/view?r=eyJrIjoiZXhhbXBsZS1wb3dlci1iaS1yZXBvcnQtaWQiLCJ0IjoiZGVtbyJ9";
   isInitialized = false;
@@ -105,6 +107,12 @@ class DataStore {
 
       const cTasks = localStorage.getItem('uct_batch_tasks');
       if (cTasks) this.batchTasks = JSON.parse(cTasks);
+
+      const cSemesters = localStorage.getItem('uct_academic_semesters');
+      if (cSemesters) this.academicSemesters = JSON.parse(cSemesters);
+
+      const cActivities = localStorage.getItem('uct_academic_activities');
+      if (cActivities) this.academicActivities = JSON.parse(cActivities);
     } catch (e) {
       console.warn('LocalStorage load warning:', e);
     }
@@ -118,7 +126,7 @@ class DataStore {
       'uct_batch_syllabus', 'uct_sessions', 'uct_attendance', 'uct_assessments',
       'uct_assessment_marks', 'uct_profiles', 'uct_user_email_config',
       'uct_notification_logs', 'uct_migration_runs', 'uct_migration_mappings', 'uct_trainer_logs',
-      'uct_batch_tasks',
+      'uct_batch_tasks', 'uct_academic_semesters', 'uct_academic_activities'
     ];
     cacheKeys.forEach(k => localStorage.removeItem(k));
     window.location.reload();
@@ -146,6 +154,8 @@ class DataStore {
       localStorage.setItem('uct_migration_mappings', JSON.stringify(this.migrationMappings));
       localStorage.setItem('uct_trainer_logs', JSON.stringify(this.trainerLogs));
       localStorage.setItem('uct_batch_tasks', JSON.stringify(this.batchTasks));
+      localStorage.setItem('uct_academic_semesters', JSON.stringify(this.academicSemesters));
+      localStorage.setItem('uct_academic_activities', JSON.stringify(this.academicActivities));
     } catch (e) {
       console.warn('LocalStorage save warning:', e);
     }
@@ -178,6 +188,8 @@ class DataStore {
         { data: mappings, error: eMappings },
         { data: tLogs, error: eTLogs },
         { data: tks, error: eTks },
+        { data: aSemesters, error: eASemesters },
+        { data: aActivities, error: eAActivities },
       ] = await Promise.all([
         supabase.from('uct_profiles').select('*'),
         supabase.from('uct_colleges').select('*'),
@@ -199,6 +211,8 @@ class DataStore {
         supabase.from('uct_migration_mappings').select('*').order('created_at', { ascending: false }),
         supabase.from('uct_trainer_logs').select('*').order('log_date', { ascending: false }),
         supabase.from('uct_batch_tasks').select('*').order('created_at', { ascending: true }),
+        supabase.from('uct_academic_semesters').select('*').order('semester_no', { ascending: true }),
+        supabase.from('uct_academic_activities').select('*').order('start_date', { ascending: true }),
       ]);
 
       // Supabase is the single source of truth.
@@ -226,8 +240,10 @@ class DataStore {
       if (mappings !== null) this.migrationMappings = (mappings || []) as MigrationMapping[];
       if (tLogs !== null) this.trainerLogs = (tLogs || []) as TrainerLog[];
       if (tks !== null) this.batchTasks = (tks || []) as BatchTask[];
+      if (aSemesters !== null) this.academicSemesters = (aSemesters || []) as AcademicSemester[];
+      if (aActivities !== null) this.academicActivities = (aActivities || []) as AcademicActivity[];
       const allErrors = {
-        eProfs, eCols, eProgs, eCrses, eDefSyl, eAssTypes, eBts, eStds, eBCrs, eBSyl, eSess, eAtts, eAsms, eMarks, eEmails, eLogs, eRuns, eMappings, eTLogs, eTks
+        eProfs, eCols, eProgs, eCrses, eDefSyl, eAssTypes, eBts, eStds, eBCrs, eBSyl, eSess, eAtts, eAsms, eMarks, eEmails, eLogs, eRuns, eMappings, eTLogs, eTks, eASemesters, eAActivities
       };
       const errorCount = Object.values(allErrors).filter(Boolean).length;
       if (errorCount > 0) {
@@ -336,6 +352,170 @@ class DataStore {
       }
     } catch (e) {
       console.warn('Task delete error:', e);
+    }
+  }
+
+  // -------------------------
+  // ACADEMIC CALENDAR & SEMESTERS
+  // -------------------------
+  getAcademicSemesters(collegeId?: string, programId?: string, academicYear?: string): AcademicSemester[] {
+    return this.academicSemesters.filter(s => {
+      if (collegeId && s.college_id !== collegeId) return false;
+      if (programId && s.program_id !== programId) return false;
+      if (academicYear && s.academic_year !== academicYear) return false;
+      return true;
+    }).sort((a, b) => a.semester_no - b.semester_no);
+  }
+
+  getActiveSemester(collegeId: string, programId: string, targetDate?: string): AcademicSemester | null {
+    const checkDate = targetDate || new Date().toISOString().split('T')[0];
+    const match = this.academicSemesters.find(s => 
+      s.college_id === collegeId &&
+      s.program_id === programId &&
+      s.is_active &&
+      s.start_date <= checkDate &&
+      s.end_date >= checkDate
+    );
+    return match || null;
+  }
+
+  async saveAcademicSemester(semester: Partial<AcademicSemester>): Promise<AcademicSemester> {
+    const item: AcademicSemester = {
+      id: semester.id || generateUUID(),
+      college_id: semester.college_id!,
+      program_id: semester.program_id!,
+      academic_year: semester.academic_year!.trim(),
+      semester_no: Number(semester.semester_no),
+      start_date: semester.start_date!,
+      end_date: semester.end_date!,
+      is_active: semester.is_active ?? true,
+      created_at: semester.created_at || new Date().toISOString(),
+      updated_at: new Date().toISOString()
+    };
+
+    const idx = this.academicSemesters.findIndex(s => s.id === item.id);
+    if (idx >= 0) {
+      this.academicSemesters[idx] = item;
+    } else {
+      this.academicSemesters.push(item);
+    }
+    this.saveLocalCache();
+
+    try {
+      const { error } = await supabase.from('uct_academic_semesters').upsert({
+        id: item.id,
+        college_id: item.college_id,
+        program_id: item.program_id,
+        academic_year: item.academic_year,
+        semester_no: item.semester_no,
+        start_date: item.start_date,
+        end_date: item.end_date,
+        is_active: item.is_active,
+        created_at: item.created_at,
+        updated_at: item.updated_at
+      });
+      if (error) {
+        console.warn('Supabase academic semester save note:', error.message);
+      }
+    } catch (e) {
+      console.warn('Academic semester save error:', e);
+    }
+
+    return item;
+  }
+
+  async deleteAcademicSemester(semesterId: string): Promise<void> {
+    this.academicSemesters = this.academicSemesters.filter(s => s.id !== semesterId);
+    this.saveLocalCache();
+
+    try {
+      const { error } = await supabase.from('uct_academic_semesters').delete().eq('id', semesterId);
+      if (error) {
+        console.warn('Supabase academic semester delete note:', error.message);
+      }
+    } catch (e) {
+      console.warn('Academic semester delete error:', e);
+    }
+  }
+
+  // -------------------------
+  // ACADEMIC ACTIVITIES
+  // -------------------------
+  getAcademicActivities(filters?: {
+    collegeId?: string;
+    batchId?: string;
+    semesterNo?: number;
+    activityType?: string;
+  }): AcademicActivity[] {
+    return this.academicActivities.filter(a => {
+      if (filters?.collegeId && a.college_id !== filters.collegeId) return false;
+      if (filters?.batchId && a.batch_id && a.batch_id !== filters.batchId) return false;
+      if (filters?.semesterNo && a.semester_no && a.semester_no !== filters.semesterNo) return false;
+      if (filters?.activityType && a.activity_type !== filters.activityType) return false;
+      return true;
+    }).sort((a, b) => a.start_date.localeCompare(b.start_date));
+  }
+
+  async saveAcademicActivity(activity: Partial<AcademicActivity>): Promise<AcademicActivity> {
+    const item: AcademicActivity = {
+      id: activity.id || generateUUID(),
+      college_id: activity.college_id!,
+      batch_id: activity.batch_id || null,
+      semester_no: activity.semester_no ? Number(activity.semester_no) : null,
+      title: activity.title!.trim(),
+      description: activity.description?.trim() || '',
+      activity_type: activity.activity_type!,
+      start_date: activity.start_date!,
+      end_date: activity.end_date!,
+      status: activity.status || 'Planned',
+      created_at: activity.created_at || new Date().toISOString(),
+      updated_at: new Date().toISOString()
+    };
+
+    const idx = this.academicActivities.findIndex(a => a.id === item.id);
+    if (idx >= 0) {
+      this.academicActivities[idx] = item;
+    } else {
+      this.academicActivities.push(item);
+    }
+    this.saveLocalCache();
+
+    try {
+      const { error } = await supabase.from('uct_academic_activities').upsert({
+        id: item.id,
+        college_id: item.college_id,
+        batch_id: item.batch_id,
+        semester_no: item.semester_no,
+        title: item.title,
+        description: item.description,
+        activity_type: item.activity_type,
+        start_date: item.start_date,
+        end_date: item.end_date,
+        status: item.status,
+        created_at: item.created_at,
+        updated_at: item.updated_at
+      });
+      if (error) {
+        console.warn('Supabase academic activity save note:', error.message);
+      }
+    } catch (e) {
+      console.warn('Academic activity save error:', e);
+    }
+
+    return item;
+  }
+
+  async deleteAcademicActivity(activityId: string): Promise<void> {
+    this.academicActivities = this.academicActivities.filter(a => a.id !== activityId);
+    this.saveLocalCache();
+
+    try {
+      const { error } = await supabase.from('uct_academic_activities').delete().eq('id', activityId);
+      if (error) {
+        console.warn('Supabase academic activity delete note:', error.message);
+      }
+    } catch (e) {
+      console.warn('Academic activity delete error:', e);
     }
   }
 

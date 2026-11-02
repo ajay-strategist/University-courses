@@ -11,7 +11,8 @@ import {
   LogOut,
   ChevronRight,
   Shield,
-  GraduationCap
+  GraduationCap,
+  CalendarDays
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
@@ -38,6 +39,12 @@ export function Sidebar() {
       name: 'Batches', 
       path: '/batches', 
       icon: BookOpen, 
+      roles: ['admin', 'trainer', 'student_coordinator', 'college_coordinator'] 
+    },
+    { 
+      name: 'Academic Calendar', 
+      path: '/calendar', 
+      icon: CalendarDays, 
       roles: ['admin', 'trainer', 'student_coordinator', 'college_coordinator'] 
     },
     { 

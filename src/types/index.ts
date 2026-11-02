@@ -234,3 +234,39 @@ export interface BatchTask {
   created_at?: string;
   updated_at?: string;
 }
+
+export interface AcademicSemester {
+  id: string;
+  college_id: string;
+  program_id: string;
+  academic_year: string;
+  semester_no: number;
+  start_date: string;
+  end_date: string;
+  is_active: boolean;
+  created_at?: string;
+  updated_at?: string;
+}
+
+export type AcademicActivityType =
+  | 'Exam Window'
+  | 'Marks Deadline'
+  | 'Holiday / Break'
+  | 'Syllabus Milestone'
+  | 'Guest Lecture / Workshop'
+  | 'General Event';
+
+export interface AcademicActivity {
+  id: string;
+  college_id: string;
+  batch_id?: string | null;
+  semester_no?: number | null;
+  title: string;
+  description?: string;
+  activity_type: AcademicActivityType;
+  start_date: string;
+  end_date: string;
+  status: 'Planned' | 'Completed' | 'Cancelled';
+  created_at?: string;
+  updated_at?: string;
+}

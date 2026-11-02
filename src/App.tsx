@@ -11,6 +11,7 @@ import ImportCenter from './pages/ImportCenter';
 import BulkUpload from './pages/BulkUpload';
 import EmailNotifications from './pages/EmailNotifications';
 import Reports from './pages/Reports';
+import AcademicCalendar from './pages/AcademicCalendar';
 import { AppLayout } from './components/layout/AppLayout';
 import ForcePasswordReset from './pages/ForcePasswordReset';
 
@@ -53,6 +54,7 @@ function App() {
             <Route path="import-center" element={<ImportCenter />} />
             <Route path="import-center/bulk" element={<BulkUpload />} />
             <Route path="notifications" element={<EmailNotifications />} />
+            <Route path="calendar" element={<AcademicCalendar />} />
             <Route path="reports" element={<Reports />} />
           </Route>
           

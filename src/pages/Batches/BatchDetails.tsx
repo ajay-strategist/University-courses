@@ -37,12 +37,21 @@ export default function BatchDetails() {
   const [batchCourses, setBatchCourses] = useState<BatchCourse[]>(
     store.batchCourses.filter(bc => bc.batch_id === id)
   );
-  const [selectedSemesterFilter, setSelectedSemesterFilter] = useState<number | 'all'>(
-    batch?.current_semester || 'all'
-  );
-  const [selectedBatchCourseId, setSelectedBatchCourseId] = useState<string>(
-    batchCourses.find(bc => bc.semester === (batch?.current_semester || 1))?.id || batchCourses[0]?.id || ''
-  );
+  const [selectedSemesterFilter, setSelectedSemesterFilter] = useState<number | 'all'>(() => {
+    if (batch?.college_id && batch?.program_id) {
+      const activeSem = store.getActiveSemester(batch.college_id, batch.program_id);
+      if (activeSem) return activeSem.semester_no;
+    }
+    return batch?.current_semester || 'all';
+  });
+  const [selectedBatchCourseId, setSelectedBatchCourseId] = useState<string>(() => {
+    let targetSem = batch?.current_semester || 1;
+    if (batch?.college_id && batch?.program_id) {
+      const activeSem = store.getActiveSemester(batch.college_id, batch.program_id);
+      if (activeSem) targetSem = activeSem.semester_no;
+    }
+    return batchCourses.find(bc => bc.semester === targetSem)?.id || batchCourses[0]?.id || '';
+  });
 
   // Modals & Dialogs
   const [showAddStudentModal, setShowAddStudentModal] = useState(false);
