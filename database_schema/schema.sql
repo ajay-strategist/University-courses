@@ -24,6 +24,7 @@ DROP VIEW IF EXISTS public.uct_vw_dim_batch CASCADE;
 DROP VIEW IF EXISTS public.uct_vw_dim_college CASCADE;
 
 -- Drop uct_ tables if they exist
+DROP TABLE IF EXISTS public.uct_batch_tasks CASCADE;
 DROP TABLE IF EXISTS public.uct_migration_mappings CASCADE;
 DROP TABLE IF EXISTS public.uct_migration_runs CASCADE;
 DROP TABLE IF EXISTS public.uct_trainer_logs CASCADE;
@@ -285,6 +286,22 @@ CREATE TABLE public.uct_trainer_logs (
 );
 
 -- -------------------------------------------------------------------------------------
+-- 7.2. BATCH TASKS
+-- -------------------------------------------------------------------------------------
+CREATE TABLE public.uct_batch_tasks (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    batch_id UUID NOT NULL REFERENCES public.uct_batches(id) ON DELETE CASCADE,
+    course_id UUID NOT NULL REFERENCES public.uct_courses(id) ON DELETE CASCADE,
+    semester INT, -- NULL = Common to entire course; 1, 2, 3... = Specific Semester
+    title TEXT NOT NULL,
+    due_date DATE,
+    is_completed BOOLEAN NOT NULL DEFAULT false,
+    completed_at TIMESTAMPTZ,
+    created_at TIMESTAMPTZ DEFAULT NOW(),
+    updated_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- -------------------------------------------------------------------------------------
 -- 8. INDEXES
 -- -------------------------------------------------------------------------------------
 CREATE INDEX idx_uct_students_batch_id ON public.uct_students(batch_id);
@@ -298,6 +315,7 @@ CREATE INDEX idx_uct_attendance_student_id ON public.uct_attendance(student_id);
 CREATE INDEX idx_uct_assessments_batch_course_id ON public.uct_assessments(batch_course_id);
 CREATE INDEX idx_uct_assessment_marks_assessment_id ON public.uct_assessment_marks(assessment_id);
 CREATE INDEX idx_uct_trainer_logs_batch_course_id ON public.uct_trainer_logs(batch_course_id);
+CREATE INDEX idx_uct_batch_tasks_lookup ON public.uct_batch_tasks(batch_id, course_id, semester);
 
 -- -------------------------------------------------------------------------------------
 -- 9. ROW-LEVEL SECURITY (RLS) POLICIES & PERMISSIONS
@@ -319,6 +337,7 @@ ALTER TABLE public.uct_assessment_marks DISABLE ROW LEVEL SECURITY;
 ALTER TABLE public.uct_user_email_config DISABLE ROW LEVEL SECURITY;
 ALTER TABLE public.uct_notification_log DISABLE ROW LEVEL SECURITY;
 ALTER TABLE public.uct_trainer_logs DISABLE ROW LEVEL SECURITY;
+ALTER TABLE public.uct_batch_tasks DISABLE ROW LEVEL SECURITY;
 
 GRANT ALL ON ALL TABLES IN SCHEMA public TO anon, authenticated, service_role;
 

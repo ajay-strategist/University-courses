@@ -221,3 +221,16 @@ export interface MigrationMapping {
   mapping: any;
   created_at?: string;
 }
+
+export interface BatchTask {
+  id: string;
+  batch_id: string;
+  course_id: string;
+  semester?: number | null; // null = Common to Course across all semesters; 1, 2, 3... = Specific Semester
+  title: string;
+  due_date?: string | null;
+  is_completed: boolean;
+  completed_at?: string | null;
+  created_at?: string;
+  updated_at?: string;
+}

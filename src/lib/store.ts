@@ -2,7 +2,7 @@ import type {
   College, Program, Course, CourseDefaultSyllabus, AssessmentType, 
   Batch, Student, BatchCourse, BatchCourseSyllabus, Session, TrainerLog,
   Attendance, Assessment, AssessmentMark, Profile, UserEmailConfig, NotificationLog,
-  MigrationRun, MigrationMapping
+  MigrationRun, MigrationMapping, BatchTask
 } from '@/types';
 import { supabase } from './supabase';
 
@@ -39,6 +39,7 @@ class DataStore {
   migrationRuns: MigrationRun[] = [];
   migrationMappings: MigrationMapping[] = [];
   trainerLogs: TrainerLog[] = [];
+  batchTasks: BatchTask[] = [];
 
   powerBiUrl = "https://app.powerbi.com/view?r=eyJrIjoiZXhhbXBsZS1wb3dlci1iaS1yZXBvcnQtaWQiLCJ0IjoiZGVtbyJ9";
   isInitialized = false;
@@ -101,6 +102,9 @@ class DataStore {
 
       const cTrainerLogs = localStorage.getItem('uct_trainer_logs');
       if (cTrainerLogs) this.trainerLogs = JSON.parse(cTrainerLogs);
+
+      const cTasks = localStorage.getItem('uct_batch_tasks');
+      if (cTasks) this.batchTasks = JSON.parse(cTasks);
     } catch (e) {
       console.warn('LocalStorage load warning:', e);
     }
@@ -114,6 +118,7 @@ class DataStore {
       'uct_batch_syllabus', 'uct_sessions', 'uct_attendance', 'uct_assessments',
       'uct_assessment_marks', 'uct_profiles', 'uct_user_email_config',
       'uct_notification_logs', 'uct_migration_runs', 'uct_migration_mappings', 'uct_trainer_logs',
+      'uct_batch_tasks',
     ];
     cacheKeys.forEach(k => localStorage.removeItem(k));
     window.location.reload();
@@ -140,6 +145,7 @@ class DataStore {
       localStorage.setItem('uct_migration_runs', JSON.stringify(this.migrationRuns));
       localStorage.setItem('uct_migration_mappings', JSON.stringify(this.migrationMappings));
       localStorage.setItem('uct_trainer_logs', JSON.stringify(this.trainerLogs));
+      localStorage.setItem('uct_batch_tasks', JSON.stringify(this.batchTasks));
     } catch (e) {
       console.warn('LocalStorage save warning:', e);
     }
@@ -171,6 +177,7 @@ class DataStore {
         { data: runs, error: eRuns },
         { data: mappings, error: eMappings },
         { data: tLogs, error: eTLogs },
+        { data: tks, error: eTks },
       ] = await Promise.all([
         supabase.from('uct_profiles').select('*'),
         supabase.from('uct_colleges').select('*'),
@@ -191,6 +198,7 @@ class DataStore {
         supabase.from('uct_migration_runs').select('*').order('created_at', { ascending: false }),
         supabase.from('uct_migration_mappings').select('*').order('created_at', { ascending: false }),
         supabase.from('uct_trainer_logs').select('*').order('log_date', { ascending: false }),
+        supabase.from('uct_batch_tasks').select('*').order('created_at', { ascending: true }),
       ]);
 
       // Supabase is the single source of truth.
@@ -217,8 +225,9 @@ class DataStore {
       if (runs !== null) this.migrationRuns = (runs || []) as MigrationRun[];
       if (mappings !== null) this.migrationMappings = (mappings || []) as MigrationMapping[];
       if (tLogs !== null) this.trainerLogs = (tLogs || []) as TrainerLog[];
+      if (tks !== null) this.batchTasks = (tks || []) as BatchTask[];
       const allErrors = {
-        eProfs, eCols, eProgs, eCrses, eDefSyl, eAssTypes, eBts, eStds, eBCrs, eBSyl, eSess, eAtts, eAsms, eMarks, eEmails, eLogs, eRuns, eMappings, eTLogs
+        eProfs, eCols, eProgs, eCrses, eDefSyl, eAssTypes, eBts, eStds, eBCrs, eBSyl, eSess, eAtts, eAsms, eMarks, eEmails, eLogs, eRuns, eMappings, eTLogs, eTks
       };
       const errorCount = Object.values(allErrors).filter(Boolean).length;
       if (errorCount > 0) {
@@ -229,6 +238,104 @@ class DataStore {
       this.isInitialized = true;
     } catch (err) {
       console.warn('Failed to load initial data from Supabase:', err);
+    }
+  }
+
+  // -------------------------
+  // BATCH TASKS
+  // -------------------------
+  getBatchTasks(batchId: string, courseId?: string, semester?: number | 'all' | null): BatchTask[] {
+    return this.batchTasks.filter(t => {
+      if (t.batch_id !== batchId) return false;
+      if (courseId && t.course_id !== courseId) return false;
+      if (semester !== undefined && semester !== 'all') {
+        return t.semester === semester;
+      }
+      return true;
+    });
+  }
+
+  async saveBatchTask(task: Partial<BatchTask>): Promise<BatchTask> {
+    const item: BatchTask = {
+      id: task.id || generateUUID(),
+      batch_id: task.batch_id!,
+      course_id: task.course_id!,
+      semester: task.semester !== undefined ? task.semester : null,
+      title: task.title!.trim(),
+      due_date: task.due_date || null,
+      is_completed: task.is_completed ?? false,
+      completed_at: task.completed_at || null,
+      created_at: task.created_at || new Date().toISOString(),
+      updated_at: new Date().toISOString()
+    };
+
+    const idx = this.batchTasks.findIndex(t => t.id === item.id);
+    if (idx >= 0) {
+      this.batchTasks[idx] = item;
+    } else {
+      this.batchTasks.push(item);
+    }
+    this.saveLocalCache();
+
+    // Persist to Supabase uct_batch_tasks
+    try {
+      const { error } = await supabase.from('uct_batch_tasks').upsert({
+        id: item.id,
+        batch_id: item.batch_id,
+        course_id: item.course_id,
+        semester: item.semester,
+        title: item.title,
+        due_date: item.due_date,
+        is_completed: item.is_completed,
+        completed_at: item.completed_at,
+        created_at: item.created_at,
+        updated_at: item.updated_at
+      });
+      if (error) {
+        console.warn('Supabase task save note:', error.message);
+      }
+    } catch (e) {
+      console.warn('Task save error:', e);
+    }
+
+    return item;
+  }
+
+  async toggleBatchTask(taskId: string): Promise<BatchTask | null> {
+    const task = this.batchTasks.find(t => t.id === taskId);
+    if (!task) return null;
+    task.is_completed = !task.is_completed;
+    task.completed_at = task.is_completed ? new Date().toISOString() : null;
+    task.updated_at = new Date().toISOString();
+    this.saveLocalCache();
+
+    try {
+      const { error } = await supabase.from('uct_batch_tasks').update({
+        is_completed: task.is_completed,
+        completed_at: task.completed_at,
+        updated_at: task.updated_at
+      }).eq('id', taskId);
+      if (error) {
+        console.warn('Supabase task toggle note:', error.message);
+      }
+    } catch (e) {
+      console.warn('Task toggle error:', e);
+    }
+
+    return task;
+  }
+
+  async deleteBatchTask(taskId: string): Promise<void> {
+    this.batchTasks = this.batchTasks.filter(t => t.id !== taskId);
+    this.saveLocalCache();
+
+    try {
+      const { error } = await supabase.from('uct_batch_tasks').delete().eq('id', taskId);
+      if (error) {
+        console.warn('Supabase task delete note:', error.message);
+      }
+    } catch (e) {
+      console.warn('Task delete error:', e);
     }
   }
 
