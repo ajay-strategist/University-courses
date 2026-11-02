@@ -39,7 +39,7 @@ export default function BatchDetails() {
   );
   const [selectedSemesterFilter, setSelectedSemesterFilter] = useState<number | 'all'>(() => {
     if (batch?.college_id && batch?.program_id) {
-      const activeSem = store.getActiveSemester(batch.college_id, batch.program_id);
+      const activeSem = store.getActiveSemester(batch.college_id, batch.program_id, batch.academic_year);
       if (activeSem) return activeSem.semester_no;
     }
     return batch?.current_semester || 'all';
@@ -47,7 +47,7 @@ export default function BatchDetails() {
   const [selectedBatchCourseId, setSelectedBatchCourseId] = useState<string>(() => {
     let targetSem = batch?.current_semester || 1;
     if (batch?.college_id && batch?.program_id) {
-      const activeSem = store.getActiveSemester(batch.college_id, batch.program_id);
+      const activeSem = store.getActiveSemester(batch.college_id, batch.program_id, batch.academic_year);
       if (activeSem) targetSem = activeSem.semester_no;
     }
     return batchCourses.find(bc => bc.semester === targetSem)?.id || batchCourses[0]?.id || '';

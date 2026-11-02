@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import { store } from '@/lib/store';
 import { useAuth } from '@/contexts/AuthContext';
 import type { AcademicSemester, AcademicActivity, AcademicActivityType } from '@/types';
@@ -62,16 +62,76 @@ export default function AcademicCalendar() {
 
   const [selectedCollegeId, setSelectedCollegeId] = useState<string>(colleges[0]?.id || '');
   const [selectedProgramId, setSelectedProgramId] = useState<string>(programs[0]?.id || '');
-  const [selectedYear, setSelectedYear] = useState<string>('2024-25');
+
+  // Store data states
+  const [batches] = useState(() => store.batches);
+  const [semesters, setSemesters] = useState<AcademicSemester[]>([...store.academicSemesters]);
+  const [activities, setActivities] = useState<AcademicActivity[]>([...store.academicActivities]);
+
+  // Dynamically derive available Academic Years from Batches
+  const availableAcademicYears = useMemo(() => {
+    // 1. Batches matching selected college and program
+    const matchedBatches = batches.filter(
+      b => b.college_id === selectedCollegeId && b.program_id === selectedProgramId
+    );
+    const matchedYears = Array.from(
+      new Set(matchedBatches.map(b => b.academic_year?.trim()).filter(Boolean))
+    );
+
+    // 2. Batches matching selected college across all programs
+    const collegeBatches = batches.filter(b => b.college_id === selectedCollegeId);
+    const collegeYears = Array.from(
+      new Set(collegeBatches.map(b => b.academic_year?.trim()).filter(Boolean))
+    );
+
+    // 3. Batches system-wide
+    const allBatchYears = Array.from(
+      new Set(batches.map(b => b.academic_year?.trim()).filter(Boolean))
+    );
+
+    // 4. Any academic years already recorded in academicSemesters
+    const semesterYears = Array.from(
+      new Set(semesters.map(s => s.academic_year?.trim()).filter(Boolean))
+    );
+
+    // Prioritize: matched program batches -> college batches -> all batches -> semester records
+    let result: string[] = [];
+    if (matchedYears.length > 0) {
+      result = matchedYears;
+    } else if (collegeYears.length > 0) {
+      result = collegeYears;
+    } else if (allBatchYears.length > 0) {
+      result = allBatchYears;
+    } else if (semesterYears.length > 0) {
+      result = semesterYears;
+    }
+
+    // Include any other configured semester years so existing schedules are never hidden
+    semesterYears.forEach(y => {
+      if (!result.includes(y)) result.push(y);
+    });
+
+    return result.sort((a, b) => b.localeCompare(a));
+  }, [selectedCollegeId, selectedProgramId, batches, semesters]);
+
+  const [selectedYear, setSelectedYear] = useState<string>(() => {
+    return availableAcademicYears[0] || '2024-28';
+  });
+
+  // Keep selectedYear in sync whenever available batch academic years change
+  useEffect(() => {
+    if (availableAcademicYears.length > 0) {
+      if (!selectedYear || !availableAcademicYears.includes(selectedYear)) {
+        setSelectedYear(availableAcademicYears[0]);
+      }
+    }
+  }, [availableAcademicYears, selectedYear]);
+
   const [calendarViewMode, setCalendarViewMode] = useState<'calendar' | 'agenda'>('calendar');
   const [activityTypeFilter, setActivityTypeFilter] = useState<string>('all');
 
   // Month navigation state
   const [currentDate, setCurrentDate] = useState<Date>(new Date());
-
-  // Store data states
-  const [semesters, setSemesters] = useState<AcademicSemester[]>([...store.academicSemesters]);
-  const [activities, setActivities] = useState<AcademicActivity[]>([...store.academicActivities]);
 
   // Modals state
   const [showSemesterModal, setShowSemesterModal] = useState(false);
@@ -385,18 +445,28 @@ export default function AcademicCalendar() {
 
         <div>
           <label className="text-xs font-mono font-medium text-muted-foreground flex items-center gap-1.5 mb-1.5">
-            <CalendarIcon className="h-3.5 w-3.5 text-primary" /> Academic Year
+            <CalendarIcon className="h-3.5 w-3.5 text-primary" /> Academic Year (from Batches)
           </label>
-          <select
-            value={selectedYear}
-            onChange={(e) => setSelectedYear(e.target.value)}
-            className="w-full bg-background border border-border rounded-xl px-3 py-2 text-sm text-foreground focus:ring-2 focus:ring-primary focus:outline-hidden"
-          >
-            <option value="2023-24">2023-24</option>
-            <option value="2024-25">2024-25</option>
-            <option value="2025-26">2025-26</option>
-            <option value="2026-27">2026-27</option>
-          </select>
+          {availableAcademicYears.length > 0 ? (
+            <select
+              value={selectedYear}
+              onChange={(e) => setSelectedYear(e.target.value)}
+              className="w-full bg-background border border-border rounded-xl px-3 py-2 text-sm text-foreground focus:ring-2 focus:ring-primary focus:outline-hidden"
+            >
+              {availableAcademicYears.map((yr) => (
+                <option key={yr} value={yr}>
+                  {yr}
+                </option>
+              ))}
+            </select>
+          ) : (
+            <Input
+              value={selectedYear}
+              onChange={(e) => setSelectedYear(e.target.value)}
+              placeholder="e.g. 2024-28"
+              className="w-full font-mono text-sm"
+            />
+          )}
         </div>
       </div>
 
@@ -818,6 +888,25 @@ export default function AcademicCalendar() {
             <p className="text-xs text-muted-foreground">
               Define the academic start and end dates for automatic semester detection.
             </p>
+
+            <div className="p-3 bg-muted/30 rounded-xl border border-border text-xs font-mono space-y-1">
+              <div className="flex justify-between text-muted-foreground">
+                <span>College:</span>
+                <span className="text-foreground font-semibold">
+                  {colleges.find(c => c.id === selectedCollegeId)?.name || 'Selected College'}
+                </span>
+              </div>
+              <div className="flex justify-between text-muted-foreground">
+                <span>Program:</span>
+                <span className="text-foreground font-semibold">
+                  {programs.find(p => p.id === selectedProgramId)?.name || 'Selected Program'}
+                </span>
+              </div>
+              <div className="flex justify-between text-muted-foreground">
+                <span>Academic Year (Cohort):</span>
+                <span className="text-primary font-bold">{selectedYear}</span>
+              </div>
+            </div>
 
             <div className="space-y-3">
               <div>

@@ -367,11 +367,12 @@ class DataStore {
     }).sort((a, b) => a.semester_no - b.semester_no);
   }
 
-  getActiveSemester(collegeId: string, programId: string, targetDate?: string): AcademicSemester | null {
+  getActiveSemester(collegeId: string, programId: string, academicYear?: string, targetDate?: string): AcademicSemester | null {
     const checkDate = targetDate || new Date().toISOString().split('T')[0];
     const match = this.academicSemesters.find(s => 
       s.college_id === collegeId &&
       s.program_id === programId &&
+      (!academicYear || s.academic_year === academicYear) &&
       s.is_active &&
       s.start_date <= checkDate &&
       s.end_date >= checkDate
