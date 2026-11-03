@@ -278,7 +278,7 @@ class DataStore {
       if (runs !== null) this.migrationRuns = (runs || []) as MigrationRun[];
       if (mappings !== null) this.migrationMappings = (mappings || []) as MigrationMapping[];
       if (tLogs !== null) {
-        this.trainerLogs = (tLogs || []).map(raw => {
+        const fetchedLogs = (tLogs || []).map(raw => {
           const l = raw as TrainerLog;
           if (l.notes && l.notes.startsWith('[MISSED:')) {
             const m = l.notes.match(/^\[MISSED:([a-z_]+)\]\s*(.*)$/);
@@ -289,6 +289,42 @@ class DataStore {
           }
           return l;
         });
+
+        // Auto-recover any trainer logs that exist in local cache but were not yet persisted in Supabase
+        // (e.g. if previous attempts encountered network issues or schema cache mismatches)
+        const fetchedIds = new Set(fetchedLogs.map(l => l.id));
+        const unsyncedLogs = this.trainerLogs.filter(l => !fetchedIds.has(l.id));
+
+        if (unsyncedLogs.length > 0) {
+          console.info(`Found ${unsyncedLogs.length} unsynced trainer log(s). Auto-uploading to Supabase...`);
+          for (const unsynced of unsyncedLogs) {
+            try {
+              const dbItem = {
+                id: unsynced.id,
+                batch_course_id: unsynced.batch_course_id,
+                trainer_id: unsynced.trainer_id && !unsynced.trainer_id.startsWith('usr-') ? unsynced.trainer_id : null,
+                trainer_name: unsynced.trainer_name || 'Unassigned',
+                log_date: unsynced.log_date,
+                start_time: unsynced.start_time || '00:00',
+                end_time: unsynced.end_time || '00:00',
+                duration_minutes: unsynced.duration_minutes ?? 0,
+                topics_covered: unsynced.topics_covered ?? [],
+                notes: unsynced.notes || null,
+                created_at: unsynced.created_at || new Date().toISOString(),
+              };
+              const { error } = await supabase.from('uct_trainer_logs').upsert(dbItem);
+              if (!error) {
+                fetchedLogs.unshift(unsynced);
+              } else {
+                console.error('Failed to sync unsynced trainer log to Supabase:', error.message);
+              }
+            } catch (syncErr) {
+              console.error('Error auto-syncing trainer log:', syncErr);
+            }
+          }
+        }
+
+        this.trainerLogs = fetchedLogs;
       }
       if (tks !== null) this.batchTasks = (tks || []) as BatchTask[];
       if (aSemesters !== null) this.academicSemesters = (aSemesters || []) as AcademicSemester[];
@@ -607,7 +643,7 @@ class DataStore {
 
   async saveTrainerLog(log: Partial<TrainerLog>): Promise<TrainerLog> {
     const trainerProfile = this.profiles.find(p => p.id === log.trainer_id);
-    const trainerName = trainerProfile ? trainerProfile.full_name : 'Unassigned';
+    const trainerName = trainerProfile ? trainerProfile.full_name : (log.trainer_name || 'Unassigned');
 
     const isMissed = log.log_type === 'missed' || Boolean(log.missed_reason) || (Boolean(log.notes) && log.notes!.startsWith('[MISSED:'));
     let encodedNotes = log.notes;
@@ -682,11 +718,19 @@ class DataStore {
       this.saveLocalCache();
     }
 
+    // Only send valid columns supported by public.uct_trainer_logs
     const dbItem = {
-      ...item,
+      id: item.id,
+      batch_course_id: item.batch_course_id,
       trainer_id: item.trainer_id && !item.trainer_id.startsWith('usr-') ? item.trainer_id : null,
+      trainer_name: item.trainer_name || 'Unassigned',
+      log_date: item.log_date,
+      start_time: item.start_time || '00:00',
+      end_time: item.end_time || '00:00',
+      duration_minutes: item.duration_minutes ?? 0,
+      topics_covered: item.topics_covered ?? [],
       notes: item.notes || null,
-      topics_covered: item.topics_covered, // stored as jsonb array
+      created_at: item.created_at || new Date().toISOString(),
     };
     const { error } = await supabase.from('uct_trainer_logs').upsert(dbItem);
     if (error) {

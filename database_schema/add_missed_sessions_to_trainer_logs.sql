@@ -10,3 +10,4 @@ ADD COLUMN IF NOT EXISTS missed_reason TEXT CHECK (missed_reason IN ('trainer_le
 
 -- Index for filtering conducted vs missed sessions
 CREATE INDEX IF NOT EXISTS idx_uct_trainer_logs_type ON public.uct_trainer_logs(batch_course_id, log_type);
+
