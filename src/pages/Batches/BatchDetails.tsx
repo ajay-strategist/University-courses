@@ -935,12 +935,20 @@ export default function BatchDetails() {
       toast.error('No student data available to export');
       return;
     }
-    const data = students.map(s => ({
-      'Register Number': s.register_no,
-      'Name': s.name,
-      'Class': s.class,
-      'Phone': s.phone || '',
-    }));
+    const semLabel = selectedSemesterFilter !== 'all' ? `Sem ${selectedSemesterFilter}` : 'Overall';
+    const data = students.map(s => {
+      const pct = store.getStudentAttendancePct(s.id, {
+        batchId: batch.id,
+        semester: selectedSemesterFilter,
+      });
+      return {
+        'Register Number': s.register_no,
+        'Name': s.name,
+        'Class': s.class,
+        'Phone': s.phone || '',
+        [`Attendance % (${semLabel})`]: pct !== null ? `${pct}%` : '—',
+      };
+    });
     const ws = XLSX.utils.json_to_sheet(data);
     const wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, ws, 'Students Roster');
@@ -1279,13 +1287,18 @@ export default function BatchDetails() {
                   <th className="p-4">Student Name</th>
                   <th className="p-4">Class (Division)</th>
                   <th className="p-4">Phone</th>
-                  <th className="p-4 text-center">Derived Attendance %</th>
+                  <th className="p-4 text-center">
+                    Derived Attendance % {selectedSemesterFilter !== 'all' ? `(Sem ${selectedSemesterFilter})` : ''}
+                  </th>
                   <th className="p-4 text-right pr-6">Actions</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-border">
                 {students.map((stu) => {
-                  const attPct = store.getStudentAttendancePct(stu.id);
+                  const attPct = store.getStudentAttendancePct(stu.id, {
+                    batchId: batch?.id,
+                    semester: selectedSemesterFilter,
+                  });
                   return (
                     <tr key={stu.id} className="hover:bg-muted/30 transition-colors">
                       <td className="p-4 pl-6">
@@ -1307,10 +1320,16 @@ export default function BatchDetails() {
                       <td className="p-4 text-muted-foreground font-mono text-xs">{stu.class}</td>
                       <td className="p-4 text-muted-foreground font-mono text-xs">{stu.phone || '—'}</td>
                       <td className="p-4 text-center">
-                        <span className={`font-mono text-xs font-bold px-2.5 py-1 rounded-full ${attPct >= 85 ? 'bg-success/15 text-success' : attPct >= 75 ? 'bg-warning/15 text-warning' : 'bg-destructive/15 text-destructive'
-                          }`}>
-                          {attPct}%
-                        </span>
+                        {attPct !== null ? (
+                          <span className={`font-mono text-xs font-bold px-2.5 py-1 rounded-full ${attPct >= 85 ? 'bg-success/15 text-success' : attPct >= 75 ? 'bg-warning/15 text-warning' : 'bg-destructive/15 text-destructive'
+                            }`}>
+                            {attPct}%
+                          </span>
+                        ) : (
+                          <span className="font-mono text-xs text-muted-foreground px-2 py-0.5 rounded-full bg-muted/40" title="No sessions recorded for this semester yet">
+                            —
+                          </span>
+                        )}
                       </td>
                       <td className="p-4 text-right pr-6 space-x-1">
                         <Button size="sm" variant="ghost" onClick={() => handleOpenEditStudent(stu)} className="h-8 w-8 p-0 text-muted-foreground hover:text-primary">

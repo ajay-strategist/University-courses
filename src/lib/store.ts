@@ -1107,9 +1107,37 @@ class DataStore {
     };
   }
 
-  getStudentAttendancePct(studentId: string): number {
-    const studentRecords = this.attendance.filter(a => a.student_id === studentId);
-    if (studentRecords.length === 0) return 0;
+  getStudentAttendancePct(
+    studentId: string, 
+    options?: { 
+      batchId?: string; 
+      semester?: number | 'all'; 
+      batchCourseId?: string;
+    }
+  ): number | null {
+    let relevantSessionIds: Set<string> | null = null;
+
+    if (options?.batchCourseId) {
+      const sess = this.sessions.filter(s => s.batch_course_id === options.batchCourseId);
+      relevantSessionIds = new Set(sess.map(s => s.id));
+    } else if (options?.batchId || (options?.semester !== undefined && options?.semester !== 'all')) {
+      const bcs = this.batchCourses.filter(bc => {
+        if (options.batchId && bc.batch_id !== options.batchId) return false;
+        if (options.semester !== undefined && options.semester !== 'all' && bc.semester !== Number(options.semester)) return false;
+        return true;
+      });
+      const bcIds = new Set(bcs.map(bc => bc.id));
+      const sess = this.sessions.filter(s => bcIds.has(s.batch_course_id));
+      relevantSessionIds = new Set(sess.map(s => s.id));
+    }
+
+    const studentRecords = this.attendance.filter(a => {
+      if (a.student_id !== studentId) return false;
+      if (relevantSessionIds && !relevantSessionIds.has(a.session_id)) return false;
+      return true;
+    });
+
+    if (studentRecords.length === 0) return null;
     const present = studentRecords.filter(a => a.status === 'present' || a.status === 'late').length;
     return Math.round((present / studentRecords.length) * 100);
   }
