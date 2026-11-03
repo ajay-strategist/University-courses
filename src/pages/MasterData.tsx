@@ -43,7 +43,7 @@ export default function MasterData() {
   const [courseForm, setCourseForm] = useState<Partial<Course>>({ code: '', name: '' });
   const [programForm, setProgramForm] = useState<Partial<Program>>({ code: '', name: '' });
   const [assessmentForm, setAssessmentForm] = useState<Partial<AssessmentType>>({ name: '', default_max_mark: 100 });
-  const [topicForm, setTopicForm] = useState<{ topic_no: number; topic_name: string; planned_hours: number }>({ topic_no: 1, topic_name: '', planned_hours: 2 });
+  const [topicForm, setTopicForm] = useState<{ topic_no: number; topic_name: string }>({ topic_no: 1, topic_name: '' });
 
   const [editingCollegeId, setEditingCollegeId] = useState<string | null>(null);
   const [editingCourseId, setEditingCourseId] = useState<string | null>(null);
@@ -140,11 +140,11 @@ export default function MasterData() {
       course_id: selectedCourseId,
       topic_no: topicForm.topic_no,
       topic_name: topicForm.topic_name,
-      planned_hours: Number(topicForm.planned_hours) || 1,
+      planned_hours: 0,
     });
     setDefaultSyllabus([...store.defaultSyllabus]);
     setShowSyllabusTopicModal(false);
-    setTopicForm({ topic_no: (store.defaultSyllabus.filter(s => s.course_id === selectedCourseId).length + 1), topic_name: '', planned_hours: 2 });
+    setTopicForm({ topic_no: (store.defaultSyllabus.filter(s => s.course_id === selectedCourseId).length + 1), topic_name: '' });
     toast.success('Topic saved to default syllabus');
   };
 
@@ -165,7 +165,7 @@ export default function MasterData() {
           const topic_name = row.topic_name || row['Topic Name'] || row.topic || row.Topic;
           if (topic_name) {
             const topic_no = Number(row.topic_no || row['Topic No'] || (idx + 1));
-            const planned_hours = Number(row.planned_hours || row['Planned Hours'] || 2);
+            const planned_hours = Number(row.planned_hours || row['Planned Hours'] || 0);
             await store.saveDefaultSyllabusTopic({
               course_id: selectedCourseId,
               topic_no,
@@ -194,7 +194,6 @@ export default function MasterData() {
     const data = topics.map(t => ({
       'Topic No': t.topic_no,
       'Topic Name': t.topic_name,
-      'Planned Hours': t.planned_hours,
     }));
     const ws = XLSX.utils.json_to_sheet(data);
     const wb = XLSX.utils.book_new();
@@ -432,7 +431,7 @@ export default function MasterData() {
                   <input type="file" accept=".csv, .xlsx" onChange={handleImportTopics} className="hidden" />
                 </label>
                 <Button size="sm" onClick={() => {
-                  setTopicForm({ topic_no: currentCourseSyllabus.length + 1, topic_name: '', planned_hours: 2 });
+                  setTopicForm({ topic_no: currentCourseSyllabus.length + 1, topic_name: '' });
                   setShowSyllabusTopicModal(true);
                 }} className="bg-primary text-primary-foreground">
                   <Plus className="h-3.5 w-3.5 mr-1" /> Add Topic
@@ -446,14 +445,13 @@ export default function MasterData() {
                   <tr>
                     <th className="p-3 w-16 text-center">#</th>
                     <th className="p-3">Topic Description</th>
-                    <th className="p-3 w-28 text-center">Planned Hours</th>
                     <th className="p-3 w-16 text-right">Actions</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-border">
                   {currentCourseSyllabus.length === 0 ? (
                     <tr>
-                      <td colSpan={4} className="p-6 text-center text-muted-foreground text-xs font-mono">
+                      <td colSpan={3} className="p-6 text-center text-muted-foreground text-xs font-mono">
                         No default syllabus topics configured for this course yet.
                       </td>
                     </tr>
@@ -462,7 +460,6 @@ export default function MasterData() {
                       <tr key={topic.id} className="hover:bg-muted/30">
                         <td className="p-3 text-center font-mono font-bold text-muted-foreground">{topic.topic_no}</td>
                         <td className="p-3 font-medium text-foreground">{topic.topic_name}</td>
-                        <td className="p-3 text-center font-mono text-xs">{topic.planned_hours} hrs</td>
                         <td className="p-3 text-right">
                           <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive" onClick={async () => {
                             await store.deleteDefaultSyllabusTopic(topic.id);
@@ -720,10 +717,6 @@ export default function MasterData() {
               <div>
                 <label className="text-xs font-mono font-medium text-muted-foreground">Topic Name / Title</label>
                 <Input value={topicForm.topic_name} onChange={(e) => setTopicForm({ ...topicForm, topic_name: e.target.value })} placeholder="Data Modeling & DAX" className="mt-1" />
-              </div>
-              <div>
-                <label className="text-xs font-mono font-medium text-muted-foreground">Planned Duration (Hours)</label>
-                <Input type="number" step="0.5" value={topicForm.planned_hours} onChange={(e) => setTopicForm({ ...topicForm, planned_hours: Number(e.target.value) })} className="mt-1 font-mono" />
               </div>
             </div>
             <div className="flex justify-end gap-2 pt-2">

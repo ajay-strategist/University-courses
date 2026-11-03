@@ -116,11 +116,11 @@ export default function BatchDetails() {
   // Syllabus Topic Editing State
   const [editingTopicId, setEditingTopicId] = useState<string | null>(null);
   const [topicEditForm, setTopicEditForm] = useState<{
-    topic_no: number; topic_name: string; planned_hours: string;
-  }>({ topic_no: 1, topic_name: '', planned_hours: '' });
+    topic_no: number; topic_name: string;
+  }>({ topic_no: 1, topic_name: '' });
   const [newTopicForm, setNewTopicForm] = useState<{
-    topic_no: number; topic_name: string; planned_hours: string;
-  }>({ topic_no: 1, topic_name: '', planned_hours: '' });
+    topic_no: number; topic_name: string;
+  }>({ topic_no: 1, topic_name: '' });
 
   // Trainer Log Tab State
   const today = new Date().toISOString().split('T')[0];
@@ -1068,7 +1068,6 @@ export default function BatchDetails() {
     const data = currentSyllabus.map(s => ({
       'Topic No': s.topic_no,
       'Topic Name': s.topic_name,
-      'Planned Hours': s.planned_hours,
       'Completed Date': s.completed_date || 'N/A',
       'Status': s.is_completed ? 'Completed' : 'Pending',
     }));
@@ -1093,8 +1092,9 @@ export default function BatchDetails() {
   const coveragePct = totalTopics > 0 ? Math.round((completedTopics / totalTopics) * 100) : 0;
 
   const plannedHours = store.batchCourses.find(bc => bc.id === selectedBatchCourseId)?.planned_hours || 30;
-  const deliveredHours = currentSyllabus.filter(s => s.is_completed).reduce((sum, s) => sum + s.planned_hours, 0);
-  const remainingHours = Math.max(0, plannedHours - deliveredHours);
+  // Delivered Hours: Total Hours Trainer Engaged (including Paper valuation, Class, Supervision, etc.)
+  const deliveredHours = store.getBatchCourseDeliveredHours(selectedBatchCourseId);
+  const remainingHours = Math.max(0, Math.round((plannedHours - deliveredHours) * 10) / 10);
 
   const isOnTrack = coveragePct >= 50;
 
@@ -1447,10 +1447,11 @@ export default function BatchDetails() {
                     </div>
                   </div>
 
-                  <div className="grid grid-cols-2 gap-2 text-xs font-mono bg-sunken p-3 rounded-xl">
+                  <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 text-xs font-mono bg-sunken p-3 rounded-xl">
                     <div>Trainer: <span className="text-foreground font-bold">{trainer?.full_name || 'Unassigned'}</span></div>
                     <div>Semester: <span className="text-foreground font-bold">Sem {bc.semester}</span></div>
                     <div>Planned: <span className="text-foreground font-bold">{bc.planned_hours} hrs</span></div>
+                    <div>Delivered: <span className="text-primary font-bold">{store.getBatchCourseDeliveredHours(bc.id)} hrs</span></div>
                     <div>Coverage: <span className="text-primary font-bold">{covPct}%</span></div>
                     <div>Topics: <span className="text-foreground font-bold">{completed}/{syllabus.length}</span></div>
                   </div>
@@ -1960,7 +1961,7 @@ export default function BatchDetails() {
               </Button>
               <Button size="sm" onClick={() => {
                 const nextNo = currentSyllabus.length > 0 ? Math.max(...currentSyllabus.map(s => s.topic_no)) + 1 : 1;
-                setNewTopicForm({ topic_no: nextNo, topic_name: '', planned_hours: '' });
+                setNewTopicForm({ topic_no: nextNo, topic_name: '' });
                 setShowAddTopicModal(true);
               }} className="bg-primary text-primary-foreground">
                 <Plus className="h-3.5 w-3.5 mr-1" /> Add Custom Topic
@@ -1974,7 +1975,6 @@ export default function BatchDetails() {
                 <tr>
                   <th className="p-3 w-14 text-center">#</th>
                   <th className="p-3">Topic Title</th>
-                  <th className="p-3 text-center w-28">Planned Hrs</th>
                   <th className="p-3 text-center w-28">Status</th>
                   <th className="p-3 text-center w-24">Actions</th>
                 </tr>
@@ -1982,7 +1982,7 @@ export default function BatchDetails() {
               <tbody className="divide-y divide-border">
                 {currentSyllabus.length === 0 && (
                   <tr>
-                    <td colSpan={5} className="p-6 text-center text-muted-foreground text-xs font-mono">
+                    <td colSpan={4} className="p-6 text-center text-muted-foreground text-xs font-mono">
                       No topics found. Use "Sync from Default Syllabus" or "Add Custom Topic".
                     </td>
                   </tr>
@@ -2010,17 +2010,6 @@ export default function BatchDetails() {
                             placeholder="Topic name..."
                           />
                         ) : topic.topic_name}
-                      </td>
-                      <td className="p-2 text-center font-mono text-xs">
-                        {isEditing ? (
-                          <Input
-                            type="number"
-                            value={topicEditForm.planned_hours}
-                            onChange={e => setTopicEditForm({ ...topicEditForm, planned_hours: e.target.value })}
-                            className="h-7 w-20 text-center text-xs font-mono px-1"
-                            placeholder="hrs"
-                          />
-                        ) : (topic.planned_hours ? `${topic.planned_hours} hrs` : '')}
                       </td>
                       <td className="p-2 text-center">
                         <span className={`font-mono text-xs font-bold px-2 py-0.5 rounded-full ${topic.is_completed ? 'bg-success/15 text-success' : 'bg-muted text-muted-foreground'
@@ -2054,7 +2043,7 @@ export default function BatchDetails() {
                                     ...topic,
                                     topic_no: topicEditForm.topic_no,
                                     topic_name: topicEditForm.topic_name.trim(),
-                                    planned_hours: topicEditForm.planned_hours !== '' ? Number(topicEditForm.planned_hours) : 0,
+                                    planned_hours: topic.planned_hours ?? 0,
                                   });
                                   setEditingTopicId(null);
                                   setRefreshTrigger(r => r + 1);
@@ -2089,7 +2078,6 @@ export default function BatchDetails() {
                                 setTopicEditForm({
                                   topic_no: topic.topic_no,
                                   topic_name: topic.topic_name,
-                                  planned_hours: topic.planned_hours ? String(topic.planned_hours) : '',
                                 });
                               }}
                             >
@@ -2190,9 +2178,8 @@ export default function BatchDetails() {
                   </div>
 
                   <div className="flex items-center gap-3 text-xs font-mono">
-                    <span>{topic.planned_hours} hrs</span>
-                    {topic.completed_date && (
-                      <span className="text-success font-bold">Done ({topic.completed_date})</span>
+                    {topic.is_completed && (
+                      <span className="text-success font-bold">Done {topic.completed_date ? `(${topic.completed_date})` : ''}</span>
                     )}
                   </div>
                 </div>
@@ -2483,7 +2470,7 @@ export default function BatchDetails() {
                     <textarea
                       value={trainerLogForm.notes}
                       onChange={e => setTrainerLogForm({ ...trainerLogForm, notes: e.target.value })}
-                      placeholder="Any remarks, observations, or session notes..."
+                      placeholder="Trainer engagement details (e.g. Class, Paper valuation, Supervision, remarks)..."
                       rows={2}
                       className="w-full mt-1 bg-background border border-border rounded-xl p-2.5 text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-primary resize-none"
                     />
@@ -2501,7 +2488,7 @@ export default function BatchDetails() {
                           className="text-xs font-mono text-primary hover:underline flex items-center gap-1"
                           onClick={() => {
                             const nextNo = currentSyllabus.length > 0 ? Math.max(...currentSyllabus.map(s => s.topic_no)) + 1 : 1;
-                            setNewTopicForm({ topic_no: nextNo, topic_name: '', planned_hours: '' });
+                            setNewTopicForm({ topic_no: nextNo, topic_name: '' });
                             setShowAddTopicModal(true);
                           }}
                         >
@@ -2579,9 +2566,6 @@ export default function BatchDetails() {
                                   )}
                                 </div>
                                 <div className="text-sm font-medium text-foreground leading-tight truncate">{topic.topic_name}</div>
-                                {topic.planned_hours > 0 && (
-                                  <div className="text-xs font-mono text-muted-foreground/70">{topic.planned_hours} hrs planned</div>
-                                )}
                               </div>
                             </div>
                           );
@@ -3408,16 +3392,6 @@ export default function BatchDetails() {
                   className="mt-1"
                 />
               </div>
-              <div>
-                <label className="text-xs font-mono font-medium text-muted-foreground">Planned Hours <span className="text-muted-foreground/60">(optional)</span></label>
-                <Input
-                  type="number"
-                  value={newTopicForm.planned_hours}
-                  onChange={e => setNewTopicForm({ ...newTopicForm, planned_hours: e.target.value })}
-                  placeholder="Leave blank if unknown"
-                  className="mt-1 font-mono"
-                />
-              </div>
             </div>
             <div className="flex justify-end gap-2 pt-2 border-t border-border">
               <Button variant="outline" onClick={() => setShowAddTopicModal(false)}>Cancel</Button>
@@ -3442,7 +3416,7 @@ export default function BatchDetails() {
                       batch_course_id: selectedBatchCourseId,
                       topic_no: newTopicForm.topic_no,
                       topic_name: newTopicForm.topic_name.trim(),
-                      planned_hours: newTopicForm.planned_hours !== '' ? Number(newTopicForm.planned_hours) : 0,
+                      planned_hours: 0,
                       is_completed: false,
                     });
                     if (activeTab === 'trainer_log') {
@@ -3807,7 +3781,7 @@ export default function BatchDetails() {
                         className="text-xs font-mono text-primary hover:underline flex items-center gap-1"
                         onClick={() => {
                           const nextNo = currentSyllabus.length > 0 ? Math.max(...currentSyllabus.map(s => s.topic_no)) + 1 : 1;
-                          setNewTopicForm({ topic_no: nextNo, topic_name: '', planned_hours: '' });
+                          setNewTopicForm({ topic_no: nextNo, topic_name: '' });
                           setShowAddTopicModal(true);
                         }}
                       >
@@ -3872,9 +3846,6 @@ export default function BatchDetails() {
                                 )}
                               </div>
                               <div className="text-sm font-medium text-foreground leading-tight truncate">{topic.topic_name}</div>
-                              {topic.planned_hours > 0 && (
-                                <div className="text-xs font-mono text-muted-foreground/70">{topic.planned_hours} hrs planned</div>
-                              )}
                             </div>
                           </div>
                         );

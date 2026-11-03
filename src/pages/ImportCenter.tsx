@@ -115,8 +115,8 @@ export default function ImportCenter() {
       filename = `${selectedBatch?.code || 'Batch'}_${selectedCourse?.code || 'Course'}_Attendance_Template.xlsx`;
     } else if (importType === 'syllabus') {
       rows = [
-        { topic_no: 1, topic_name: 'Introduction & Setup', planned_hours: 2 },
-        { topic_no: 2, topic_name: 'Advanced Concepts & Applications', planned_hours: 4 },
+        { topic_no: 1, topic_name: 'Introduction & Setup' },
+        { topic_no: 2, topic_name: 'Advanced Concepts & Applications' },
       ];
       filename = `${selectedBatch?.code || 'Batch'}_${selectedCourse?.code || 'Course'}_Syllabus_Template.xlsx`;
     }
@@ -345,11 +345,10 @@ export default function ImportCenter() {
           rows.forEach((r, idx) => {
             const topicNo = Number(getRowVal(r, ['topic no', 'topic_no', 'no', 'number', '#'], ''));
             const topicName = String(getRowVal(r, ['topic name', 'topic_name', 'topic', 'name', 'title'], '')).trim();
-            const plannedHours = Number(getRowVal(r, ['planned hours', 'planned_hours', 'hours'], ''));
+            const rawHours = getRowVal(r, ['planned hours', 'planned_hours', 'hours'], '0');
+            const plannedHours = Number(rawHours) || 0;
             if (!topicName) {
               errorRows.push({ row: idx + 1, data: r, error: 'Missing topic name' });
-            } else if (isNaN(plannedHours) || plannedHours <= 0) {
-              errorRows.push({ row: idx + 1, data: r, error: 'Planned hours must be a positive number' });
             } else {
               validRows.push({ topic_no: isNaN(topicNo) ? idx + 1 : topicNo, topic_name: topicName, planned_hours: plannedHours });
             }
@@ -681,7 +680,6 @@ export default function ImportCenter() {
                     <>
                       <th className="p-3">Topic No</th>
                       <th className="p-3">Topic Name</th>
-                      <th className="p-3">Planned Hrs</th>
                     </>
                   ) : (
                     <>
@@ -713,7 +711,6 @@ export default function ImportCenter() {
                       <>
                         <td className="p-3 font-mono font-bold text-accent">{r.topic_no}</td>
                         <td className="p-3 text-foreground">{r.topic_name}</td>
-                        <td className="p-3 text-foreground font-mono">{r.planned_hours}h</td>
                       </>
                     ) : (
                       <>

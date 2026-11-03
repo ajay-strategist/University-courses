@@ -871,7 +871,7 @@ class DataStore {
       course_id: topic.course_id!,
       topic_no: topic.topic_no!,
       topic_name: topic.topic_name!,
-      planned_hours: topic.planned_hours || 1,
+      planned_hours: topic.planned_hours ?? 0,
     };
 
     const idx = this.defaultSyllabus.findIndex(s => s.id === item.id);
@@ -1199,6 +1199,17 @@ class DataStore {
     return added;
   }
 
+
+  // Total trainer engaged hours for a batch course (conducted sessions including paper valuation, class, supervision, etc.)
+  getBatchCourseDeliveredHours(batchCourseId: string): number {
+    const logs = this.trainerLogs.filter(
+      l => l.batch_course_id === batchCourseId &&
+      l.log_type !== 'missed' &&
+      !l.notes?.startsWith('[MISSED:')
+    );
+    const totalMins = logs.reduce((acc, l) => acc + (l.duration_minutes || 0), 0);
+    return Math.round((totalMins / 60) * 10) / 10;
+  }
 
   // Derived helpers
   getBatchWithDetails(batchId: string): Batch | undefined {
