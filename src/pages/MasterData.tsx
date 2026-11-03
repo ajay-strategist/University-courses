@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { store } from '@/lib/store';
 import type { College, Course, Program, AssessmentType, CourseDefaultSyllabus } from '@/types';
 import { Button } from '@/components/ui/button';
@@ -8,6 +8,7 @@ import {
   Building2, BookOpen, GraduationCap, Award, Plus, Trash2, Edit2, Upload, FileText, Download 
 } from 'lucide-react';
 import * as XLSX from 'xlsx';
+import { CollegeLogo } from '@/components/common/CollegeLogo';
 
 export default function MasterData() {
   const [activeTab, setActiveTab] = useState<'colleges' | 'courses' | 'programs' | 'assessments'>('colleges');
@@ -16,6 +17,10 @@ export default function MasterData() {
   const [programs, setPrograms] = useState<Program[]>([...store.programs]);
   const [assessmentTypes, setAssessmentTypes] = useState<AssessmentType[]>([...store.assessmentTypes]);
   const [defaultSyllabus, setDefaultSyllabus] = useState<CourseDefaultSyllabus[]>([...store.defaultSyllabus]);
+
+  useEffect(() => {
+    setColleges([...store.colleges]);
+  }, [store.colleges.length, store.isInitialized]);
 
   // Selected course for syllabus editing
   const [selectedCourseId, setSelectedCourseId] = useState<string>(courses[0]?.id || '');
@@ -280,13 +285,13 @@ export default function MasterData() {
                   colleges.map((col) => (
                     <tr key={col.id} className="hover:bg-muted/30 transition-colors">
                       <td className="p-4">
-                        {col.logo_url ? (
-                          <img src={col.logo_url} alt={col.name} className="h-9 w-9 rounded-lg object-cover border border-border bg-background shadow-xs" />
-                        ) : (
-                          <div className="h-9 w-9 rounded-lg bg-primary/10 border border-primary/20 flex items-center justify-center font-bold font-mono text-xs text-primary">
-                            {col.code}
-                          </div>
-                        )}
+                        <CollegeLogo
+                          logoUrl={col.logo_url}
+                          collegeCode={col.code}
+                          collegeName={col.name}
+                          className="h-9 w-9 rounded-lg object-contain p-0.5 border border-border bg-background shadow-xs shrink-0"
+                          fallbackClassName="h-9 w-9 rounded-lg bg-primary/10 border border-primary/20 flex items-center justify-center font-bold font-mono text-xs text-primary shrink-0"
+                        />
                       </td>
                       <td className="p-4 font-mono font-bold text-accent">{col.code}</td>
                       <td className="p-4 font-medium text-foreground">{col.name}</td>

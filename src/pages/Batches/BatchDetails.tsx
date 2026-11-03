@@ -16,6 +16,7 @@ import {
   ListTodo, Calendar
 } from 'lucide-react';
 import * as XLSX from 'xlsx';
+import { CollegeLogo } from '@/components/common/CollegeLogo';
 
 export default function BatchDetails() {
   const { id } = useParams<{ id: string }>();
@@ -1062,17 +1063,13 @@ export default function BatchDetails() {
             </Button>
 
             {/* College Logo */}
-            {batch.college?.logo_url ? (
-              <img
-                src={batch.college.logo_url}
-                alt={batch.college.name}
-                className="h-14 w-14 rounded-xl object-contain p-1 border border-border bg-background shadow-xs shrink-0 mt-1 sm:mt-0"
-              />
-            ) : (
-              <div className="h-14 w-14 rounded-xl bg-primary/10 border border-primary/20 flex items-center justify-center font-bold font-mono text-sm text-primary shrink-0 mt-1 sm:mt-0">
-                {batch.college?.code}
-              </div>
-            )}
+            <CollegeLogo
+              logoUrl={batch.college?.logo_url}
+              collegeCode={batch.college?.code}
+              collegeName={batch.college?.name}
+              className="h-14 w-14 rounded-xl object-contain p-1 border border-border bg-background shadow-xs shrink-0 mt-1 sm:mt-0"
+              fallbackClassName="h-14 w-14 rounded-xl bg-primary/10 border border-primary/20 flex items-center justify-center font-bold font-mono text-sm text-primary shrink-0 mt-1 sm:mt-0"
+            />
 
             <div className="space-y-1.5">
               <div className="flex flex-wrap items-center gap-2">

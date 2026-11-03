@@ -49,7 +49,14 @@ class DataStore {
   private loadLocalCache() {
     try {
       const cCols = localStorage.getItem('uct_colleges');
-      if (cCols) this.colleges = JSON.parse(cCols);
+      if (cCols) {
+        this.colleges = JSON.parse(cCols);
+        this.colleges.forEach(col => {
+          if (col.code === 'MIM' && col.logo_url && col.logo_url.includes('1drv.ms')) {
+            col.logo_url = 'https://mariancollege.org/wp-content/uploads/2023/03/College-Logo-1024x478.jpg';
+          }
+        });
+      }
 
       const cProgs = localStorage.getItem('uct_programs');
       if (cProgs) this.programs = JSON.parse(cProgs);
@@ -221,7 +228,14 @@ class DataStore {
       // Always use Supabase data directly — overwrite local cache completely.
       // This ensures records deleted from the DB are never shown from stale cache.
       if (profs !== null) this.profiles = (profs || []) as Profile[];
-      if (cols !== null) this.colleges = (cols || []) as College[];
+      if (cols !== null) {
+        this.colleges = (cols || []) as College[];
+        this.colleges.forEach(col => {
+          if (col.code === 'MIM' && (!col.logo_url || col.logo_url.includes('1drv.ms'))) {
+            col.logo_url = 'https://mariancollege.org/wp-content/uploads/2023/03/College-Logo-1024x478.jpg';
+          }
+        });
+      }
       if (progs !== null) this.programs = (progs || []) as Program[];
       if (crses !== null) this.courses = (crses || []) as Course[];
       if (defSyl !== null) this.defaultSyllabus = (defSyl || []) as CourseDefaultSyllabus[];

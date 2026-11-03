@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { store } from '@/lib/store';
 import type { Batch } from '@/types';
@@ -6,6 +6,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { toast } from 'sonner';
 import { Plus, Users, BookOpen, ChevronRight, Sparkles, Building2, Calendar, Award, Edit2, Trash2, X } from 'lucide-react';
+import { CollegeLogo } from '@/components/common/CollegeLogo';
 
 import { useAuth } from '@/contexts/AuthContext';
 
@@ -26,6 +27,10 @@ export default function BatchesGrid() {
 
   const [batches, setBatches] = useState<Batch[]>(filteredBatches);
   const [selectedBatchIds, setSelectedBatchIds] = useState<string[]>([]);
+
+  useEffect(() => {
+    setBatches(filteredBatches);
+  }, [store.batches.length, store.colleges.length, store.isInitialized]);
 
   const handleBulkDeleteBatches = async () => {
     if (confirm(`Are you sure you want to delete the ${selectedBatchIds.length} selected batches? This will permanently delete all student rosters, course allocations, attendance registers, and marks for these batches.`)) {
@@ -206,17 +211,13 @@ export default function BatchesGrid() {
 
                 {/* College Logo Floating Badge */}
                 <div className="absolute top-3 left-12 flex items-center gap-2">
-                  {batch.college?.logo_url ? (
-                    <img 
-                      src={batch.college.logo_url} 
-                      alt={batch.college.name} 
-                      className="h-8 w-8 rounded-lg object-cover bg-background border border-white/40 shadow-md"
-                    />
-                  ) : (
-                    <div className="h-8 w-8 rounded-lg bg-background text-primary font-bold font-mono text-xs flex items-center justify-center border border-white/40 shadow-md">
-                      {batch.college?.code}
-                    </div>
-                  )}
+                  <CollegeLogo
+                    logoUrl={batch.college?.logo_url}
+                    collegeCode={batch.college?.code}
+                    collegeName={batch.college?.name}
+                    className="h-8 w-8 rounded-lg object-contain p-0.5 bg-background border border-white/40 shadow-md shrink-0"
+                    fallbackClassName="h-8 w-8 rounded-lg bg-background text-primary font-bold font-mono text-xs flex items-center justify-center border border-white/40 shadow-md shrink-0"
+                  />
                   <span className="text-xs font-semibold text-white drop-shadow-sm truncate max-w-[140px]">
                     {batch.college?.name}
                   </span>
