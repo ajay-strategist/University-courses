@@ -10,7 +10,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { toast } from 'sonner';
 import {
-  ArrowLeft, Users, BookOpen, CalendarCheck, Award, FileCheck2,
+  ArrowLeft, Users, BookOpen, CalendarCheck, Award,
   CheckSquare, Plus, Download, Upload, Mail, CheckCircle2, Clock,
   AlertTriangle, Check, X, FileSpreadsheet, Send, Edit2, Trash2,
   ListTodo, Calendar
@@ -27,7 +27,7 @@ export default function BatchDetails() {
   const isStudentCoordinator = profile?.role === 'student_coordinator';
 
   const [activeTab, setActiveTab] = useState<
-    'students' | 'courses' | 'attendance' | 'marks' | 'assessment_types' | 'syllabus' | 'coverage' | 'trainer_log' | 'task_list'
+    'students' | 'courses' | 'attendance' | 'marks' | 'syllabus' | 'coverage' | 'trainer_log' | 'task_list'
   >(isStudentCoordinator ? 'attendance' : 'students');
 
   // Local reactive states for this batch
@@ -56,7 +56,6 @@ export default function BatchDetails() {
   // Modals & Dialogs
   const [showAddStudentModal, setShowAddStudentModal] = useState(false);
   const [showAddCourseModal, setShowAddCourseModal] = useState(false);
-  const [showAddAssessmentModal, setShowAddAssessmentModal] = useState(false);
   const [showAddTopicModal, setShowAddTopicModal] = useState(false);
   const [showAbsenteeModal, setShowAbsenteeModal] = useState(false);
 
@@ -199,9 +198,6 @@ export default function BatchDetails() {
     validRows: { student_id: string; register_no: string; name: string; mark: number }[];
     errorRows: { register_no: string; name: string; mark: number; error: string }[];
   } | null>(null);
-
-  // Assessment Form Input
-  const [assessmentForm, setAssessmentForm] = useState({ name: '', type_id: store.assessmentTypes[0]?.id || '', max_mark: 50, assignment_category: '' });
 
   // Absentee Email Preview Modal State
   const [absenteePreview, setAbsenteePreview] = useState<AbsenteePreview | null>(null);
@@ -1200,39 +1196,32 @@ export default function BatchDetails() {
               <Award className="h-3.5 w-3.5" /> 7.4 Marks & Excel Import
             </button>
             <button
-              onClick={() => setActiveTab('assessment_types')}
-              className={`flex items-center gap-2 px-4 py-2 text-xs font-semibold rounded-xl transition-all whitespace-nowrap ${activeTab === 'assessment_types' ? 'bg-primary text-primary-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground'
-                }`}
-            >
-              <FileCheck2 className="h-3.5 w-3.5" /> 7.5 Assessment Types
-            </button>
-            <button
               onClick={() => setActiveTab('syllabus')}
               className={`flex items-center gap-2 px-4 py-2 text-xs font-semibold rounded-xl transition-all whitespace-nowrap ${activeTab === 'syllabus' ? 'bg-primary text-primary-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground'
                 }`}
             >
-              <CheckSquare className="h-3.5 w-3.5" /> 7.6 Syllabus
+              <CheckSquare className="h-3.5 w-3.5" /> 7.5 Syllabus
             </button>
             <button
               onClick={() => setActiveTab('coverage')}
               className={`flex items-center gap-2 px-4 py-2 text-xs font-semibold rounded-xl transition-all whitespace-nowrap ${activeTab === 'coverage' ? 'bg-primary text-primary-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground'
                 }`}
             >
-              <CheckCircle2 className="h-3.5 w-3.5" /> 7.7 Course Coverage ({coveragePct}%)
+              <CheckCircle2 className="h-3.5 w-3.5" /> 7.6 Course Coverage ({coveragePct}%)
             </button>
             <button
               onClick={() => setActiveTab('trainer_log')}
               className={`flex items-center gap-2 px-4 py-2 text-xs font-semibold rounded-xl transition-all whitespace-nowrap ${activeTab === 'trainer_log' ? 'bg-primary text-primary-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground'
                 }`}
             >
-              <Clock className="h-3.5 w-3.5" /> 7.8 Trainer Log
+              <Clock className="h-3.5 w-3.5" /> 7.7 Trainer Log
             </button>
             <button
               onClick={() => setActiveTab('task_list')}
               className={`flex items-center gap-2 px-4 py-2 text-xs font-semibold rounded-xl transition-all whitespace-nowrap ${activeTab === 'task_list' ? 'bg-primary text-primary-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground'
                 }`}
             >
-              <ListTodo className="h-3.5 w-3.5" /> 7.9 Task List
+              <ListTodo className="h-3.5 w-3.5" /> 7.8 Task List
             </button>
           </>
         )}
@@ -1652,14 +1641,22 @@ export default function BatchDetails() {
               <div className="flex items-center gap-2">
                 <label className="text-xs font-mono font-medium text-muted-foreground whitespace-nowrap">Category:</label>
                 <Input
+                  list="assessment-standard-categories"
                   value={assessmentCategory}
                   onChange={(e) => setAssessmentCategory(e.target.value)}
-                  placeholder="e.g. Theory"
-                  className="w-32 h-8 text-sm"
+                  placeholder="e.g. Internal Exam"
+                  className="w-36 h-8 text-sm"
                 />
+                <datalist id="assessment-standard-categories">
+                  <option value="Assignment" />
+                  <option value="Assessment" />
+                  <option value="Internal Exam" />
+                  <option value="Internal Assessment" />
+                  <option value="Exam" />
+                </datalist>
               </div>
 
-              {selectedAssessmentId !== 'new' && (
+              {selectedAssessmentId === 'new' ? (
                 <Button
                   size="sm"
                   onClick={async () => {
@@ -1667,29 +1664,90 @@ export default function BatchDetails() {
                       toast.error('Assessment Name cannot be empty');
                       return;
                     }
-                    const existing = store.assessments.find(a => a.id === selectedAssessmentId);
-                    if (existing) {
-                      const updated = {
-                        ...existing,
-                        name: assessmentName.trim(),
-                        max_mark: assessmentMaxMark,
-                        assignment_category: assessmentCategory.trim() || undefined,
-                      };
-                      try {
-                        await store.saveAssessment(updated);
-                        toast.success('Assessment details updated successfully!');
-                      } catch (err: any) {
-                        console.error(err);
-                        toast.error('Failed to update assessment details', {
-                          description: err.message || 'Unknown database error',
-                        });
-                      }
+                    if (assessmentMaxMark <= 0) {
+                      toast.error('Max Mark must be greater than 0');
+                      return;
+                    }
+                    const newAsm: Assessment = {
+                      id: generateUUID(),
+                      batch_course_id: selectedBatchCourseId,
+                      name: assessmentName.trim(),
+                      max_mark: assessmentMaxMark,
+                      assignment_category: assessmentCategory.trim() || undefined,
+                    };
+                    try {
+                      const saved = await store.saveAssessment(newAsm);
+                      setSelectedAssessmentId(saved.id);
+                      toast.success(`Assessment "${saved.name}" created!`);
+                    } catch (err: any) {
+                      console.error(err);
+                      toast.error('Failed to create assessment', {
+                        description: err.message || 'Unknown database error',
+                      });
                     }
                   }}
-                  className="h-8 px-3 bg-secondary text-secondary-foreground hover:bg-secondary/80 text-xs font-semibold"
+                  className="h-8 px-3 bg-primary text-primary-foreground hover:bg-primary-hover text-xs font-semibold"
                 >
-                  Save Details
+                  <Plus className="h-3.5 w-3.5 mr-1" /> Create Assessment
                 </Button>
+              ) : (
+                <div className="flex items-center gap-1.5">
+                  <Button
+                    size="sm"
+                    onClick={async () => {
+                      if (!assessmentName.trim()) {
+                        toast.error('Assessment Name cannot be empty');
+                        return;
+                      }
+                      const existing = store.assessments.find(a => a.id === selectedAssessmentId);
+                      if (existing) {
+                        const updated = {
+                          ...existing,
+                          name: assessmentName.trim(),
+                          max_mark: assessmentMaxMark,
+                          assignment_category: assessmentCategory.trim() || undefined,
+                        };
+                        try {
+                          await store.saveAssessment(updated);
+                          toast.success('Assessment details updated successfully!');
+                        } catch (err: any) {
+                          console.error(err);
+                          toast.error('Failed to update assessment details', {
+                            description: err.message || 'Unknown database error',
+                          });
+                        }
+                      }
+                    }}
+                    className="h-8 px-3 bg-secondary text-secondary-foreground hover:bg-secondary/80 text-xs font-semibold"
+                  >
+                    Save Details
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant="ghost"
+                    onClick={async () => {
+                      const asmToDelete = store.assessments.find(a => a.id === selectedAssessmentId);
+                      if (!asmToDelete) return;
+                      if (!confirm(`Delete assessment "${asmToDelete.name}" and all its recorded marks?`)) return;
+                      try {
+                        await store.deleteAssessment(asmToDelete.id);
+                        const remaining = store.assessments.filter(a => a.batch_course_id === selectedBatchCourseId && a.id !== asmToDelete.id);
+                        if (remaining.length > 0) {
+                          changeSelectedAssessment(remaining[0].id);
+                        } else {
+                          changeSelectedAssessment('new');
+                        }
+                        toast.success(`Assessment "${asmToDelete.name}" deleted.`);
+                      } catch (err: any) {
+                        toast.error('Failed to delete assessment: ' + (err.message || 'Error'));
+                      }
+                    }}
+                    className="h-8 w-8 p-0 text-destructive hover:bg-destructive/10"
+                    title="Delete this assessment"
+                  >
+                    <Trash2 className="h-3.5 w-3.5" />
+                  </Button>
+                </div>
               )}
             </div>
 
@@ -1803,30 +1861,7 @@ export default function BatchDetails() {
         </div>
       )}
 
-      {/* TAB 7.5: ASSESSMENT TYPES */}
-      {activeTab === 'assessment_types' && (
-        <div className="space-y-4">
-          <div className="flex justify-between items-center">
-            <h2 className="text-lg font-semibold font-heading">Batch Assessments</h2>
-            <Button size="sm" onClick={() => setShowAddAssessmentModal(true)} className="bg-primary text-primary-foreground">
-              <Plus className="h-3.5 w-3.5 mr-1" /> Create Assessment for Batch
-            </Button>
-          </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            {store.assessments.filter(a => a.batch_course_id === selectedBatchCourseId).map((asm) => (
-              <div key={asm.id} className="card-meridian p-5 space-y-2">
-                <h3 className="font-bold text-foreground font-heading">{asm.name}</h3>
-                <div className="text-xs text-muted-foreground font-mono">
-                  Max Mark: <span className="font-bold text-accent">{asm.max_mark}</span>
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
-
-      {/* TAB 7.6: SYLLABUS */}
+      {/* TAB 7.5: SYLLABUS */}
       {activeTab === 'syllabus' && (
         <div className="space-y-4">
           <div className="flex flex-wrap justify-between items-center gap-2">
@@ -2942,59 +2977,6 @@ export default function BatchDetails() {
         </div>
       )}
 
-      {/* MODAL: ADD ASSESSMENT */}
-      {showAddAssessmentModal && (
-        <div className="fixed inset-0 z-50 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4">
-          <div className="bg-card border border-border rounded-2xl p-6 max-w-md w-full shadow-2xl space-y-4">
-            <h3 className="text-lg font-bold font-heading">Create Assessment for {activeCourse?.name}</h3>
-            <div className="space-y-3">
-              <div>
-                <label className="text-xs font-mono font-medium text-muted-foreground">Assessment Title</label>
-                <Input value={assessmentForm.name} onChange={(e) => setAssessmentForm({ ...assessmentForm, name: e.target.value })} placeholder="Assignment 1 / Exam" className="mt-1" />
-              </div>
-              <div>
-                <label className="text-xs font-mono font-medium text-muted-foreground">Assessment Type</label>
-                <select value={assessmentForm.type_id} onChange={(e) => setAssessmentForm({ ...assessmentForm, type_id: e.target.value })} className="w-full mt-1 bg-background border border-border rounded-xl p-2 text-sm">
-                  {store.assessmentTypes.map(at => <option key={at.id} value={at.id}>{at.name}</option>)}
-                </select>
-              </div>
-              <div>
-                <label className="text-xs font-mono font-medium text-muted-foreground">Max Mark (Specific to this Assessment)</label>
-                <Input type="number" value={assessmentForm.max_mark} onChange={(e) => setAssessmentForm({ ...assessmentForm, max_mark: Number(e.target.value) })} className="mt-1 font-mono" />
-              </div>
-              <div>
-                <label className="text-xs font-mono font-medium text-muted-foreground">Assignment Category</label>
-                <Input value={assessmentForm.assignment_category} onChange={(e) => setAssessmentForm({ ...assessmentForm, assignment_category: e.target.value })} placeholder="e.g. Theory, Practical, Homework" className="mt-1" />
-              </div>
-            </div>
-            <div className="flex justify-end gap-2 pt-2">
-              <Button variant="outline" onClick={() => setShowAddAssessmentModal(false)}>Cancel</Button>
-              <Button onClick={async () => {
-                if (!assessmentForm.name) return;
-                const newAsm: Assessment = {
-                  id: generateUUID(),
-                  batch_course_id: selectedBatchCourseId,
-                  name: assessmentForm.name,
-                  type_id: assessmentForm.type_id,
-                  max_mark: assessmentForm.max_mark,
-                  assignment_category: assessmentForm.assignment_category.trim() || undefined,
-                };
-                try {
-                  await store.saveAssessment(newAsm);
-                  setSelectedAssessmentId(newAsm.id);
-                  setShowAddAssessmentModal(false);
-                  toast.success('Assessment created!');
-                } catch (err: any) {
-                  console.error(err);
-                  toast.error('Failed to create assessment', {
-                    description: err.message || 'Unknown database error',
-                  });
-                }
-              }} className="bg-primary text-primary-foreground">Create Assessment</Button>
-            </div>
-          </div>
-        </div>
-      )}
       {/* MODAL: ADD TOPIC */}
       {showAddTopicModal && (
         <div className="fixed inset-0 z-50 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4">

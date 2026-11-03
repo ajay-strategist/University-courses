@@ -1371,6 +1371,19 @@ class DataStore {
     return item;
   }
 
+  async deleteAssessment(id: string): Promise<void> {
+    this.assessments = this.assessments.filter(a => a.id !== id);
+    this.assessmentMarks = this.assessmentMarks.filter(m => m.assessment_id !== id);
+    this.saveLocalCache();
+
+    try {
+      const { error } = await supabase.from('uct_assessments').delete().eq('id', id);
+      if (error) console.error('Supabase deleteAssessment error:', error.message);
+    } catch (e) {
+      console.warn('deleteAssessment error:', e);
+    }
+  }
+
   // -------------------------
   // MIGRATIONS
   // -------------------------
