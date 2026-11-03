@@ -1,7 +1,7 @@
 import { useAuth } from '@/contexts/AuthContext';
 import { Button } from '@/components/ui/button';
 import { store } from '@/lib/store';
-import { Menu, Bell, Search, Sun, Moon, RefreshCw, KeyRound, Loader2 } from 'lucide-react';
+import { Menu, Bell, Search, Sun, Moon, RefreshCw, KeyRound, Loader2, PanelLeftClose, PanelLeftOpen } from 'lucide-react';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -16,7 +16,13 @@ import { useTheme } from 'next-themes';
 import { useEffect, useState } from 'react';
 import { toast } from 'sonner';
 
-export function Header() {
+interface HeaderProps {
+  isCollapsed?: boolean;
+  onToggleSidebar?: () => void;
+  onMobileToggle?: () => void;
+}
+
+export function Header({ isCollapsed = false, onToggleSidebar, onMobileToggle }: HeaderProps) {
   const { profile, signOut, updateUserPassword } = useAuth();
   const { theme, setTheme } = useTheme();
   const [mounted, setMounted] = useState(false);
@@ -42,12 +48,32 @@ export function Header() {
   };
 
   return (
-    <header className="flex h-16 items-center justify-between border-b border-border/50 bg-background/80 backdrop-blur-xl px-6 sticky top-0 z-40 shadow-sm">
-      <div className="flex items-center gap-4 lg:hidden">
-        <Button variant="ghost" size="icon" className="-ml-2 text-muted-foreground hover:text-foreground">
+    <header className="flex h-16 items-center justify-between border-b border-border/50 bg-background/80 backdrop-blur-xl px-4 lg:px-6 sticky top-0 z-40 shadow-sm">
+      <div className="flex items-center gap-2 mr-3">
+        {/* Mobile menu toggle */}
+        <Button 
+          variant="ghost" 
+          size="icon" 
+          onClick={onMobileToggle}
+          className="-ml-2 text-muted-foreground hover:text-foreground lg:hidden cursor-pointer"
+        >
           <Menu className="h-5 w-5" />
           <span className="sr-only">Toggle Sidebar</span>
         </Button>
+
+        {/* Desktop collapse/expand toggle */}
+        {onToggleSidebar && (
+          <Button 
+            variant="ghost" 
+            size="icon" 
+            onClick={onToggleSidebar}
+            className="hidden lg:flex text-muted-foreground hover:text-foreground h-9 w-9 rounded-lg hover:bg-muted cursor-pointer"
+            title={isCollapsed ? "Expand side panel" : "Collapse side panel"}
+          >
+            {isCollapsed ? <PanelLeftOpen className="h-5 w-5" /> : <PanelLeftClose className="h-5 w-5" />}
+            <span className="sr-only">Toggle side panel</span>
+          </Button>
+        )}
       </div>
       
       <div className="flex-1 flex items-center gap-4 max-w-md hidden md:flex">
