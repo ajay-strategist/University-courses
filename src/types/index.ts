@@ -141,6 +141,8 @@ export interface Session {
   hour_no: number;
 }
 
+export type MissedReason = 'trainer_leave' | 'college_program' | 'natural_calamity' | 'other';
+
 export interface TrainerLog {
   id: string;
   batch_course_id: string;
@@ -149,10 +151,12 @@ export interface TrainerLog {
   log_date: string;        // YYYY-MM-DD
   start_time: string;      // HH:MM
   end_time: string;        // HH:MM
-  duration_minutes: number; // auto-computed
+  duration_minutes: number; // auto-computed (delivered minutes or missed minutes)
   topics_covered: string[]; // array of BatchCourseSyllabus IDs
   notes?: string;
   created_at?: string;
+  log_type?: 'conducted' | 'missed';
+  missed_reason?: MissedReason;
 }
 
 export interface Attendance {

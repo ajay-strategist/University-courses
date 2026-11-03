@@ -1,6 +1,6 @@
 import type { 
   College, Program, Course, CourseDefaultSyllabus, AssessmentType, 
-  Batch, Student, BatchCourse, BatchCourseSyllabus, Session, TrainerLog,
+  Batch, Student, BatchCourse, BatchCourseSyllabus, Session, TrainerLog, MissedReason,
   Attendance, Assessment, AssessmentMark, Profile, UserEmailConfig, NotificationLog,
   MigrationRun, MigrationMapping, BatchTask, AcademicSemester, AcademicActivity
 } from '@/types';
@@ -117,7 +117,18 @@ class DataStore {
       if (cMigrationMappings) this.migrationMappings = JSON.parse(cMigrationMappings);
 
       const cTrainerLogs = localStorage.getItem('uct_trainer_logs');
-      if (cTrainerLogs) this.trainerLogs = JSON.parse(cTrainerLogs);
+      if (cTrainerLogs) {
+        this.trainerLogs = JSON.parse(cTrainerLogs);
+        this.trainerLogs.forEach(l => {
+          if (l.notes && l.notes.startsWith('[MISSED:')) {
+            const m = l.notes.match(/^\[MISSED:([a-z_]+)\]\s*(.*)$/);
+            if (m) {
+              l.log_type = 'missed';
+              l.missed_reason = m[1] as MissedReason;
+            }
+          }
+        });
+      }
 
       const cTasks = localStorage.getItem('uct_batch_tasks');
       if (cTasks) this.batchTasks = JSON.parse(cTasks);
@@ -266,7 +277,19 @@ class DataStore {
       if (logs !== null) this.notificationLogs = (logs || []) as NotificationLog[];
       if (runs !== null) this.migrationRuns = (runs || []) as MigrationRun[];
       if (mappings !== null) this.migrationMappings = (mappings || []) as MigrationMapping[];
-      if (tLogs !== null) this.trainerLogs = (tLogs || []) as TrainerLog[];
+      if (tLogs !== null) {
+        this.trainerLogs = (tLogs || []).map(raw => {
+          const l = raw as TrainerLog;
+          if (l.notes && l.notes.startsWith('[MISSED:')) {
+            const m = l.notes.match(/^\[MISSED:([a-z_]+)\]\s*(.*)$/);
+            if (m) {
+              l.log_type = 'missed';
+              l.missed_reason = m[1] as MissedReason;
+            }
+          }
+          return l;
+        });
+      }
       if (tks !== null) this.batchTasks = (tks || []) as BatchTask[];
       if (aSemesters !== null) this.academicSemesters = (aSemesters || []) as AcademicSemester[];
       if (aActivities !== null) this.academicActivities = (aActivities || []) as AcademicActivity[];
@@ -551,9 +574,47 @@ class DataStore {
   // -------------------------
   // TRAINER LOGS
   // -------------------------
+  getMissedReasonLabel(reason?: string): string {
+    switch (reason) {
+      case 'trainer_leave':
+        return 'Trainer on Leave';
+      case 'college_program':
+        return 'College Program / Event';
+      case 'natural_calamity':
+        return 'Natural Calamity / Weather Alert';
+      case 'other':
+      default:
+        return 'Other / Institutional';
+    }
+  }
+
+  parseTrainerLogNotes(notes?: string): { isMissed: boolean; reason?: MissedReason; reasonLabel?: string; cleanNotes: string } {
+    if (!notes || !notes.startsWith('[MISSED:')) {
+      return { isMissed: false, cleanNotes: notes || '' };
+    }
+    const match = notes.match(/^\[MISSED:([a-z_]+)\]\s*(.*)$/);
+    if (match) {
+      const reason = match[1] as MissedReason;
+      return {
+        isMissed: true,
+        reason,
+        reasonLabel: this.getMissedReasonLabel(reason),
+        cleanNotes: match[2] || '',
+      };
+    }
+    return { isMissed: true, cleanNotes: notes };
+  }
+
   async saveTrainerLog(log: Partial<TrainerLog>): Promise<TrainerLog> {
     const trainerProfile = this.profiles.find(p => p.id === log.trainer_id);
     const trainerName = trainerProfile ? trainerProfile.full_name : 'Unassigned';
+
+    const isMissed = log.log_type === 'missed' || Boolean(log.missed_reason) || (Boolean(log.notes) && log.notes!.startsWith('[MISSED:'));
+    let encodedNotes = log.notes;
+    if (isMissed && log.missed_reason) {
+      const rawNotes = (log.notes || '').replace(/^\[MISSED:[a-z_]+\]\s*/, '').trim();
+      encodedNotes = `[MISSED:${log.missed_reason}] ${rawNotes}`.trim();
+    }
 
     const item: TrainerLog = {
       id: log.id || generateUUID(),
@@ -561,12 +622,14 @@ class DataStore {
       trainer_id: log.trainer_id,
       trainer_name: trainerName,
       log_date: log.log_date!,
-      start_time: log.start_time!,
-      end_time: log.end_time!,
+      start_time: isMissed ? (log.start_time || '00:00') : (log.start_time || '00:00'),
+      end_time: isMissed ? (log.end_time || '00:00') : (log.end_time || '00:00'),
       duration_minutes: log.duration_minutes ?? 0,
-      topics_covered: log.topics_covered ?? [],
-      notes: log.notes,
+      topics_covered: isMissed ? [] : (log.topics_covered ?? []),
+      notes: encodedNotes,
       created_at: log.created_at || new Date().toISOString(),
+      log_type: isMissed ? 'missed' : 'conducted',
+      missed_reason: isMissed ? (log.missed_reason || 'other') : undefined,
     };
 
     const idx = this.trainerLogs.findIndex(l => l.id === item.id);
@@ -576,46 +639,48 @@ class DataStore {
     else this.trainerLogs.push(item);
     this.saveLocalCache();
 
-    // Auto-mark covered topics as completed / uncompleted in the batch syllabus
-    const today = item.log_date;
+    if (!isMissed) {
+      // Auto-mark covered topics as completed / uncompleted in the batch syllabus
+      const today = item.log_date;
 
-    // 1. Un-mark removed topics
-    if (oldLog) {
-      const removedTopics = oldLog.topics_covered.filter(id => !item.topics_covered.includes(id));
-      for (const topicId of removedTopics) {
+      // 1. Un-mark removed topics
+      if (oldLog) {
+        const removedTopics = oldLog.topics_covered.filter(id => !item.topics_covered.includes(id));
+        for (const topicId of removedTopics) {
+          const sylIdx = this.batchSyllabus.findIndex(s => s.id === topicId);
+          if (sylIdx >= 0) {
+            this.batchSyllabus[sylIdx].is_completed = false;
+            this.batchSyllabus[sylIdx].completed_date = undefined;
+            const { error } = await supabase.from('uct_batch_course_syllabus').update({
+              is_completed: false,
+              completed_date: null,
+            }).eq('id', topicId);
+            if (error) {
+              console.error('Auto-uncomplete topic error:', error.message);
+              throw new Error(`Failed to update topic completion in database: ${error.message}`);
+            }
+          }
+        }
+      }
+
+      // 2. Mark current topics as completed
+      for (const topicId of item.topics_covered) {
         const sylIdx = this.batchSyllabus.findIndex(s => s.id === topicId);
         if (sylIdx >= 0) {
-          this.batchSyllabus[sylIdx].is_completed = false;
-          this.batchSyllabus[sylIdx].completed_date = undefined;
+          this.batchSyllabus[sylIdx].is_completed = true;
+          this.batchSyllabus[sylIdx].completed_date = today;
           const { error } = await supabase.from('uct_batch_course_syllabus').update({
-            is_completed: false,
-            completed_date: null,
+            is_completed: true,
+            completed_date: today,
           }).eq('id', topicId);
           if (error) {
-            console.error('Auto-uncomplete topic error:', error.message);
+            console.error('Auto-complete topic error:', error.message);
             throw new Error(`Failed to update topic completion in database: ${error.message}`);
           }
         }
       }
+      this.saveLocalCache();
     }
-
-    // 2. Mark current topics as completed
-    for (const topicId of item.topics_covered) {
-      const sylIdx = this.batchSyllabus.findIndex(s => s.id === topicId);
-      if (sylIdx >= 0) {
-        this.batchSyllabus[sylIdx].is_completed = true;
-        this.batchSyllabus[sylIdx].completed_date = today;
-        const { error } = await supabase.from('uct_batch_course_syllabus').update({
-          is_completed: true,
-          completed_date: today,
-        }).eq('id', topicId);
-        if (error) {
-          console.error('Auto-complete topic error:', error.message);
-          throw new Error(`Failed to update topic completion in database: ${error.message}`);
-        }
-      }
-    }
-    this.saveLocalCache();
 
     const dbItem = {
       ...item,

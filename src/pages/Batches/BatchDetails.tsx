@@ -4,7 +4,7 @@ import { store, generateUUID } from '@/lib/store';
 import { useAuth } from '@/contexts/AuthContext';
 import type {
   Student, BatchCourse, BatchCourseSyllabus, Session, Attendance,
-  Assessment, AssessmentMark, Course, AbsenteePreview, TrainerLog, BatchTask
+  Assessment, AssessmentMark, Course, AbsenteePreview, TrainerLog, BatchTask, MissedReason
 } from '@/types';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -124,11 +124,20 @@ export default function BatchDetails() {
 
   // Trainer Log Tab State
   const today = new Date().toISOString().split('T')[0];
+  const [sessionLogType, setSessionLogType] = useState<'conducted' | 'missed'>('conducted');
+  const [trainerLogFilter, setTrainerLogFilter] = useState<'all' | 'conducted' | 'missed'>('all');
   const [trainerLogForm, setTrainerLogForm] = useState({
     log_date: today,
     trainer_id: '',
     start_time: '',
     end_time: '',
+    notes: '',
+  });
+  const [missedSessionForm, setMissedSessionForm] = useState({
+    log_date: today,
+    trainer_id: '',
+    missed_hours: 2,
+    missed_reason: 'trainer_leave' as MissedReason,
     notes: '',
   });
   const [trainerLogTopics, setTrainerLogTopics] = useState<string[]>([]); // selected topic IDs
@@ -212,6 +221,9 @@ export default function BatchDetails() {
     start_time: '',
     end_time: '',
     notes: '',
+    log_type: 'conducted' as 'conducted' | 'missed',
+    missed_hours: 2,
+    missed_reason: 'trainer_leave' as MissedReason,
   });
   const [editTrainerLogTopics, setEditTrainerLogTopics] = useState<string[]>([]);
   const [trainerLogSearch, setTrainerLogSearch] = useState('');
@@ -280,6 +292,46 @@ export default function BatchDetails() {
 
   const handleSaveEditTrainerLog = async () => {
     if (!editingTrainerLog) return;
+
+    if (editTrainerLogForm.log_type === 'missed') {
+      if (!editTrainerLogForm.log_date) {
+        toast.error('Date of missed session is required');
+        return;
+      }
+      if (!editTrainerLogForm.missed_hours || editTrainerLogForm.missed_hours <= 0) {
+        toast.error('Missed hours must be greater than 0');
+        return;
+      }
+      try {
+        const durationMins = Math.round(Number(editTrainerLogForm.missed_hours) * 60);
+        await store.saveTrainerLog({
+          ...editingTrainerLog,
+          log_date: editTrainerLogForm.log_date,
+          trainer_id: editTrainerLogForm.trainer_id || undefined,
+          start_time: '00:00',
+          end_time: '00:00',
+          duration_minutes: durationMins,
+          topics_covered: [],
+          notes: editTrainerLogForm.notes || '',
+          log_type: 'missed',
+          missed_reason: editTrainerLogForm.missed_reason,
+        });
+
+        setShowEditTrainerLogModal(false);
+        setEditingTrainerLog(null);
+        setEditTrainerLogSearch('');
+        setRefreshTrigger(r => r + 1);
+        toast.success('Missed session log updated successfully!');
+        return;
+      } catch (err: any) {
+        console.error(err);
+        toast.error('Failed to update missed session log', {
+          description: err.message || 'Unknown database error',
+        });
+        return;
+      }
+    }
+
     if (!editTrainerLogForm.log_date || !editTrainerLogForm.start_time || !editTrainerLogForm.end_time) {
       toast.error('Date, Start Time, and End Time are required');
       return;
@@ -306,6 +358,7 @@ export default function BatchDetails() {
         duration_minutes: durationMins,
         topics_covered: editTrainerLogTopics,
         notes: editTrainerLogForm.notes || undefined,
+        log_type: 'conducted',
       });
 
       setShowEditTrainerLogModal(false);
@@ -2166,6 +2219,37 @@ export default function BatchDetails() {
           .filter(l => l.batch_course_id === selectedBatchCourseId)
           .sort((a, b) => b.log_date.localeCompare(a.log_date));
 
+        // Separate conducted vs missed sessions
+        const conductedLogs = courseTrainerLogs.filter(l => l.log_type !== 'missed' && !l.notes?.startsWith('[MISSED:'));
+        const missedLogs = courseTrainerLogs.filter(l => l.log_type === 'missed' || (Boolean(l.notes) && l.notes!.startsWith('[MISSED:')));
+
+        const totalDeliveredMins = conductedLogs.reduce((acc, l) => acc + (l.duration_minutes || 0), 0);
+        const totalDeliveredHours = Math.round((totalDeliveredMins / 60) * 10) / 10;
+
+        const totalMissedMins = missedLogs.reduce((acc, l) => acc + (l.duration_minutes || 0), 0);
+        const totalMissedHours = Math.round((totalMissedMins / 60) * 10) / 10;
+
+        // Breakdown by reason
+        const getLogReason = (l: TrainerLog): MissedReason => {
+          if (l.missed_reason) return l.missed_reason;
+          const parsed = store.parseTrainerLogNotes(l.notes);
+          return (parsed.reason || 'other') as MissedReason;
+        };
+
+        const missedByReason = {
+          trainer_leave: missedLogs.filter(l => getLogReason(l) === 'trainer_leave').reduce((acc, l) => acc + (l.duration_minutes || 0), 0),
+          college_program: missedLogs.filter(l => getLogReason(l) === 'college_program').reduce((acc, l) => acc + (l.duration_minutes || 0), 0),
+          natural_calamity: missedLogs.filter(l => getLogReason(l) === 'natural_calamity').reduce((acc, l) => acc + (l.duration_minutes || 0), 0),
+          other: missedLogs.filter(l => getLogReason(l) === 'other').reduce((acc, l) => acc + (l.duration_minutes || 0), 0),
+        };
+
+        const displayedLogs = courseTrainerLogs.filter(l => {
+          const isMissed = l.log_type === 'missed' || (Boolean(l.notes) && l.notes!.startsWith('[MISSED:'));
+          if (trainerLogFilter === 'conducted') return !isMissed;
+          if (trainerLogFilter === 'missed') return isMissed;
+          return true;
+        });
+
         const calcDuration = (start: string, end: string): number => {
           if (!start || !end) return 0;
           const [sh, sm] = start.split(':').map(Number);
@@ -2194,6 +2278,7 @@ export default function BatchDetails() {
               duration_minutes: durationMins,
               topics_covered: trainerLogTopics,
               notes: trainerLogForm.notes || undefined,
+              log_type: 'conducted',
             });
             setTrainerLogForm({ log_date: today, trainer_id: '', start_time: '', end_time: '', notes: '' });
             setTrainerLogTopics([]);
@@ -2208,246 +2293,536 @@ export default function BatchDetails() {
           }
         };
 
+        const handleLogMissedSession = async () => {
+          if (!missedSessionForm.log_date) {
+            toast.error('Date of missed session is required');
+            return;
+          }
+          if (!missedSessionForm.missed_hours || missedSessionForm.missed_hours <= 0) {
+            toast.error('Missed hours must be greater than 0');
+            return;
+          }
+          try {
+            const durationMins = Math.round(Number(missedSessionForm.missed_hours) * 60);
+            await store.saveTrainerLog({
+              batch_course_id: selectedBatchCourseId,
+              trainer_id: missedSessionForm.trainer_id || batchTrainerId || undefined,
+              log_date: missedSessionForm.log_date,
+              start_time: '00:00',
+              end_time: '00:00',
+              duration_minutes: durationMins,
+              topics_covered: [],
+              notes: missedSessionForm.notes || '',
+              log_type: 'missed',
+              missed_reason: missedSessionForm.missed_reason,
+            });
+            setMissedSessionForm({
+              log_date: today,
+              trainer_id: '',
+              missed_hours: 2,
+              missed_reason: 'trainer_leave',
+              notes: '',
+            });
+            setRefreshTrigger(r => r + 1);
+            toast.success(`Missed session recorded (${missedSessionForm.missed_hours} hrs due to ${store.getMissedReasonLabel(missedSessionForm.missed_reason)})`);
+          } catch (err: any) {
+            console.error(err);
+            toast.error('Failed to log missed session', {
+              description: err.message || 'Unknown database error',
+            });
+          }
+        };
+
         return (
           <div className="space-y-6">
+            {/* KPI DASHBOARD ROW */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+              <div className="card-meridian p-4">
+                <div className="text-xs font-mono text-muted-foreground uppercase">Delivered Hours</div>
+                <div className="text-2xl font-bold font-mono text-primary mt-1">{totalDeliveredHours} hrs</div>
+                <div className="text-[11px] text-muted-foreground mt-0.5">{conductedLogs.length} classes completed</div>
+              </div>
+
+              <div className="card-meridian p-4 border-amber-500/30 bg-amber-500/[0.04]">
+                <div className="text-xs font-mono text-amber-700 dark:text-amber-400 uppercase font-semibold flex items-center gap-1.5">
+                  <AlertTriangle className="h-3.5 w-3.5" /> Total Missed Hours
+                </div>
+                <div className="text-2xl font-bold font-mono text-amber-700 dark:text-amber-400 mt-1">{totalMissedHours} hrs</div>
+                <div className="text-[11px] text-muted-foreground mt-0.5">{missedLogs.length} missed session(s)</div>
+              </div>
+
+              <div className="card-meridian p-4 lg:col-span-2 space-y-1.5">
+                <div className="text-xs font-mono text-muted-foreground uppercase flex items-center justify-between">
+                  <span>Missed Hours Breakdown</span>
+                  <span className="font-bold font-mono text-amber-700 dark:text-amber-400">{totalMissedHours}h total</span>
+                </div>
+                <div className="grid grid-cols-2 gap-2 pt-1 text-xs font-mono">
+                  <div className="flex items-center justify-between p-1.5 rounded-lg bg-background border border-border/60">
+                    <span className="text-muted-foreground flex items-center gap-1">👨‍🏫 Trainer Leave:</span>
+                    <span className="font-bold text-foreground">{Math.round(missedByReason.trainer_leave / 60 * 10) / 10}h</span>
+                  </div>
+                  <div className="flex items-center justify-between p-1.5 rounded-lg bg-background border border-border/60">
+                    <span className="text-muted-foreground flex items-center gap-1">🏫 College Program:</span>
+                    <span className="font-bold text-foreground">{Math.round(missedByReason.college_program / 60 * 10) / 10}h</span>
+                  </div>
+                  <div className="flex items-center justify-between p-1.5 rounded-lg bg-background border border-border/60">
+                    <span className="text-muted-foreground flex items-center gap-1">🌧️ Calamity / Alert:</span>
+                    <span className="font-bold text-foreground">{Math.round(missedByReason.natural_calamity / 60 * 10) / 10}h</span>
+                  </div>
+                  <div className="flex items-center justify-between p-1.5 rounded-lg bg-background border border-border/60">
+                    <span className="text-muted-foreground flex items-center gap-1">⚙️ Other / Closure:</span>
+                    <span className="font-bold text-foreground">{Math.round(missedByReason.other / 60 * 10) / 10}h</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+
             {/* LOG SESSION FORM */}
-            <div className="bg-card rounded-2xl border border-border p-5 space-y-4">
-              <div className="flex items-center gap-2 border-b border-border pb-3">
-                <Clock className="h-4 w-4 text-primary" />
-                <h2 className="text-base font-semibold font-heading">Log Training Session</h2>
-                <span className="ml-auto text-xs font-mono text-muted-foreground">
-                  {activeCourse?.name || 'Course'}
-                </span>
-              </div>
-
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-                {/* Date */}
-                <div>
-                  <label className="text-xs font-mono font-medium text-muted-foreground">Date <span className="text-destructive">*</span></label>
-                  <Input
-                    type="date"
-                    value={trainerLogForm.log_date}
-                    onChange={e => setTrainerLogForm({ ...trainerLogForm, log_date: e.target.value })}
-                    className="mt-1 font-mono text-sm"
-                  />
-                </div>
-                {/* Trainer */}
-                <div>
-                  <label className="text-xs font-mono font-medium text-muted-foreground">Trainer</label>
-                  <select
-                    value={trainerLogForm.trainer_id || batchTrainerId}
-                    onChange={e => setTrainerLogForm({ ...trainerLogForm, trainer_id: e.target.value })}
-                    className="w-full mt-1 bg-background border border-border rounded-xl p-2.5 text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-primary"
-                  >
-                    <option value="">Select Trainer</option>
-                    {store.profiles.filter(p => p.role === 'trainer' || p.role === 'admin').map(p => (
-                      <option key={p.id} value={p.id}>{p.full_name}</option>
-                    ))}
-                  </select>
-                </div>
-                {/* Start Time */}
-                <div>
-                  <label className="text-xs font-mono font-medium text-muted-foreground">Start Time <span className="text-destructive">*</span></label>
-                  <Input
-                    type="time"
-                    value={trainerLogForm.start_time}
-                    onChange={e => setTrainerLogForm({ ...trainerLogForm, start_time: e.target.value })}
-                    className="mt-1 font-mono text-sm"
-                  />
-                </div>
-                {/* End Time */}
-                <div>
-                  <label className="text-xs font-mono font-medium text-muted-foreground">End Time <span className="text-destructive">*</span></label>
-                  <Input
-                    type="time"
-                    value={trainerLogForm.end_time}
-                    onChange={e => setTrainerLogForm({ ...trainerLogForm, end_time: e.target.value })}
-                    className="mt-1 font-mono text-sm"
-                  />
-                </div>
-              </div>
-
-              {/* Duration Badge */}
-              {durationMins > 0 && (
+            <div className="bg-card rounded-2xl border border-border p-5 space-y-4 shadow-xs">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-border pb-3">
                 <div className="flex items-center gap-2">
-                  <span className="text-xs font-mono text-muted-foreground">Auto-computed duration:</span>
-                  <span className="bg-primary/10 text-primary font-mono font-bold text-xs px-3 py-1 rounded-full">
-                    {Math.floor(durationMins / 60) > 0 ? `${Math.floor(durationMins / 60)}h ` : ''}{durationMins % 60}m ({durationMins} mins)
+                  <Clock className="h-4 w-4 text-primary" />
+                  <h2 className="text-base font-semibold font-heading">
+                    {sessionLogType === 'conducted' ? 'Log Training Delivery' : 'Record Missed Session'}
+                  </h2>
+                  <span className="text-xs font-mono text-muted-foreground">
+                    · {activeCourse?.name || 'Course'}
                   </span>
+                </div>
+
+                {/* Segmented Toggle: Conducted Class vs Missed Session */}
+                <div className="flex items-center gap-1.5 p-1 bg-muted/70 rounded-xl border border-border">
+                  <button
+                    type="button"
+                    onClick={() => setSessionLogType('conducted')}
+                    className={`px-3 py-1.5 text-xs font-semibold rounded-lg transition-all flex items-center gap-1.5 ${
+                      sessionLogType === 'conducted'
+                        ? 'bg-background text-primary shadow-xs font-bold border border-border/60'
+                        : 'text-muted-foreground hover:text-foreground'
+                    }`}
+                  >
+                    <CheckCircle2 className="h-3.5 w-3.5 text-primary" /> Conducted Class
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setSessionLogType('missed')}
+                    className={`px-3 py-1.5 text-xs font-semibold rounded-lg transition-all flex items-center gap-1.5 ${
+                      sessionLogType === 'missed'
+                        ? 'bg-amber-500/15 text-amber-700 dark:text-amber-400 shadow-xs font-bold border border-amber-500/30'
+                        : 'text-muted-foreground hover:text-foreground'
+                    }`}
+                  >
+                    <AlertTriangle className="h-3.5 w-3.5 text-amber-600 dark:text-amber-400" /> Missed Session
+                  </button>
+                </div>
+              </div>
+
+              {/* CONDUCTED CLASS FORM */}
+              {sessionLogType === 'conducted' && (
+                <div className="space-y-4">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                    {/* Date */}
+                    <div>
+                      <label className="text-xs font-mono font-medium text-muted-foreground">Date <span className="text-destructive">*</span></label>
+                      <Input
+                        type="date"
+                        value={trainerLogForm.log_date}
+                        onChange={e => setTrainerLogForm({ ...trainerLogForm, log_date: e.target.value })}
+                        className="mt-1 font-mono text-sm"
+                      />
+                    </div>
+                    {/* Trainer */}
+                    <div>
+                      <label className="text-xs font-mono font-medium text-muted-foreground">Trainer</label>
+                      <select
+                        value={trainerLogForm.trainer_id || batchTrainerId}
+                        onChange={e => setTrainerLogForm({ ...trainerLogForm, trainer_id: e.target.value })}
+                        className="w-full mt-1 bg-background border border-border rounded-xl p-2.5 text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-primary"
+                      >
+                        <option value="">Select Trainer</option>
+                        {store.profiles.filter(p => p.role === 'trainer' || p.role === 'admin').map(p => (
+                          <option key={p.id} value={p.id}>{p.full_name}</option>
+                        ))}
+                      </select>
+                    </div>
+                    {/* Start Time */}
+                    <div>
+                      <label className="text-xs font-mono font-medium text-muted-foreground">Start Time <span className="text-destructive">*</span></label>
+                      <Input
+                        type="time"
+                        value={trainerLogForm.start_time}
+                        onChange={e => setTrainerLogForm({ ...trainerLogForm, start_time: e.target.value })}
+                        className="mt-1 font-mono text-sm"
+                      />
+                    </div>
+                    {/* End Time */}
+                    <div>
+                      <label className="text-xs font-mono font-medium text-muted-foreground">End Time <span className="text-destructive">*</span></label>
+                      <Input
+                        type="time"
+                        value={trainerLogForm.end_time}
+                        onChange={e => setTrainerLogForm({ ...trainerLogForm, end_time: e.target.value })}
+                        className="mt-1 font-mono text-sm"
+                      />
+                    </div>
+                  </div>
+
+                  {/* Duration Badge */}
+                  {durationMins > 0 && (
+                    <div className="flex items-center gap-2">
+                      <span className="text-xs font-mono text-muted-foreground">Auto-computed duration:</span>
+                      <span className="bg-primary/10 text-primary font-mono font-bold text-xs px-3 py-1 rounded-full">
+                        {Math.floor(durationMins / 60) > 0 ? `${Math.floor(durationMins / 60)}h ` : ''}{durationMins % 60}m ({durationMins} mins)
+                      </span>
+                    </div>
+                  )}
+
+                  {/* Notes */}
+                  <div>
+                    <label className="text-xs font-mono font-medium text-muted-foreground">Notes (optional)</label>
+                    <textarea
+                      value={trainerLogForm.notes}
+                      onChange={e => setTrainerLogForm({ ...trainerLogForm, notes: e.target.value })}
+                      placeholder="Any remarks, observations, or session notes..."
+                      rows={2}
+                      className="w-full mt-1 bg-background border border-border rounded-xl p-2.5 text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-primary resize-none"
+                    />
+                  </div>
+
+                  {/* Pending Topics Checklist */}
+                  <div>
+                    <div className="flex flex-wrap items-center justify-between gap-2 mb-2">
+                      <label className="text-xs font-mono font-medium text-muted-foreground">
+                        Topics Covered in this Session
+                      </label>
+                      <div className="flex flex-wrap items-center gap-3">
+                        <button
+                          type="button"
+                          className="text-xs font-mono text-primary hover:underline flex items-center gap-1"
+                          onClick={() => {
+                            const nextNo = currentSyllabus.length > 0 ? Math.max(...currentSyllabus.map(s => s.topic_no)) + 1 : 1;
+                            setNewTopicForm({ topic_no: nextNo, topic_name: '', planned_hours: '' });
+                            setShowAddTopicModal(true);
+                          }}
+                        >
+                          <Plus className="h-3 w-3" /> Add Custom Topic
+                        </button>
+                        <label className="flex items-center gap-1.5 text-xs font-mono text-muted-foreground cursor-pointer select-none">
+                          <input
+                            type="checkbox"
+                            checked={showCompletedInLog}
+                            onChange={e => setShowCompletedInLog(e.target.checked)}
+                            className="rounded border-border text-primary focus:ring-primary h-3.5 w-3.5"
+                          />
+                          Show Completed
+                        </label>
+                        {displayedTopics.length > 0 && (
+                          <button
+                            type="button"
+                            className="text-xs font-mono text-primary hover:underline"
+                            onClick={() => setTrainerLogTopics(
+                              trainerLogTopics.length === displayedTopics.length
+                                ? []
+                                : displayedTopics.map(t => t.id)
+                            )}
+                          >
+                            {trainerLogTopics.length === displayedTopics.length ? 'Deselect All' : 'Select All'}
+                          </button>
+                        )}
+                      </div>
+                    </div>
+
+                    <div className="mb-3 max-w-md">
+                      <Input
+                        type="text"
+                        value={trainerLogSearch}
+                        onChange={e => setTrainerLogSearch(e.target.value)}
+                        placeholder="Search topics..."
+                        className="text-xs h-9 rounded-xl bg-background border border-border"
+                      />
+                    </div>
+
+                    {displayedTopics.length === 0 ? (
+                      <div className="bg-success/10 border border-success/30 rounded-xl p-4 text-center">
+                        <CheckCircle2 className="h-5 w-5 text-success mx-auto mb-1" />
+                        <p className="text-xs font-mono text-success font-bold">All topics completed! 🎉</p>
+                        <p className="text-[10px] font-mono text-muted-foreground mt-1">
+                          Toggle "Show Completed" or click "Add Custom Topic" to log additional topics.
+                        </p>
+                      </div>
+                    ) : (
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 max-h-64 overflow-y-auto pr-1">
+                        {displayedTopics.map(topic => {
+                          const isChecked = trainerLogTopics.includes(topic.id);
+                          return (
+                            <div
+                              key={topic.id}
+                              onClick={() => setTrainerLogTopics(prev =>
+                                isChecked ? prev.filter(id => id !== topic.id) : [...prev, topic.id]
+                              )}
+                              className={`flex items-center gap-3 p-3 rounded-xl border cursor-pointer transition-all select-none ${isChecked
+                                  ? 'bg-primary/10 border-primary/40 text-foreground'
+                                  : 'bg-sunken border-border/80 text-muted-foreground hover:border-primary/30'
+                                }`}
+                            >
+                              <div className={`flex-shrink-0 h-5 w-5 rounded-md flex items-center justify-center border ${isChecked ? 'bg-primary text-primary-foreground border-primary' : 'border-border bg-background'
+                                }`}>
+                                {isChecked && <Check className="h-3 w-3" />}
+                              </div>
+                              <div className="min-w-0 flex-1">
+                                <div className="flex items-center justify-between">
+                                  <span className="text-xs font-mono text-muted-foreground">{topic.topic_no}.</span>
+                                  {topic.is_completed && (
+                                    <span className="text-[9px] font-mono font-bold bg-success/20 text-success px-1.5 py-0.2 rounded">
+                                      Completed
+                                    </span>
+                                  )}
+                                </div>
+                                <div className="text-sm font-medium text-foreground leading-tight truncate">{topic.topic_name}</div>
+                                {topic.planned_hours > 0 && (
+                                  <div className="text-xs font-mono text-muted-foreground/70">{topic.planned_hours} hrs planned</div>
+                                )}
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    )}
+                  </div>
+
+                  <div className="flex items-center justify-between pt-2 border-t border-border">
+                    <div className="text-xs font-mono text-muted-foreground">
+                      {trainerLogTopics.length > 0 ? (
+                        <span className="text-primary font-bold">{trainerLogTopics.length} topic(s) selected to mark as covered</span>
+                      ) : (
+                        <span>No topics selected (session only, no topics marked)</span>
+                      )}
+                    </div>
+                    <Button onClick={handleLogSession} className="bg-primary text-primary-foreground">
+                      <Check className="h-3.5 w-3.5 mr-1" /> Save Session Log
+                    </Button>
+                  </div>
                 </div>
               )}
 
-              {/* Notes */}
-              <div>
-                <label className="text-xs font-mono font-medium text-muted-foreground">Notes (optional)</label>
-                <textarea
-                  value={trainerLogForm.notes}
-                  onChange={e => setTrainerLogForm({ ...trainerLogForm, notes: e.target.value })}
-                  placeholder="Any remarks, observations, or session notes..."
-                  rows={2}
-                  className="w-full mt-1 bg-background border border-border rounded-xl p-2.5 text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-primary resize-none"
-                />
-              </div>
+              {/* MISSED SESSION FORM */}
+              {sessionLogType === 'missed' && (
+                <div className="space-y-4 bg-amber-500/[0.02] border border-amber-500/20 rounded-xl p-4">
+                  <div className="flex items-center gap-2 text-xs font-mono text-amber-700 dark:text-amber-400 font-semibold">
+                    <AlertTriangle className="h-4 w-4" />
+                    Record a missed or cancelled class session (Trainer leave, College event, Natural calamity)
+                  </div>
 
-              {/* Pending Topics Checklist */}
-              <div>
-                <div className="flex flex-wrap items-center justify-between gap-2 mb-2">
-                  <label className="text-xs font-mono font-medium text-muted-foreground">
-                    Topics Covered in this Session
-                  </label>
-                  <div className="flex flex-wrap items-center gap-3">
-                    <button
-                      type="button"
-                      className="text-xs font-mono text-primary hover:underline flex items-center gap-1"
-                      onClick={() => {
-                        const nextNo = currentSyllabus.length > 0 ? Math.max(...currentSyllabus.map(s => s.topic_no)) + 1 : 1;
-                        setNewTopicForm({ topic_no: nextNo, topic_name: '', planned_hours: '' });
-                        setShowAddTopicModal(true);
-                      }}
-                    >
-                      <Plus className="h-3 w-3" /> Add Custom Topic
-                    </button>
-                    <label className="flex items-center gap-1.5 text-xs font-mono text-muted-foreground cursor-pointer select-none">
-                      <input
-                        type="checkbox"
-                        checked={showCompletedInLog}
-                        onChange={e => setShowCompletedInLog(e.target.checked)}
-                        className="rounded border-border text-primary focus:ring-primary h-3.5 w-3.5"
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                    {/* Date */}
+                    <div>
+                      <label className="text-xs font-mono font-medium text-muted-foreground">Missed Date <span className="text-destructive">*</span></label>
+                      <Input
+                        type="date"
+                        value={missedSessionForm.log_date}
+                        onChange={e => setMissedSessionForm({ ...missedSessionForm, log_date: e.target.value })}
+                        className="mt-1 font-mono text-sm"
                       />
-                      Show Completed
-                    </label>
-                    {displayedTopics.length > 0 && (
-                      <button
-                        type="button"
-                        className="text-xs font-mono text-primary hover:underline"
-                        onClick={() => setTrainerLogTopics(
-                          trainerLogTopics.length === displayedTopics.length
-                            ? []
-                            : displayedTopics.map(t => t.id)
-                        )}
+                    </div>
+
+                    {/* Trainer */}
+                    <div>
+                      <label className="text-xs font-mono font-medium text-muted-foreground">Trainer Assigned</label>
+                      <select
+                        value={missedSessionForm.trainer_id || batchTrainerId}
+                        onChange={e => setMissedSessionForm({ ...missedSessionForm, trainer_id: e.target.value })}
+                        className="w-full mt-1 bg-background border border-border rounded-xl p-2.5 text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-primary"
                       >
-                        {trainerLogTopics.length === displayedTopics.length ? 'Deselect All' : 'Select All'}
-                      </button>
-                    )}
+                        <option value="">Select Trainer</option>
+                        {store.profiles.filter(p => p.role === 'trainer' || p.role === 'admin').map(p => (
+                          <option key={p.id} value={p.id}>{p.full_name}</option>
+                        ))}
+                      </select>
+                    </div>
+
+                    {/* Hours Missed */}
+                    <div>
+                      <label className="text-xs font-mono font-medium text-muted-foreground">Hours Missed <span className="text-destructive">*</span></label>
+                      <Input
+                        type="number"
+                        step="0.5"
+                        min="0.5"
+                        max="12"
+                        value={missedSessionForm.missed_hours}
+                        onChange={e => setMissedSessionForm({ ...missedSessionForm, missed_hours: Number(e.target.value) })}
+                        className="mt-1 font-mono text-sm font-bold text-amber-600 dark:text-amber-400"
+                        placeholder="e.g. 2"
+                      />
+                    </div>
+
+                    {/* Reason Category */}
+                    <div>
+                      <label className="text-xs font-mono font-medium text-muted-foreground">Reason Category <span className="text-destructive">*</span></label>
+                      <select
+                        value={missedSessionForm.missed_reason}
+                        onChange={e => setMissedSessionForm({ ...missedSessionForm, missed_reason: e.target.value as MissedReason })}
+                        className="w-full mt-1 bg-background border border-border rounded-xl p-2.5 text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-primary font-medium"
+                      >
+                        <option value="trainer_leave">👨‍🏫 Trainer on Leave</option>
+                        <option value="college_program">🏫 College Program / Event</option>
+                        <option value="natural_calamity">🌧️ Natural Calamity / Weather Alert</option>
+                        <option value="other">⚙️ Other / Institutional</option>
+                      </select>
+                    </div>
+                  </div>
+
+                  {/* Specific Reason Details */}
+                  <div>
+                    <label className="text-xs font-mono font-medium text-muted-foreground">
+                      Reason Remarks / Specific Details <span className="text-muted-foreground/60">(optional)</span>
+                    </label>
+                    <textarea
+                      value={missedSessionForm.notes}
+                      onChange={e => setMissedSessionForm({ ...missedSessionForm, notes: e.target.value })}
+                      placeholder="e.g. College annual arts festival, District Collector declared flood holiday, Trainer sick leave..."
+                      rows={2}
+                      className="w-full mt-1 bg-background border border-border rounded-xl p-2.5 text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-primary resize-none"
+                    />
+                  </div>
+
+                  <div className="flex items-center justify-between pt-2 border-t border-amber-500/20">
+                    <div className="text-xs font-mono text-muted-foreground">
+                      Missed hours are tracked separately for audit and workload accounting.
+                    </div>
+                    <Button onClick={handleLogMissedSession} className="bg-amber-600 hover:bg-amber-700 text-white font-medium">
+                      <AlertTriangle className="h-3.5 w-3.5 mr-1.5" /> Log Missed Session ({missedSessionForm.missed_hours} hrs)
+                    </Button>
                   </div>
                 </div>
-
-                <div className="mb-3 max-w-md">
-                  <Input
-                    type="text"
-                    value={trainerLogSearch}
-                    onChange={e => setTrainerLogSearch(e.target.value)}
-                    placeholder="Search topics..."
-                    className="text-xs h-9 rounded-xl bg-background border border-border"
-                  />
-                </div>
-
-                {displayedTopics.length === 0 ? (
-                  <div className="bg-success/10 border border-success/30 rounded-xl p-4 text-center">
-                    <CheckCircle2 className="h-5 w-5 text-success mx-auto mb-1" />
-                    <p className="text-xs font-mono text-success font-bold">All topics completed! 🎉</p>
-                    <p className="text-[10px] font-mono text-muted-foreground mt-1">
-                      Toggle "Show Completed" or click "Add Custom Topic" to log additional topics.
-                    </p>
-                  </div>
-                ) : (
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 max-h-64 overflow-y-auto pr-1">
-                    {displayedTopics.map(topic => {
-                      const isChecked = trainerLogTopics.includes(topic.id);
-                      return (
-                        <div
-                          key={topic.id}
-                          onClick={() => setTrainerLogTopics(prev =>
-                            isChecked ? prev.filter(id => id !== topic.id) : [...prev, topic.id]
-                          )}
-                          className={`flex items-center gap-3 p-3 rounded-xl border cursor-pointer transition-all select-none ${isChecked
-                              ? 'bg-primary/10 border-primary/40 text-foreground'
-                              : 'bg-sunken border-border/80 text-muted-foreground hover:border-primary/30'
-                            }`}
-                        >
-                          <div className={`flex-shrink-0 h-5 w-5 rounded-md flex items-center justify-center border ${isChecked ? 'bg-primary text-primary-foreground border-primary' : 'border-border bg-background'
-                            }`}>
-                            {isChecked && <Check className="h-3 w-3" />}
-                          </div>
-                          <div className="min-w-0 flex-1">
-                            <div className="flex items-center justify-between">
-                              <span className="text-xs font-mono text-muted-foreground">{topic.topic_no}.</span>
-                              {topic.is_completed && (
-                                <span className="text-[9px] font-mono font-bold bg-success/20 text-success px-1.5 py-0.2 rounded">
-                                  Completed
-                                </span>
-                              )}
-                            </div>
-                            <div className="text-sm font-medium text-foreground leading-tight truncate">{topic.topic_name}</div>
-                            {topic.planned_hours > 0 && (
-                              <div className="text-xs font-mono text-muted-foreground/70">{topic.planned_hours} hrs planned</div>
-                            )}
-                          </div>
-                        </div>
-                      );
-                    })}
-                  </div>
-                )}
-              </div>
-
-              <div className="flex items-center justify-between pt-2 border-t border-border">
-                <div className="text-xs font-mono text-muted-foreground">
-                  {trainerLogTopics.length > 0 ? (
-                    <span className="text-primary font-bold">{trainerLogTopics.length} topic(s) selected to mark as covered</span>
-                  ) : (
-                    <span>No topics selected (session only, no topics marked)</span>
-                  )}
-                </div>
-                <Button onClick={handleLogSession} className="bg-primary text-primary-foreground">
-                  <Check className="h-3.5 w-3.5 mr-1" /> Save Session Log
-                </Button>
-              </div>
+              )}
             </div>
 
             {/* SESSION HISTORY */}
             <div className="bg-card rounded-2xl border border-border overflow-hidden shadow-sm">
-              <div className="flex items-center justify-between px-5 py-3 border-b border-border bg-muted/30">
-                <h3 className="text-sm font-semibold font-heading">Session History</h3>
-                <span className="text-xs font-mono text-muted-foreground">{courseTrainerLogs.length} session(s) logged</span>
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between px-5 py-3 border-b border-border bg-muted/30 gap-2">
+                <div className="flex items-center gap-2">
+                  <h3 className="text-sm font-semibold font-heading">Session History</h3>
+                  <span className="text-xs font-mono text-muted-foreground">
+                    ({courseTrainerLogs.length} total: {conductedLogs.length} conducted · {missedLogs.length} missed)
+                  </span>
+                </div>
+
+                {/* Filter Pills */}
+                <div className="flex items-center gap-1.5 text-xs font-mono">
+                  <button
+                    type="button"
+                    onClick={() => setTrainerLogFilter('all')}
+                    className={`px-2.5 py-1 rounded-lg transition-all ${
+                      trainerLogFilter === 'all'
+                        ? 'bg-primary text-primary-foreground font-bold shadow-xs'
+                        : 'bg-muted/50 text-muted-foreground hover:text-foreground'
+                    }`}
+                  >
+                    All ({courseTrainerLogs.length})
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setTrainerLogFilter('conducted')}
+                    className={`px-2.5 py-1 rounded-lg transition-all ${
+                      trainerLogFilter === 'conducted'
+                        ? 'bg-primary text-primary-foreground font-bold shadow-xs'
+                        : 'bg-muted/50 text-muted-foreground hover:text-foreground'
+                    }`}
+                  >
+                    Conducted ({conductedLogs.length})
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setTrainerLogFilter('missed')}
+                    className={`px-2.5 py-1 rounded-lg transition-all ${
+                      trainerLogFilter === 'missed'
+                        ? 'bg-amber-500/20 text-amber-700 dark:text-amber-400 font-bold border border-amber-500/30'
+                        : 'bg-muted/50 text-muted-foreground hover:text-foreground'
+                    }`}
+                  >
+                    Missed ({missedLogs.length})
+                  </button>
+                </div>
               </div>
-              {courseTrainerLogs.length === 0 ? (
+
+              {displayedLogs.length === 0 ? (
                 <div className="p-8 text-center text-muted-foreground text-xs font-mono">
-                  No sessions logged yet. Log your first session above.
+                  {trainerLogFilter === 'missed'
+                    ? 'No missed sessions recorded for this course. Excellent attendance continuity!'
+                    : 'No sessions logged yet. Log your first session above.'}
                 </div>
               ) : (
                 <table className="w-full text-sm">
                   <thead className="bg-muted/50 border-b border-border text-muted-foreground font-mono text-xs uppercase">
                     <tr>
                       <th className="p-3 text-left">Date</th>
+                      <th className="p-3 text-left">Status</th>
                       <th className="p-3 text-left">Trainer</th>
-                      <th className="p-3 text-center">Time</th>
+                      <th className="p-3 text-center">Time Slot</th>
                       <th className="p-3 text-center">Duration</th>
-                      <th className="p-3 text-center">Topics Covered</th>
+                      <th className="p-3 text-left">Topics / Missed Reason</th>
                       <th className="p-3 text-left">Notes</th>
                       <th className="p-3 text-center w-24">Actions</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-border">
-                    {courseTrainerLogs.map(log => {
+                    {displayedLogs.map(log => {
+                      const isMissed = log.log_type === 'missed' || (Boolean(log.notes) && log.notes!.startsWith('[MISSED:'));
+                      const parsed = store.parseTrainerLogNotes(log.notes);
                       const trainer = store.profiles.find(p => p.id === log.trainer_id);
-                      const topicNames = log.topics_covered
-                        .map(tid => currentSyllabus.find(s => s.id === tid)?.topic_name || tid)
-                        .join(', ');
+
                       return (
-                        <tr key={log.id} className="hover:bg-muted/20">
-                          <td className="p-3 font-mono text-xs font-bold">{log.log_date}</td>
+                        <tr key={log.id} className={isMissed ? 'bg-amber-500/[0.03] hover:bg-amber-500/[0.07] transition-colors' : 'hover:bg-muted/20 transition-colors'}>
+                          <td className="p-3 font-mono text-xs font-bold whitespace-nowrap">{log.log_date}</td>
+                          
+                          {/* Status Badge */}
+                          <td className="p-3">
+                            {isMissed ? (
+                              <span className="bg-amber-500/15 text-amber-700 dark:text-amber-400 border border-amber-500/30 text-[11px] font-mono font-bold px-2 py-0.5 rounded-full inline-flex items-center gap-1">
+                                <AlertTriangle className="h-3 w-3" /> Missed
+                              </span>
+                            ) : (
+                              <span className="bg-primary/10 text-primary border border-primary/20 text-[11px] font-mono font-bold px-2 py-0.5 rounded-full inline-flex items-center gap-1">
+                                <CheckCircle2 className="h-3 w-3" /> Conducted
+                              </span>
+                            )}
+                          </td>
+
                           <td className="p-3 text-sm">{trainer?.full_name || log.trainer_name || <span className="text-muted-foreground/50 italic">—</span>}</td>
+                          
+                          {/* Time */}
                           <td className="p-3 text-center font-mono text-xs">
-                            {log.start_time} – {log.end_time}
+                            {isMissed ? (
+                              <span className="text-muted-foreground/60 italic font-mono text-[11px]">Suspended</span>
+                            ) : (
+                              `${log.start_time} – ${log.end_time}`
+                            )}
                           </td>
-                          <td className="p-3 text-center">
-                            <span className="bg-primary/10 text-primary font-mono text-xs font-bold px-2 py-0.5 rounded-full">
-                              {Math.floor(log.duration_minutes / 60) > 0 ? `${Math.floor(log.duration_minutes / 60)}h ` : ''}{log.duration_minutes % 60}m
-                            </span>
+
+                          {/* Duration */}
+                          <td className="p-3 text-center whitespace-nowrap">
+                            {isMissed ? (
+                              <span className="bg-amber-500/15 text-amber-700 dark:text-amber-400 font-mono text-xs font-bold px-2.5 py-0.5 rounded-full border border-amber-500/30">
+                                {Math.round((log.duration_minutes / 60) * 10) / 10}h missed
+                              </span>
+                            ) : (
+                              <span className="bg-primary/10 text-primary font-mono text-xs font-bold px-2 py-0.5 rounded-full">
+                                {Math.floor(log.duration_minutes / 60) > 0 ? `${Math.floor(log.duration_minutes / 60)}h ` : ''}{log.duration_minutes % 60}m
+                              </span>
+                            )}
                           </td>
-                          <td className="p-3 text-center">
-                            {log.topics_covered.length > 0 ? (
-                              <div className="flex flex-wrap gap-1 justify-center max-w-[320px] mx-auto">
+
+                          {/* Topics / Reason */}
+                          <td className="p-3">
+                            {isMissed ? (
+                              <span className="inline-flex items-center gap-1 text-xs font-mono font-semibold px-2.5 py-0.5 rounded-md bg-amber-500/10 text-amber-800 dark:text-amber-300 border border-amber-500/20">
+                                {log.missed_reason === 'trainer_leave' || parsed.reason === 'trainer_leave' ? '👨‍🏫 Trainer on Leave' :
+                                 log.missed_reason === 'college_program' || parsed.reason === 'college_program' ? '🏫 College Program / Event' :
+                                 log.missed_reason === 'natural_calamity' || parsed.reason === 'natural_calamity' ? '🌧️ Natural Calamity / Alert' :
+                                 '⚙️ Other / Institutional'}
+                              </span>
+                            ) : log.topics_covered.length > 0 ? (
+                              <div className="flex flex-wrap gap-1 max-w-[320px]">
                                 {log.topics_covered.map(tid => {
                                   const name = currentSyllabus.find(s => s.id === tid)?.topic_name || tid;
                                   return (
@@ -2465,9 +2840,13 @@ export default function BatchDetails() {
                               <span className="text-muted-foreground/40 text-xs font-mono">—</span>
                             )}
                           </td>
-                          <td className="p-3 text-xs text-muted-foreground max-w-[200px] truncate" title={log.notes}>
-                            {log.notes || <span className="text-muted-foreground/40 italic">—</span>}
+
+                          {/* Notes */}
+                          <td className="p-3 text-xs text-muted-foreground max-w-[200px] truncate" title={isMissed ? parsed.cleanNotes : log.notes}>
+                            {(isMissed ? parsed.cleanNotes : log.notes) || <span className="text-muted-foreground/40 italic">—</span>}
                           </td>
+
+                          {/* Actions */}
                           <td className="p-3 text-center">
                             <div className="flex items-center justify-center gap-1.5">
                               {profile?.role === 'admin' && (
@@ -2482,7 +2861,10 @@ export default function BatchDetails() {
                                       trainer_id: log.trainer_id || '',
                                       start_time: log.start_time,
                                       end_time: log.end_time,
-                                      notes: log.notes || '',
+                                      notes: isMissed ? parsed.cleanNotes : (log.notes || ''),
+                                      log_type: isMissed ? 'missed' : 'conducted',
+                                      missed_hours: Math.round((log.duration_minutes / 60) * 10) / 10 || 2,
+                                      missed_reason: (isMissed ? (parsed.reason || log.missed_reason || 'trainer_leave') : 'trainer_leave') as MissedReason,
                                     });
                                     setEditTrainerLogTopics(log.topics_covered || []);
                                     setShowEditTrainerLogModal(true);
@@ -2496,10 +2878,13 @@ export default function BatchDetails() {
                                 variant="ghost"
                                 className="h-7 w-7 text-muted-foreground hover:text-destructive"
                                 onClick={async () => {
-                                  if (confirm('Delete this session log? Note: completed topics will NOT be un-marked.')) {
+                                  const confirmMsg = isMissed
+                                    ? 'Delete this missed session log?'
+                                    : 'Delete this session log? Note: completed topics will NOT be un-marked.';
+                                  if (confirm(confirmMsg)) {
                                     await store.deleteTrainerLog(log.id);
                                     setRefreshTrigger(r => r + 1);
-                                    toast.success('Session log deleted');
+                                    toast.success(isMissed ? 'Missed session log deleted' : 'Session log deleted');
                                   }
                                 }}
                               >
@@ -3257,161 +3642,248 @@ export default function BatchDetails() {
         <div className="fixed inset-0 z-50 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4">
           <div className="bg-card border border-border rounded-2xl p-6 max-w-2xl w-full shadow-2xl space-y-4 max-h-[90vh] overflow-y-auto">
             <div className="flex justify-between items-center border-b border-border pb-3">
-              <h3 className="text-lg font-bold font-heading">Edit Trainer Log Session</h3>
+              <div className="flex items-center gap-2">
+                {editTrainerLogForm.log_type === 'missed' ? (
+                  <>
+                    <AlertTriangle className="h-5 w-5 text-amber-600 dark:text-amber-400" />
+                    <h3 className="text-lg font-bold font-heading">Edit Missed Session</h3>
+                  </>
+                ) : (
+                  <>
+                    <Clock className="h-5 w-5 text-primary" />
+                    <h3 className="text-lg font-bold font-heading">Edit Trainer Log Session</h3>
+                  </>
+                )}
+              </div>
               <Button variant="ghost" size="icon" onClick={() => { setShowEditTrainerLogModal(false); setEditingTrainerLog(null); }} className="h-8 w-8">
                 <X className="h-4 w-4" />
               </Button>
             </div>
 
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              {/* Date */}
-              <div>
-                <label className="text-xs font-mono font-medium text-muted-foreground">Date <span className="text-destructive">*</span></label>
-                <Input
-                  type="date"
-                  value={editTrainerLogForm.log_date}
-                  onChange={e => setEditTrainerLogForm({ ...editTrainerLogForm, log_date: e.target.value })}
-                  className="mt-1 font-mono text-sm"
-                />
-              </div>
+            {editTrainerLogForm.log_type === 'missed' ? (
+              <div className="space-y-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  {/* Date */}
+                  <div>
+                    <label className="text-xs font-mono font-medium text-muted-foreground">Date of Missed Session <span className="text-destructive">*</span></label>
+                    <Input
+                      type="date"
+                      value={editTrainerLogForm.log_date}
+                      onChange={e => setEditTrainerLogForm({ ...editTrainerLogForm, log_date: e.target.value })}
+                      className="mt-1 font-mono text-sm"
+                    />
+                  </div>
 
-              {/* Trainer */}
-              <div>
-                <label className="text-xs font-mono font-medium text-muted-foreground">Trainer</label>
-                <select
-                  value={editTrainerLogForm.trainer_id}
-                  onChange={e => setEditTrainerLogForm({ ...editTrainerLogForm, trainer_id: e.target.value })}
-                  className="w-full mt-1 bg-background border border-border rounded-xl p-2.5 text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-primary"
-                >
-                  <option value="">Select Trainer</option>
-                  {store.profiles.filter(p => p.role === 'trainer' || p.role === 'admin').map(p => (
-                    <option key={p.id} value={p.id}>{p.full_name}</option>
-                  ))}
-                </select>
-              </div>
-
-              {/* Start Time */}
-              <div>
-                <label className="text-xs font-mono font-medium text-muted-foreground">Start Time <span className="text-destructive">*</span></label>
-                <Input
-                  type="time"
-                  value={editTrainerLogForm.start_time}
-                  onChange={e => setEditTrainerLogForm({ ...editTrainerLogForm, start_time: e.target.value })}
-                  className="mt-1 font-mono text-sm"
-                />
-              </div>
-
-              {/* End Time */}
-              <div>
-                <label className="text-xs font-mono font-medium text-muted-foreground">End Time <span className="text-destructive">*</span></label>
-                <Input
-                  type="time"
-                  value={editTrainerLogForm.end_time}
-                  onChange={e => setEditTrainerLogForm({ ...editTrainerLogForm, end_time: e.target.value })}
-                  className="mt-1 font-mono text-sm"
-                />
-              </div>
-            </div>
-
-            {/* Notes */}
-            <div>
-              <label className="text-xs font-mono font-medium text-muted-foreground">Notes (optional)</label>
-              <textarea
-                value={editTrainerLogForm.notes}
-                onChange={e => setEditTrainerLogForm({ ...editTrainerLogForm, notes: e.target.value })}
-                placeholder="Any remarks, observations, or session notes..."
-                rows={2}
-                className="w-full mt-1 bg-background border border-border rounded-xl p-2.5 text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-primary resize-none"
-              />
-            </div>
-
-            {/* Syllabus Topics Checklist */}
-            <div className="space-y-2">
-              <div className="flex flex-wrap items-center justify-between gap-2">
-                <label className="text-xs font-mono font-medium text-muted-foreground">
-                  Topics Covered in this Session
-                </label>
-                <div className="flex flex-wrap items-center gap-3">
-                  <button
-                    type="button"
-                    className="text-xs font-mono text-primary hover:underline flex items-center gap-1"
-                    onClick={() => {
-                      const nextNo = currentSyllabus.length > 0 ? Math.max(...currentSyllabus.map(s => s.topic_no)) + 1 : 1;
-                      setNewTopicForm({ topic_no: nextNo, topic_name: '', planned_hours: '' });
-                      setShowAddTopicModal(true);
-                    }}
-                  >
-                    <Plus className="h-3 w-3" /> Add Custom Topic
-                  </button>
-                  {displayedEditTopics.length > 0 && (
-                    <button
-                      type="button"
-                      className="text-xs font-mono text-primary hover:underline"
-                      onClick={() => setEditTrainerLogTopics(
-                        editTrainerLogTopics.length === displayedEditTopics.length
-                          ? []
-                          : displayedEditTopics.map(t => t.id)
-                      )}
+                  {/* Trainer */}
+                  <div>
+                    <label className="text-xs font-mono font-medium text-muted-foreground">Trainer</label>
+                    <select
+                      value={editTrainerLogForm.trainer_id}
+                      onChange={e => setEditTrainerLogForm({ ...editTrainerLogForm, trainer_id: e.target.value })}
+                      className="w-full mt-1 bg-background border border-border rounded-xl p-2.5 text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-primary"
                     >
-                      {editTrainerLogTopics.length === displayedEditTopics.length ? 'Deselect All' : 'Select All'}
-                    </button>
+                      <option value="">Select Trainer</option>
+                      {store.profiles.filter(p => p.role === 'trainer' || p.role === 'admin').map(p => (
+                        <option key={p.id} value={p.id}>{p.full_name}</option>
+                      ))}
+                    </select>
+                  </div>
+
+                  {/* Missed Hours */}
+                  <div>
+                    <label className="text-xs font-mono font-medium text-muted-foreground">Hours Missed <span className="text-destructive">*</span></label>
+                    <Input
+                      type="number"
+                      step="0.5"
+                      min="0.5"
+                      max="12"
+                      value={editTrainerLogForm.missed_hours}
+                      onChange={e => setEditTrainerLogForm({ ...editTrainerLogForm, missed_hours: Number(e.target.value) })}
+                      className="mt-1 font-mono text-sm font-bold text-amber-600 dark:text-amber-400"
+                    />
+                  </div>
+
+                  {/* Reason Category */}
+                  <div>
+                    <label className="text-xs font-mono font-medium text-muted-foreground">Reason Category <span className="text-destructive">*</span></label>
+                    <select
+                      value={editTrainerLogForm.missed_reason}
+                      onChange={e => setEditTrainerLogForm({ ...editTrainerLogForm, missed_reason: e.target.value as MissedReason })}
+                      className="w-full mt-1 bg-background border border-border rounded-xl p-2.5 text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-primary font-medium"
+                    >
+                      <option value="trainer_leave">👨‍🏫 Trainer on Leave</option>
+                      <option value="college_program">🏫 College Program / Event</option>
+                      <option value="natural_calamity">🌧️ Natural Calamity / Weather Alert</option>
+                      <option value="other">⚙️ Other / Institutional</option>
+                    </select>
+                  </div>
+                </div>
+
+                {/* Specific Notes */}
+                <div>
+                  <label className="text-xs font-mono font-medium text-muted-foreground">Reason Remarks / Specific Details</label>
+                  <textarea
+                    value={editTrainerLogForm.notes}
+                    onChange={e => setEditTrainerLogForm({ ...editTrainerLogForm, notes: e.target.value })}
+                    placeholder="e.g. Annual sports meet held by college, Trainer sick leave, Red alert rainfall..."
+                    rows={3}
+                    className="w-full mt-1 bg-background border border-border rounded-xl p-2.5 text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-primary resize-none"
+                  />
+                </div>
+              </div>
+            ) : (
+              <>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  {/* Date */}
+                  <div>
+                    <label className="text-xs font-mono font-medium text-muted-foreground">Date <span className="text-destructive">*</span></label>
+                    <Input
+                      type="date"
+                      value={editTrainerLogForm.log_date}
+                      onChange={e => setEditTrainerLogForm({ ...editTrainerLogForm, log_date: e.target.value })}
+                      className="mt-1 font-mono text-sm"
+                    />
+                  </div>
+
+                  {/* Trainer */}
+                  <div>
+                    <label className="text-xs font-mono font-medium text-muted-foreground">Trainer</label>
+                    <select
+                      value={editTrainerLogForm.trainer_id}
+                      onChange={e => setEditTrainerLogForm({ ...editTrainerLogForm, trainer_id: e.target.value })}
+                      className="w-full mt-1 bg-background border border-border rounded-xl p-2.5 text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-primary"
+                    >
+                      <option value="">Select Trainer</option>
+                      {store.profiles.filter(p => p.role === 'trainer' || p.role === 'admin').map(p => (
+                        <option key={p.id} value={p.id}>{p.full_name}</option>
+                      ))}
+                    </select>
+                  </div>
+
+                  {/* Start Time */}
+                  <div>
+                    <label className="text-xs font-mono font-medium text-muted-foreground">Start Time <span className="text-destructive">*</span></label>
+                    <Input
+                      type="time"
+                      value={editTrainerLogForm.start_time}
+                      onChange={e => setEditTrainerLogForm({ ...editTrainerLogForm, start_time: e.target.value })}
+                      className="mt-1 font-mono text-sm"
+                    />
+                  </div>
+
+                  {/* End Time */}
+                  <div>
+                    <label className="text-xs font-mono font-medium text-muted-foreground">End Time <span className="text-destructive">*</span></label>
+                    <Input
+                      type="time"
+                      value={editTrainerLogForm.end_time}
+                      onChange={e => setEditTrainerLogForm({ ...editTrainerLogForm, end_time: e.target.value })}
+                      className="mt-1 font-mono text-sm"
+                    />
+                  </div>
+                </div>
+
+                {/* Notes */}
+                <div>
+                  <label className="text-xs font-mono font-medium text-muted-foreground">Notes (optional)</label>
+                  <textarea
+                    value={editTrainerLogForm.notes}
+                    onChange={e => setEditTrainerLogForm({ ...editTrainerLogForm, notes: e.target.value })}
+                    placeholder="Any remarks, observations, or session notes..."
+                    rows={2}
+                    className="w-full mt-1 bg-background border border-border rounded-xl p-2.5 text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-primary resize-none"
+                  />
+                </div>
+
+                {/* Syllabus Topics Checklist */}
+                <div className="space-y-2">
+                  <div className="flex flex-wrap items-center justify-between gap-2">
+                    <label className="text-xs font-mono font-medium text-muted-foreground">
+                      Topics Covered in this Session
+                    </label>
+                    <div className="flex flex-wrap items-center gap-3">
+                      <button
+                        type="button"
+                        className="text-xs font-mono text-primary hover:underline flex items-center gap-1"
+                        onClick={() => {
+                          const nextNo = currentSyllabus.length > 0 ? Math.max(...currentSyllabus.map(s => s.topic_no)) + 1 : 1;
+                          setNewTopicForm({ topic_no: nextNo, topic_name: '', planned_hours: '' });
+                          setShowAddTopicModal(true);
+                        }}
+                      >
+                        <Plus className="h-3 w-3" /> Add Custom Topic
+                      </button>
+                      {displayedEditTopics.length > 0 && (
+                        <button
+                          type="button"
+                          className="text-xs font-mono text-primary hover:underline"
+                          onClick={() => setEditTrainerLogTopics(
+                            editTrainerLogTopics.length === displayedEditTopics.length
+                              ? []
+                              : displayedEditTopics.map(t => t.id)
+                          )}
+                        >
+                          {editTrainerLogTopics.length === displayedEditTopics.length ? 'Deselect All' : 'Select All'}
+                        </button>
+                      )}
+                    </div>
+                  </div>
+
+                  <div className="mb-2 max-w-md">
+                    <Input
+                      type="text"
+                      value={editTrainerLogSearch}
+                      onChange={e => setEditTrainerLogSearch(e.target.value)}
+                      placeholder="Search topics..."
+                      className="text-xs h-9 rounded-xl bg-background border border-border"
+                    />
+                  </div>
+
+                  {currentSyllabus.length === 0 ? (
+                    <p className="text-xs text-muted-foreground font-mono italic">No syllabus topics defined for this course.</p>
+                  ) : displayedEditTopics.length === 0 ? (
+                    <p className="text-xs text-muted-foreground font-mono italic">No matching syllabus topics found.</p>
+                  ) : (
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 max-h-60 overflow-y-auto pr-1">
+                      {displayedEditTopics.map(topic => {
+                        const isChecked = editTrainerLogTopics.includes(topic.id);
+                        return (
+                          <div
+                            key={topic.id}
+                            onClick={() => setEditTrainerLogTopics(prev =>
+                              isChecked ? prev.filter(id => id !== topic.id) : [...prev, topic.id]
+                            )}
+                            className={`flex items-center gap-3 p-3 rounded-xl border cursor-pointer transition-all select-none ${isChecked
+                                ? 'bg-primary/10 border-primary/40 text-foreground'
+                                : 'bg-sunken border-border/80 text-muted-foreground hover:border-primary/30'
+                              }`}
+                          >
+                            <div className={`flex-shrink-0 h-5 w-5 rounded-md flex items-center justify-center border ${isChecked ? 'bg-primary text-primary-foreground border-primary' : 'border-border bg-background'
+                              }`}>
+                              {isChecked && <Check className="h-3 w-3" />}
+                            </div>
+                            <div className="min-w-0 flex-1">
+                              <div className="flex items-center justify-between">
+                                <span className="text-xs font-mono text-muted-foreground">{topic.topic_no}.</span>
+                                {topic.is_completed && !isChecked && (
+                                  <span className="text-[9px] font-mono font-bold bg-success/20 text-success px-1.5 py-0.2 rounded">
+                                    Completed in other session
+                                  </span>
+                                )}
+                              </div>
+                              <div className="text-sm font-medium text-foreground leading-tight truncate">{topic.topic_name}</div>
+                              {topic.planned_hours > 0 && (
+                                <div className="text-xs font-mono text-muted-foreground/70">{topic.planned_hours} hrs planned</div>
+                              )}
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
                   )}
                 </div>
-              </div>
-
-              <div className="mb-2 max-w-md">
-                <Input
-                  type="text"
-                  value={editTrainerLogSearch}
-                  onChange={e => setEditTrainerLogSearch(e.target.value)}
-                  placeholder="Search topics..."
-                  className="text-xs h-9 rounded-xl bg-background border border-border"
-                />
-              </div>
-
-              {currentSyllabus.length === 0 ? (
-                <p className="text-xs text-muted-foreground font-mono italic">No syllabus topics defined for this course.</p>
-              ) : displayedEditTopics.length === 0 ? (
-                <p className="text-xs text-muted-foreground font-mono italic">No matching syllabus topics found.</p>
-              ) : (
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 max-h-60 overflow-y-auto pr-1">
-                  {displayedEditTopics.map(topic => {
-                    const isChecked = editTrainerLogTopics.includes(topic.id);
-                    return (
-                      <div
-                        key={topic.id}
-                        onClick={() => setEditTrainerLogTopics(prev =>
-                          isChecked ? prev.filter(id => id !== topic.id) : [...prev, topic.id]
-                        )}
-                        className={`flex items-center gap-3 p-3 rounded-xl border cursor-pointer transition-all select-none ${isChecked
-                            ? 'bg-primary/10 border-primary/40 text-foreground'
-                            : 'bg-sunken border-border/80 text-muted-foreground hover:border-primary/30'
-                          }`}
-                      >
-                        <div className={`flex-shrink-0 h-5 w-5 rounded-md flex items-center justify-center border ${isChecked ? 'bg-primary text-primary-foreground border-primary' : 'border-border bg-background'
-                          }`}>
-                          {isChecked && <Check className="h-3 w-3" />}
-                        </div>
-                        <div className="min-w-0 flex-1">
-                          <div className="flex items-center justify-between">
-                            <span className="text-xs font-mono text-muted-foreground">{topic.topic_no}.</span>
-                            {topic.is_completed && !isChecked && (
-                              <span className="text-[9px] font-mono font-bold bg-success/20 text-success px-1.5 py-0.2 rounded">
-                                Completed in other session
-                              </span>
-                            )}
-                          </div>
-                          <div className="text-sm font-medium text-foreground leading-tight truncate">{topic.topic_name}</div>
-                          {topic.planned_hours > 0 && (
-                            <div className="text-xs font-mono text-muted-foreground/70">{topic.planned_hours} hrs planned</div>
-                          )}
-                        </div>
-                      </div>
-                    );
-                  })}
-                </div>
-              )}
-            </div>
+              </>
+            )}
 
             <div className="flex justify-end gap-2 pt-2 border-t border-border">
               <Button variant="outline" onClick={() => { setShowEditTrainerLogModal(false); setEditingTrainerLog(null); }}>Cancel</Button>
