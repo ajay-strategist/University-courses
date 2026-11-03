@@ -71,7 +71,14 @@ class DataStore {
       if (cAssTypes) this.assessmentTypes = JSON.parse(cAssTypes);
 
       const cBts = localStorage.getItem('uct_batches');
-      if (cBts) this.batches = JSON.parse(cBts);
+      if (cBts) {
+        this.batches = JSON.parse(cBts);
+        this.batches.forEach(b => {
+          if (b.code === 'MIM-BBA-2024-28' && b.current_semester === 5) b.current_semester = 6;
+          if (b.code === 'MIM-BCOM-2024-28' && b.current_semester === 5) b.current_semester = 6;
+          if (b.code === 'MIM-BCOM-2025-29' && b.current_semester === 3) b.current_semester = 4;
+        });
+      }
 
       const cStds = localStorage.getItem('uct_students');
       if (cStds) this.students = JSON.parse(cStds);
@@ -240,7 +247,14 @@ class DataStore {
       if (crses !== null) this.courses = (crses || []) as Course[];
       if (defSyl !== null) this.defaultSyllabus = (defSyl || []) as CourseDefaultSyllabus[];
       if (assTypes !== null) this.assessmentTypes = (assTypes || []) as AssessmentType[];
-      if (bts !== null) this.batches = (bts || []) as Batch[];
+      if (bts !== null) {
+        this.batches = (bts || []) as Batch[];
+        this.batches.forEach(b => {
+          if (b.code === 'MIM-BBA-2024-28' && b.current_semester === 5) b.current_semester = 6;
+          if (b.code === 'MIM-BCOM-2024-28' && b.current_semester === 5) b.current_semester = 6;
+          if (b.code === 'MIM-BCOM-2025-29' && b.current_semester === 3) b.current_semester = 4;
+        });
+      }
       if (stds !== null) this.students = (stds || []) as Student[];
       if (bCrs !== null) this.batchCourses = (bCrs || []) as BatchCourse[];
       if (bSyl !== null) this.batchSyllabus = (bSyl || []) as BatchCourseSyllabus[];
@@ -1109,8 +1123,24 @@ class DataStore {
       avg_coverage_pct = Math.round((completed / bcsyllabus.length) * 100);
     }
 
+    // Resolve current semester dynamically:
+    // 1. Calendar active semester window if scheduled
+    // 2. Maximum active batch course semester (if higher than stored)
+    // 3. Stored batch.current_semester
+    const activeSem = this.getActiveSemester(batch.college_id, batch.program_id, batch.academic_year);
+    let resolvedSemester = batch.current_semester || 1;
+    if (activeSem) {
+      resolvedSemester = activeSem.semester_no;
+    } else if (batchCourses.length > 0) {
+      const maxCourseSem = Math.max(...batchCourses.filter(bc => bc.status !== 'Completed').map(bc => bc.semester || 1));
+      if (maxCourseSem > resolvedSemester) {
+        resolvedSemester = maxCourseSem;
+      }
+    }
+
     return {
       ...batch,
+      current_semester: resolvedSemester,
       college,
       program,
       college_coordinator,

@@ -425,7 +425,8 @@ export default function BatchDetails() {
     );
   }
 
-  const activeCourse = store.courses.find(c => c.id === store.batchCourses.find(bc => bc.id === selectedBatchCourseId)?.course_id);
+  const activeBatchCourse = store.batchCourses.find(bc => bc.id === selectedBatchCourseId);
+  const activeCourse = store.courses.find(c => c.id === activeBatchCourse?.course_id);
 
   // -------------------------------------------------------------------------------------
   // 7.1 STUDENTS WORKFLOW
@@ -2103,7 +2104,7 @@ export default function BatchDetails() {
             <div className="card-meridian p-4">
               <div className="text-xs font-mono text-muted-foreground uppercase">Tool Name</div>
               <div className="text-lg font-bold font-heading text-accent mt-1">{activeCourse?.name}</div>
-              <div className="text-[11px] text-muted-foreground mt-0.5">Semester {batch.current_semester}</div>
+              <div className="text-[11px] text-muted-foreground mt-0.5">Semester {activeBatchCourse?.semester || batch.current_semester}</div>
             </div>
           </div>
 
