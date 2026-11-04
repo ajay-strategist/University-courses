@@ -14,7 +14,7 @@ import {
   ArrowLeft, Users, BookOpen, CalendarCheck, Award,
   CheckSquare, Plus, Download, Upload, Mail, CheckCircle2, Clock,
   AlertTriangle, Check, X, FileSpreadsheet, Send, Edit2, Trash2,
-  ListTodo, Calendar, Loader2
+  ListTodo, Calendar, Loader2, ShieldCheck, UserCheck
 } from 'lucide-react';
 import * as XLSX from 'xlsx';
 import { CollegeLogo } from '@/components/common/CollegeLogo';
@@ -62,6 +62,7 @@ export default function BatchDetails() {
   const [showAddTopicModal, setShowAddTopicModal] = useState(false);
   const [showAbsenteeModal, setShowAbsenteeModal] = useState(false);
   const [isSendingAbsenteeEmail, setIsSendingAbsenteeEmail] = useState(false);
+  const [absenteeSenderId, setAbsenteeSenderId] = useState<string>('');
 
   // Task List state
   const [newTaskText, setNewTaskText] = useState('');
@@ -792,18 +793,27 @@ export default function BatchDetails() {
       });
 
       const trainerCourse = store.batchCourses.find(bc => bc.id === selectedBatchCourseId);
-      const trainer = store.profiles.find(p => p.id === trainerCourse?.trainer_id);
+      const assignedTrainer = store.profiles.find(p => p.id === trainerCourse?.trainer_id);
+      const defaultSender = (profile?.role === 'trainer' ? profile : null)
+        || assignedTrainer
+        || profile
+        || store.profiles.find(p => p.role === 'trainer' || p.role === 'admin')
+        || store.profiles[0];
+
+      const defaultSenderId = defaultSender?.id || '';
+      setAbsenteeSenderId(defaultSenderId);
+
+      const senderConfig = store.emailConfigs.find(c => c.user_id === defaultSenderId);
+      const senderEmail = senderConfig?.smtp_user || defaultSender?.email || 'teamthestrategist@gmail.com';
+      const senderName = senderConfig?.from_name || defaultSender?.full_name || 'Team The Strategist';
       const recipientName = batch.college_coordinator?.full_name || batch.college?.contact_person || 'College Coordinator';
       const recipientEmail = batch.college_coordinator?.email || batch.college?.contact_email || '';
-
-      const trainerEmail = trainer?.email || 'baijuanoop810@gmail.com';
-      const trainerName = trainer?.full_name || 'Anoop Baiju';
 
       setAbsenteePreview({
         recipient_name: recipientName,
         recipient_email: recipientEmail,
-        sender_email: trainerEmail,
-        sender_name: trainerName,
+        sender_email: senderEmail,
+        sender_name: senderName,
         session_date: titleDate,
         batch_code: batch.code,
         course_name: activeCourse?.name || 'Excel',
@@ -839,18 +849,27 @@ export default function BatchDetails() {
     });
 
     const trainerCourse = store.batchCourses.find(bc => bc.id === selectedBatchCourseId);
-    const trainer = store.profiles.find(p => p.id === trainerCourse?.trainer_id);
+    const assignedTrainer = store.profiles.find(p => p.id === trainerCourse?.trainer_id);
+    const defaultSender = (profile?.role === 'trainer' ? profile : null)
+      || assignedTrainer
+      || profile
+      || store.profiles.find(p => p.role === 'trainer' || p.role === 'admin')
+      || store.profiles[0];
+
+    const defaultSenderId = defaultSender?.id || '';
+    setAbsenteeSenderId(defaultSenderId);
+
+    const senderConfig = store.emailConfigs.find(c => c.user_id === defaultSenderId);
+    const senderEmail = senderConfig?.smtp_user || defaultSender?.email || 'teamthestrategist@gmail.com';
+    const senderName = senderConfig?.from_name || defaultSender?.full_name || 'Team The Strategist';
     const recipientName = batch.college_coordinator?.full_name || batch.college?.contact_person || 'College Coordinator';
     const recipientEmail = batch.college_coordinator?.email || batch.college?.contact_email || '';
-
-    const trainerEmail = trainer?.email || 'baijuanoop810@gmail.com';
-    const trainerName = trainer?.full_name || 'Anoop Baiju';
 
     setAbsenteePreview({
       recipient_name: recipientName,
       recipient_email: recipientEmail,
-      sender_email: trainerEmail,
-      sender_name: trainerName,
+      sender_email: senderEmail,
+      sender_name: senderName,
       session_date: titleDate,
       batch_code: batch.code,
       course_name: activeCourse?.name || 'Excel',
@@ -869,15 +888,22 @@ export default function BatchDetails() {
     setIsSendingAbsenteeEmail(true);
 
     try {
-      // Find trainer and trainer SMTP config
       const trainerCourse = store.batchCourses.find(bc => bc.id === selectedBatchCourseId);
-      const trainer = store.profiles.find(p => p.id === trainerCourse?.trainer_id);
-      const trainerEmail = trainer?.email || absenteePreview.sender_email || 'baijuanoop810@gmail.com';
-      const trainerName = trainer?.full_name || absenteePreview.sender_name || 'Anoop Baiju';
+      const activeSender = store.profiles.find(p => p.id === absenteeSenderId)
+        || store.profiles.find(p => p.id === trainerCourse?.trainer_id)
+        || profile;
 
-      const userConfig = store.emailConfigs.find(c => c.user_id === trainerCourse?.trainer_id)
-        || store.emailConfigs.find(c => c.is_verified)
-        || store.emailConfigs[0];
+      const personalConfig = store.emailConfigs.find(c => c.user_id === activeSender?.id && c.is_verified);
+      const relayConfig = store.emailConfigs.find(c => c.is_verified) || store.emailConfigs[0];
+      const activeConfig = personalConfig || relayConfig;
+
+      if (!activeConfig) {
+        toast.error('No SMTP configuration found. Please configure an SMTP account in Email & Notifications first.');
+        return;
+      }
+
+      const senderName = personalConfig?.from_name || activeSender?.full_name || absenteePreview.sender_name || 'Team The Strategist';
+      const senderEmail = personalConfig?.smtp_user || activeSender?.email || absenteePreview.sender_email || activeConfig.smtp_user;
 
       // Build real email body
       const savedTemplate = localStorage.getItem('uct_absentee_template');
@@ -885,8 +911,8 @@ export default function BatchDetails() {
       const { html, text } = buildAbsenteeReportHtml({
         preview: {
           ...absenteePreview,
-          sender_name: trainerName,
-          sender_email: trainerEmail,
+          sender_name: senderName,
+          sender_email: senderEmail,
         },
         sessionHeaders,
         template: savedTemplate || undefined,
@@ -899,17 +925,17 @@ export default function BatchDetails() {
         subject,
         html,
         text,
-        config: userConfig,
-        sender_name: trainerName,
-        sender_email: trainerEmail,
-        reply_to: trainerEmail,
+        config: activeConfig,
+        sender_name: senderName,
+        sender_email: senderEmail,
+        reply_to: senderEmail,
       });
 
       const logEntry: NotificationLog = {
         id: generateUUID(),
         batch_course_id: selectedBatchCourseId,
         session_date: absenteePreview.session_date,
-        sender_id: trainer?.id || userConfig?.user_id || store.profiles[0]?.id,
+        sender_id: activeSender?.id || activeConfig.user_id || store.profiles[0]?.id,
         recipient_email: absenteePreview.recipient_email,
         absentee_count: absenteePreview.absentees.length,
         status: sendResult.success ? 'sent' : 'failed',
@@ -3244,10 +3270,79 @@ export default function BatchDetails() {
             </div>
 
             <div className="space-y-3 text-xs font-mono">
-              <div className="bg-sunken p-3 rounded-xl space-y-1">
-                <div>Recipient: <span className="font-bold text-foreground">{absenteePreview.recipient_name}</span> ({absenteePreview.recipient_email})</div>
-                <div>Sender: <span className="font-bold text-foreground">{absenteePreview.sender_name ? `${absenteePreview.sender_name} (${absenteePreview.sender_email})` : absenteePreview.sender_email}</span> (Trainer SMTP)</div>
-                <div>Subject: <span className="font-bold text-primary">Absentees Report - {absenteePreview.batch_code} ({absenteePreview.course_name}) - {formatDateToDDMMYYYY(absenteePreview.session_date)}</span></div>
+              <div className="bg-sunken p-3.5 rounded-xl space-y-2.5 border border-border">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-1 text-xs">
+                  <span className="text-muted-foreground font-medium">Recipient Coordinator:</span>
+                  <span className="font-bold text-foreground">{absenteePreview.recipient_name} <span className="text-muted-foreground font-normal">({absenteePreview.recipient_email})</span></span>
+                </div>
+
+                {/* Dynamic Sender Selector */}
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-1.5 pt-1 border-t border-border/60">
+                  <label className="text-muted-foreground font-medium flex items-center gap-1">
+                    <UserCheck className="h-3.5 w-3.5 text-primary" /> Sender Account:
+                  </label>
+                  <select
+                    value={absenteeSenderId}
+                    onChange={(e) => {
+                      const newSenderId = e.target.value;
+                      setAbsenteeSenderId(newSenderId);
+                      const p = store.profiles.find(prof => prof.id === newSenderId);
+                      const cfg = store.emailConfigs.find(c => c.user_id === newSenderId);
+                      if (p) {
+                        setAbsenteePreview({
+                          ...absenteePreview,
+                          sender_name: cfg?.from_name || p.full_name,
+                          sender_email: cfg?.smtp_user || p.email,
+                        });
+                      }
+                    }}
+                    className="bg-card border border-border rounded-lg px-2.5 py-1 text-xs font-semibold text-foreground focus:outline-none focus:ring-1 focus:ring-primary max-w-sm"
+                  >
+                    {store.profiles
+                      .filter(p => p.role === 'admin' || p.role === 'trainer')
+                      .map(p => {
+                        const hasConfig = store.emailConfigs.some(c => c.user_id === p.id && c.is_verified);
+                        return (
+                          <option key={p.id} value={p.id}>
+                            {p.full_name} ({p.email}) - {p.role.toUpperCase()} {hasConfig ? '✓ (Direct SMTP)' : '(via Relay)'}
+                          </option>
+                        );
+                      })}
+                  </select>
+                </div>
+
+                {/* Delivery Route Status */}
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-1 text-[11px] pt-1 border-t border-border/60">
+                  <span className="text-muted-foreground font-medium">Delivery Mode:</span>
+                  {(() => {
+                    const directCfg = store.emailConfigs.find(c => c.user_id === absenteeSenderId && c.is_verified);
+                    if (directCfg) {
+                      return (
+                        <span className="text-success font-semibold flex items-center gap-1">
+                          <ShieldCheck className="h-3.5 w-3.5" /> Direct SMTP ({directCfg.smtp_user}) &bull; From: {absenteePreview.sender_name}
+                        </span>
+                      );
+                    }
+                    const relayCfg = store.emailConfigs.find(c => c.is_verified);
+                    if (relayCfg) {
+                      return (
+                        <span className="text-accent font-semibold">
+                          Relay via {relayCfg.smtp_user} &bull; Reply-To: {absenteePreview.sender_email}
+                        </span>
+                      );
+                    }
+                    return (
+                      <span className="text-destructive font-semibold">
+                        ⚠️ No verified SMTP configured in system
+                      </span>
+                    );
+                  })()}
+                </div>
+
+                <div className="pt-1 border-t border-border/60">
+                  <span className="text-muted-foreground font-medium">Subject:</span>{' '}
+                  <span className="font-bold text-primary">Absentees Report - {absenteePreview.batch_code} ({absenteePreview.course_name}) - {formatDateToDDMMYYYY(absenteePreview.session_date)}</span>
+                </div>
               </div>
 
               <div className="border border-border rounded-xl p-4 space-y-3 bg-card overflow-hidden">

@@ -5,25 +5,43 @@ import type { UserEmailConfig, NotificationLog } from '@/types';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { toast } from 'sonner';
-import { ShieldCheck, History, Send, Settings, Code, Loader2, AlertCircle, Info, RefreshCw } from 'lucide-react';
+import { ShieldCheck, History, Send, Settings, Code, Loader2, AlertCircle, Info, RefreshCw, UserCheck } from 'lucide-react';
 import { sendEmail, verifySmtpConfig, DEFAULT_ABSENTEE_TEMPLATE } from '@/lib/emailService';
 
 export default function EmailNotifications() {
   const { profile } = useAuth();
 
-  const [smtpConfig, setSmtpConfig] = useState<UserEmailConfig>(() => {
-    const existing = store.emailConfigs.find(c => c.user_id === profile?.id) || store.emailConfigs[0];
+  // List of admins and trainers who can have an SMTP configuration
+  const candidateProfiles = profile?.role === 'admin'
+    ? store.profiles.filter(p => p.role === 'admin' || p.role === 'trainer')
+    : store.profiles.filter(p => p.id === profile?.id);
+
+  const [selectedUserId, setSelectedUserId] = useState<string>(() => {
+    return profile?.id || candidateProfiles[0]?.id || '';
+  });
+
+  const getInitialConfig = (userId: string): UserEmailConfig => {
+    const existing = store.emailConfigs.find(c => c.user_id === userId);
     if (existing) return existing;
+
+    const userProfile = store.profiles.find(p => p.id === userId);
     return {
-      user_id: profile?.id || store.profiles[0]?.id || '',
+      user_id: userId,
       smtp_host: 'smtp.gmail.com',
       smtp_port: 587,
-      smtp_user: profile?.email || '',
+      smtp_user: userProfile?.email || '',
       smtp_app_password: '',
-      from_name: `${profile?.full_name || 'Trainer'} (UTT Trainer)`,
+      from_name: userProfile?.full_name || 'Trainer',
       is_verified: false,
     };
-  });
+  };
+
+  const [smtpConfig, setSmtpConfig] = useState<UserEmailConfig>(() => getInitialConfig(selectedUserId));
+
+  const handleSelectUser = (userId: string) => {
+    setSelectedUserId(userId);
+    setSmtpConfig(getInitialConfig(userId));
+  };
 
   const [emailTemplate, setEmailTemplate] = useState<string>(() => {
     const saved = localStorage.getItem('uct_absentee_template');
@@ -38,6 +56,8 @@ export default function EmailNotifications() {
   const [isVerifying, setIsVerifying] = useState(false);
   const [isSendingTest, setIsSendingTest] = useState(false);
 
+  const activeUserProfile = store.profiles.find(p => p.id === selectedUserId);
+
   const handleSaveSmtpConfig = async () => {
     if (!smtpConfig.smtp_user.trim() || !smtpConfig.smtp_app_password?.trim()) {
       toast.error('Please enter both SMTP Username / Email and App Password.');
@@ -46,14 +66,19 @@ export default function EmailNotifications() {
 
     setIsVerifying(true);
     try {
-      const verifyResult = await verifySmtpConfig(smtpConfig);
+      const configToSave: UserEmailConfig = {
+        ...smtpConfig,
+        user_id: selectedUserId,
+      };
+
+      const verifyResult = await verifySmtpConfig(configToSave);
       if (verifyResult.success) {
-        const verifiedConfig = { ...smtpConfig, is_verified: true };
+        const verifiedConfig = { ...configToSave, is_verified: true };
         await store.saveEmailConfig(verifiedConfig);
         setSmtpConfig(verifiedConfig);
-        toast.success('SMTP configuration verified and saved successfully!');
+        toast.success(`SMTP verified and saved for ${activeUserProfile?.full_name || 'user'}!`);
       } else {
-        const unverifiedConfig = { ...smtpConfig, is_verified: false };
+        const unverifiedConfig = { ...configToSave, is_verified: false };
         await store.saveEmailConfig(unverifiedConfig);
         setSmtpConfig(unverifiedConfig);
         toast.error(`SMTP Verification Failed: ${verifyResult.error}`);
@@ -67,7 +92,7 @@ export default function EmailNotifications() {
 
   const handleSendTestEmail = async () => {
     if (!smtpConfig.smtp_user.trim() || !smtpConfig.smtp_app_password?.trim()) {
-      toast.error('Please configure your SMTP Username and App Password first.');
+      toast.error('Please configure SMTP Username and App Password first.');
       return;
     }
 
@@ -75,32 +100,38 @@ export default function EmailNotifications() {
     const testLogId = generateUUID();
 
     try {
+      const senderDisplayName = smtpConfig.from_name || activeUserProfile?.full_name || 'University Training Tracker';
       const result = await sendEmail({
         to: smtpConfig.smtp_user,
-        subject: `[Test] University Training Tracker SMTP Verification (${new Date().toLocaleTimeString()})`,
+        subject: `[Test] SMTP Verification - ${senderDisplayName} (${new Date().toLocaleTimeString()})`,
         html: `
           <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; padding: 24px; background-color: #f8fafc; border: 1px solid #0f766e; border-radius: 12px; max-width: 600px; margin: 0 auto;">
             <h2 style="color: #0f766e; margin-top: 0; font-size: 20px;">✓ Test Email Delivered Successfully!</h2>
             <p style="color: #334155; font-size: 14px; line-height: 1.5;">
-              Your SMTP credentials configured in <strong>University Training Tracker</strong> are connected and functioning properly.
+              Personalized SMTP credentials for <strong>${activeUserProfile?.full_name} (${activeUserProfile?.role})</strong> are active and verified.
             </p>
             <div style="background-color: #ffffff; border: 1px solid #e2e8f0; border-radius: 8px; padding: 16px; margin: 16px 0; font-size: 13px; color: #475569;">
-              <p style="margin: 4px 0;"><strong>SMTP Host:</strong> ${smtpConfig.smtp_host}</p>
-              <p style="margin: 4px 0;"><strong>SMTP Port:</strong> ${smtpConfig.smtp_port}</p>
-              <p style="margin: 4px 0;"><strong>Sender Name:</strong> ${smtpConfig.from_name}</p>
-              <p style="margin: 4px 0;"><strong>Sender Account:</strong> ${smtpConfig.smtp_user}</p>
+              <p style="margin: 4px 0;"><strong>Sender Name:</strong> ${senderDisplayName}</p>
+              <p style="margin: 4px 0;"><strong>Sender Email:</strong> ${smtpConfig.smtp_user}</p>
+              <p style="margin: 4px 0;"><strong>SMTP Server:</strong> ${smtpConfig.smtp_host}:${smtpConfig.smtp_port}</p>
               <p style="margin: 4px 0;"><strong>Sent Timestamp:</strong> ${new Date().toLocaleString()}</p>
             </div>
-            <p style="font-size: 12px; color: #94a3b8; margin-bottom: 0;">University Training Tracker &bull; Automated Absentee Notification System</p>
+            <p style="font-size: 12px; color: #94a3b8; margin-bottom: 0;">University Training Tracker &bull; Configured SMTP Delivery</p>
           </div>
         `,
-        config: smtpConfig,
+        config: {
+          ...smtpConfig,
+          user_id: selectedUserId,
+        },
+        sender_name: senderDisplayName,
+        sender_email: smtpConfig.smtp_user,
+        reply_to: smtpConfig.smtp_user,
       });
 
       const newLog: NotificationLog = {
         id: testLogId,
         session_date: new Date().toISOString().split('T')[0],
-        sender_id: profile?.id,
+        sender_id: selectedUserId,
         recipient_email: smtpConfig.smtp_user,
         absentee_count: 0,
         status: result.success ? 'sent' : 'failed',
@@ -139,16 +170,23 @@ export default function EmailNotifications() {
       {/* Header */}
       <div>
         <h1 className="text-2xl font-bold font-heading text-foreground">Email & Notifications Hub</h1>
-        <p className="text-sm text-muted-foreground">Configure trainer SMTP credentials, customize absentee email templates, and view live delivery audit logs.</p>
+        <p className="text-sm text-muted-foreground">
+          Configure individual email accounts for Admins & Trainers, customize absentee email templates, and view live delivery audit logs.
+        </p>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {/* Left Column: Trainer SMTP Configuration */}
+        {/* Left Column: Trainer & Admin SMTP Configuration */}
         <div className="card-meridian p-6 space-y-4">
           <div className="flex items-center justify-between border-b border-border pb-3">
-            <h2 className="font-heading font-bold text-lg text-foreground flex items-center gap-2">
-              <Settings className="h-5 w-5 text-primary" /> Per-User Trainer SMTP Config
-            </h2>
+            <div>
+              <h2 className="font-heading font-bold text-lg text-foreground flex items-center gap-2">
+                <Settings className="h-5 w-5 text-primary" /> SMTP Account Configuration
+              </h2>
+              <p className="text-xs text-muted-foreground mt-0.5">
+                Configure personalized mail settings for Admins and Trainers.
+              </p>
+            </div>
             {smtpConfig.is_verified ? (
               <span className="text-xs font-mono font-bold px-2.5 py-0.5 rounded-full bg-success/15 text-success flex items-center gap-1">
                 <ShieldCheck className="h-3.5 w-3.5" /> Verified
@@ -158,6 +196,27 @@ export default function EmailNotifications() {
                 <AlertCircle className="h-3.5 w-3.5" /> Unverified
               </span>
             )}
+          </div>
+
+          {/* User Account Selection */}
+          <div className="bg-sunken p-3 rounded-xl border border-border space-y-1.5">
+            <label className="text-xs font-mono font-bold text-foreground flex items-center gap-1.5">
+              <UserCheck className="h-3.5 w-3.5 text-primary" /> Configure Email For Account:
+            </label>
+            <select
+              value={selectedUserId}
+              onChange={(e) => handleSelectUser(e.target.value)}
+              className="w-full bg-background border border-border rounded-lg px-3 py-2 text-xs font-semibold text-foreground focus:outline-none focus:ring-1 focus:ring-primary"
+            >
+              {candidateProfiles.map((p) => {
+                const hasConfig = store.emailConfigs.some(c => c.user_id === p.id && c.is_verified);
+                return (
+                  <option key={p.id} value={p.id}>
+                    {p.full_name} ({p.email}) - {p.role.toUpperCase()} {hasConfig ? '✓ (Configured)' : '(Not configured)'}
+                  </option>
+                );
+              })}
+            </select>
           </div>
 
           <div className="space-y-3">
@@ -187,7 +246,7 @@ export default function EmailNotifications() {
                 <Input
                   value={smtpConfig.from_name}
                   onChange={(e) => setSmtpConfig({ ...smtpConfig, from_name: e.target.value })}
-                  placeholder="Trainer Name (UTT)"
+                  placeholder="Full Name"
                   className="mt-1"
                 />
               </div>
@@ -222,7 +281,7 @@ export default function EmailNotifications() {
           <div className="bg-muted/40 border border-border/80 rounded-xl p-3 text-xs text-muted-foreground flex items-start gap-2">
             <Info className="h-4 w-4 text-primary shrink-0 mt-0.5" />
             <p className="leading-relaxed">
-              <strong>Gmail Tip:</strong> Use your Google <strong>App Password</strong> (from Google Account &gt; Security &gt; 2-Step Verification &gt; App Passwords) with port <strong>587</strong> (STARTTLS) or <strong>465</strong> (SSL).
+              <strong>Gmail Tip:</strong> Each trainer or admin can use their Google <strong>App Password</strong> (from Google Account &gt; Security &gt; 2-Step Verification &gt; App Passwords) with port <strong>587</strong> (STARTTLS) or <strong>465</strong> (SSL).
             </p>
           </div>
 
@@ -297,6 +356,7 @@ export default function EmailNotifications() {
             <thead className="bg-muted/50 border-b border-border text-muted-foreground font-mono text-xs uppercase">
               <tr>
                 <th className="p-4">Sent Timestamp</th>
+                <th className="p-4">Sender (From)</th>
                 <th className="p-4">Session Date</th>
                 <th className="p-4">Recipient Email</th>
                 <th className="p-4 text-center">Absentee Count</th>
@@ -307,33 +367,40 @@ export default function EmailNotifications() {
             <tbody className="divide-y divide-border font-mono text-xs">
               {logs.length === 0 ? (
                 <tr>
-                  <td colSpan={6} className="p-6 text-center text-muted-foreground">
+                  <td colSpan={7} className="p-6 text-center text-muted-foreground">
                     No emails dispatched yet.
                   </td>
                 </tr>
               ) : (
-                logs.map((log) => (
-                  <tr key={log.id} className="hover:bg-muted/30">
-                    <td className="p-4 text-muted-foreground">{new Date(log.sent_at).toLocaleString()}</td>
-                    <td className="p-4 font-bold text-foreground">{log.session_date}</td>
-                    <td className="p-4 font-bold text-accent">{log.recipient_email}</td>
-                    <td className="p-4 text-center font-bold">{log.absentee_count}</td>
-                    <td className="p-4 text-center">
-                      <span className={`px-2.5 py-1 rounded-full font-bold uppercase ${
-                        log.status === 'sent' ? 'bg-success/15 text-success' : 'bg-destructive/15 text-destructive'
-                      }`}>
-                        {log.status}
-                      </span>
-                    </td>
-                    <td className="p-4 text-muted-foreground text-[11px] max-w-xs truncate" title={log.error || ''}>
-                      {log.error ? (
-                        <span className="text-destructive">{log.error}</span>
-                      ) : (
-                        <span className="text-success">Delivered successfully via SMTP</span>
-                      )}
-                    </td>
-                  </tr>
-                ))
+                logs.map((log) => {
+                  const sender = store.profiles.find(p => p.id === log.sender_id);
+                  return (
+                    <tr key={log.id} className="hover:bg-muted/30">
+                      <td className="p-4 text-muted-foreground">{new Date(log.sent_at).toLocaleString()}</td>
+                      <td className="p-4">
+                        <div className="font-bold text-foreground">{sender?.full_name || 'Admin / System'}</div>
+                        <div className="text-[10px] text-muted-foreground">{sender?.email || ''} ({sender?.role || 'relay'})</div>
+                      </td>
+                      <td className="p-4 font-bold text-foreground">{log.session_date}</td>
+                      <td className="p-4 font-bold text-accent">{log.recipient_email}</td>
+                      <td className="p-4 text-center font-bold">{log.absentee_count}</td>
+                      <td className="p-4 text-center">
+                        <span className={`px-2.5 py-1 rounded-full font-bold uppercase ${
+                          log.status === 'sent' ? 'bg-success/15 text-success' : 'bg-destructive/15 text-destructive'
+                        }`}>
+                          {log.status}
+                        </span>
+                      </td>
+                      <td className="p-4 text-muted-foreground text-[11px] max-w-xs truncate" title={log.error || ''}>
+                        {log.error ? (
+                          <span className="text-destructive">{log.error}</span>
+                        ) : (
+                          <span className="text-success">Delivered successfully via SMTP</span>
+                        )}
+                      </td>
+                    </tr>
+                  );
+                })
               )}
             </tbody>
           </table>
