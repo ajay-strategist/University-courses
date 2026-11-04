@@ -101,8 +101,12 @@ export default function Users() {
 
   // ── UPDATE existing user ─────────────────────────────────────────
   const handleUpdateUser = async () => {
-    if (!form.full_name) {
+    if (!form.full_name.trim()) {
       toast.error('Name is required');
+      return;
+    }
+    if (!form.email.trim()) {
+      toast.error('Email is required');
       return;
     }
     if (!editingId) return;
@@ -110,10 +114,20 @@ export default function Users() {
     const existing = store.profiles.find(p => p.id === editingId);
     if (!existing) return;
 
+    const emailTrimmed = form.email.trim().toLowerCase();
+
+    // Check if email already registered to another user
+    const emailConflict = store.profiles.find(p => p.id !== editingId && p.email?.toLowerCase() === emailTrimmed);
+    if (emailConflict) {
+      toast.error(`Email "${emailTrimmed}" is already registered to ${emailConflict.full_name}.`);
+      return;
+    }
+
     const updated: Profile = {
       ...existing,
-      full_name: form.full_name,
-      phone: form.phone,
+      full_name: form.full_name.trim(),
+      email: emailTrimmed,
+      phone: form.phone.trim(),
       role: form.role,
     };
 
@@ -286,14 +300,14 @@ export default function Users() {
 
               <div>
                 <label className="text-xs font-mono font-medium text-muted-foreground">
-                  Email Address {editingId && <span className="text-muted-foreground/60">(cannot be changed)</span>}
+                  Email Address
                 </label>
                 <Input
+                  type="email"
                   value={form.email}
                   onChange={(e) => setForm({ ...form, email: e.target.value })}
                   placeholder="jane.smith@university.edu"
                   className="mt-1 font-mono"
-                  disabled={!!editingId}
                 />
               </div>
 
