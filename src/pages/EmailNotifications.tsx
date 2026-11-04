@@ -6,17 +6,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { toast } from 'sonner';
 import { ShieldCheck, History, Send, Settings, Code, Loader2, AlertCircle, Info, RefreshCw } from 'lucide-react';
-import { sendEmail, verifySmtpConfig } from '@/lib/emailService';
-
-const DEFAULT_TEMPLATE = `Dear {recipient_name},
-
-Please find below the absentee report for training session on {session_date} for batch {batch_code} ({course_name}):
-
-{absentee_table}
-
-Regards,
-{sender_name}
-University Training Tracker`;
+import { sendEmail, verifySmtpConfig, DEFAULT_ABSENTEE_TEMPLATE } from '@/lib/emailService';
 
 export default function EmailNotifications() {
   const { profile } = useAuth();
@@ -36,7 +26,12 @@ export default function EmailNotifications() {
   });
 
   const [emailTemplate, setEmailTemplate] = useState<string>(() => {
-    return localStorage.getItem('uct_absentee_template') || DEFAULT_TEMPLATE;
+    const saved = localStorage.getItem('uct_absentee_template');
+    if (!saved || saved.includes('University Training Tracker') || saved.includes('training session on {session_date}')) {
+      localStorage.setItem('uct_absentee_template', DEFAULT_ABSENTEE_TEMPLATE);
+      return DEFAULT_ABSENTEE_TEMPLATE;
+    }
+    return saved;
   });
 
   const [logs, setLogs] = useState<NotificationLog[]>([...store.notificationLogs]);
@@ -134,8 +129,8 @@ export default function EmailNotifications() {
   };
 
   const handleResetTemplate = () => {
-    setEmailTemplate(DEFAULT_TEMPLATE);
-    localStorage.setItem('uct_absentee_template', DEFAULT_TEMPLATE);
+    setEmailTemplate(DEFAULT_ABSENTEE_TEMPLATE);
+    localStorage.setItem('uct_absentee_template', DEFAULT_ABSENTEE_TEMPLATE);
     toast.success('Template reset to default.');
   };
 

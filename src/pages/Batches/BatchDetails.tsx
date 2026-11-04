@@ -18,7 +18,7 @@ import {
 } from 'lucide-react';
 import * as XLSX from 'xlsx';
 import { CollegeLogo } from '@/components/common/CollegeLogo';
-import { sendEmail, buildAbsenteeReportHtml } from '@/lib/emailService';
+import { sendEmail, buildAbsenteeReportHtml, formatDateToDDMMYYYY } from '@/lib/emailService';
 
 export default function BatchDetails() {
   const { id } = useParams<{ id: string }>();
@@ -892,7 +892,7 @@ export default function BatchDetails() {
         template: savedTemplate || undefined,
       });
 
-      const subject = `Absentee Report - ${absenteePreview.batch_code} (${absenteePreview.course_name}) - ${absenteePreview.session_date}`;
+      const subject = `Absentees Report - ${absenteePreview.batch_code} (${absenteePreview.course_name}) - ${formatDateToDDMMYYYY(absenteePreview.session_date)}`;
 
       const sendResult = await sendEmail({
         to: absenteePreview.recipient_email,
@@ -3239,7 +3239,7 @@ export default function BatchDetails() {
         <div className="fixed inset-0 z-50 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4">
           <div className="bg-card border border-border rounded-2xl p-6 max-w-2xl w-full shadow-2xl space-y-4">
             <div className="flex items-center justify-between border-b border-border pb-3">
-              <h3 className="text-lg font-bold font-heading text-foreground">Absentee Email Preview</h3>
+              <h3 className="text-lg font-bold font-heading text-foreground">Absentees Report Preview</h3>
               <span className="text-xs font-mono font-bold text-accent">Explicit Confirm</span>
             </div>
 
@@ -3247,7 +3247,7 @@ export default function BatchDetails() {
               <div className="bg-sunken p-3 rounded-xl space-y-1">
                 <div>Recipient: <span className="font-bold text-foreground">{absenteePreview.recipient_name}</span> ({absenteePreview.recipient_email})</div>
                 <div>Sender: <span className="font-bold text-foreground">{absenteePreview.sender_name ? `${absenteePreview.sender_name} (${absenteePreview.sender_email})` : absenteePreview.sender_email}</span> (Trainer SMTP)</div>
-                <div>Subject: <span className="font-bold text-primary">Absentee Report - {absenteePreview.batch_code} ({absenteePreview.course_name}) - {absenteePreview.session_date}</span></div>
+                <div>Subject: <span className="font-bold text-primary">Absentees Report - {absenteePreview.batch_code} ({absenteePreview.course_name}) - {formatDateToDDMMYYYY(absenteePreview.session_date)}</span></div>
               </div>
 
               <div className="border border-border rounded-xl p-4 space-y-3 bg-card overflow-hidden">

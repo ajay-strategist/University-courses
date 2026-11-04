@@ -24,6 +24,32 @@ export interface VerifySmtpResult {
   error?: string;
 }
 
+export const DEFAULT_ABSENTEE_TEMPLATE = `Dear {recipient_name},
+
+Please find below the absentee report
+Batch: {batch_code}
+Date: {session_date}
+
+{absentee_table}
+
+Regards,
+Team The Strategist`;
+
+/**
+ * Formats a date string (YYYY-MM-DD) to DD-MM-YYYY format
+ */
+export function formatDateToDDMMYYYY(dateStr: string): string {
+  if (!dateStr) return '';
+  if (dateStr.includes(' to ')) {
+    return dateStr.split(' to ').map(formatDateToDDMMYYYY).join(' to ');
+  }
+  const match = dateStr.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+  if (match) {
+    return `${match[3]}-${match[2]}-${match[1]}`;
+  }
+  return dateStr;
+}
+
 /**
  * Sends a real email via the backend / serverless function with nodemailer fallback.
  * Checks /api/send-email first, and if 404/unavailable falls back to Supabase Edge Function send-email.
@@ -186,47 +212,33 @@ export function buildAbsenteeReportHtml(params: {
   ` : `<p style="padding: 12px; background-color: #f0fdf4; color: #16a34a; border-radius: 6px; font-weight: bold;">No absentees reported for this session.</p>`;
 
   // Default template if not supplied
-  const rawTemplate = template || `Dear {recipient_name},
-
-Please find below the absentee report for training session on {session_date} for batch {batch_code} ({course_name}):
-
-{absentee_table}
-
-Regards,
-{sender_name}
-University Training Tracker`;
-
-  const senderName = preview.sender_name || (preview.sender_email ? preview.sender_email.split('@')[0] : 'Trainer');
+  const rawTemplate = template || DEFAULT_ABSENTEE_TEMPLATE;
+  const formattedDate = formatDateToDDMMYYYY(preview.session_date);
 
   const processedBody = rawTemplate
-    .replace(/{recipient_name}/g, preview.recipient_name || 'College Coordinator')
-    .replace(/{session_date}/g, preview.session_date)
+    .replace(/{recipient_name}|{Coordinator Name}|{coordinator_name}/g, preview.recipient_name || 'College Coordinator')
+    .replace(/{session_date}|{DD-MM-YYYY}|{date}/g, formattedDate)
     .replace(/{batch_code}/g, preview.batch_code)
     .replace(/{course_name}/g, preview.course_name)
-    .replace(/{sender_name}/g, senderName)
+    .replace(/{sender_name}/g, 'Team The Strategist')
     .replace(/{absentee_table}/g, tableHtml);
 
-  // Wrap in professional HTML email container
+  // Wrap in clean HTML email container with "Absentees Report" title only
   const fullHtml = `
 <!DOCTYPE html>
 <html>
 <head>
   <meta charset="utf-8">
-  <title>Absentee Report - ${preview.batch_code}</title>
+  <title>Absentees Report - ${preview.batch_code}</title>
 </head>
 <body style="margin: 0; padding: 24px; background-color: #f8fafc; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; color: #1e293b;">
   <div style="max-width: 680px; margin: 0 auto; background-color: #ffffff; border: 1px solid #e2e8f0; border-radius: 12px; padding: 32px; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);">
-    <div style="border-bottom: 2px solid #0f766e; padding-bottom: 16px; margin-bottom: 24px;">
-      <h2 style="margin: 0; color: #0f766e; font-size: 20px; font-weight: 700;">University Training Tracker</h2>
-      <p style="margin: 4px 0 0 0; color: #64748b; font-size: 13px;">Official Attendance & Absentee Notification</p>
+    <div style="border-bottom: 2px solid #0f766e; padding-bottom: 12px; margin-bottom: 24px;">
+      <h2 style="margin: 0; color: #0f766e; font-size: 22px; font-weight: 700;">Absentees Report</h2>
     </div>
 
     <div style="font-size: 14px; line-height: 1.6; color: #334155; white-space: pre-line;">
       ${processedBody}
-    </div>
-
-    <div style="margin-top: 32px; padding-top: 16px; border-top: 1px solid #e2e8f0; font-size: 12px; color: #94a3b8; text-align: center;">
-      This notification was automatically dispatched via Trainer SMTP configured in University Training Tracker.
     </div>
   </div>
 </body>
@@ -239,13 +251,12 @@ University Training Tracker`;
   ).join('\n');
 
   const textBody = rawTemplate
-    .replace(/{recipient_name}/g, preview.recipient_name || 'College Coordinator')
-    .replace(/{session_date}/g, preview.session_date)
+    .replace(/{recipient_name}|{Coordinator Name}|{coordinator_name}/g, preview.recipient_name || 'College Coordinator')
+    .replace(/{session_date}|{DD-MM-YYYY}|{date}/g, formattedDate)
     .replace(/{batch_code}/g, preview.batch_code)
     .replace(/{course_name}/g, preview.course_name)
-    .replace(/{sender_name}/g, senderName)
+    .replace(/{sender_name}/g, 'Team The Strategist')
     .replace(/{absentee_table}/g, textTable);
 
   return { html: fullHtml, text: textBody };
 }
-
