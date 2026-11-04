@@ -1132,9 +1132,6 @@ export default function BatchDetails() {
                   Sem {batch.current_semester}
                 </span>
               </div>
-              <p className="text-xs text-muted-foreground leading-normal">
-                <span className="font-semibold text-foreground">{batch.college?.name}</span> · {batch.program?.name} ({batch.academic_year})
-              </p>
               {!isStudentCoordinator && (
                 <div className="flex items-center gap-2 pt-0.5">
                   <Button
