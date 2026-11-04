@@ -27,7 +27,7 @@ export default function EmailNotifications() {
 
   const [emailTemplate, setEmailTemplate] = useState<string>(() => {
     const saved = localStorage.getItem('uct_absentee_template');
-    if (!saved || saved.includes('University Training Tracker') || saved.includes('training session on {session_date}')) {
+    if (!saved || saved.includes('University Training Tracker') || !saved.includes('<b>Batch:</b>')) {
       localStorage.setItem('uct_absentee_template', DEFAULT_ABSENTEE_TEMPLATE);
       return DEFAULT_ABSENTEE_TEMPLATE;
     }

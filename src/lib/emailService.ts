@@ -27,8 +27,9 @@ export interface VerifySmtpResult {
 export const DEFAULT_ABSENTEE_TEMPLATE = `Dear {recipient_name},
 
 Please find below the absentee report
-Batch: {batch_code}
-Date: {session_date}
+
+<b>Batch:</b> <b>{batch_code}</b>
+<b>Date:</b> <b>{session_date}</b>
 
 {absentee_table}
 
@@ -215,13 +216,21 @@ export function buildAbsenteeReportHtml(params: {
   const rawTemplate = template || DEFAULT_ABSENTEE_TEMPLATE;
   const formattedDate = formatDateToDDMMYYYY(preview.session_date);
 
-  const processedBody = rawTemplate
+  let processedBody = rawTemplate
     .replace(/{recipient_name}|{Coordinator Name}|{coordinator_name}/g, preview.recipient_name || 'College Coordinator')
     .replace(/{session_date}|{DD-MM-YYYY}|{date}/g, formattedDate)
     .replace(/{batch_code}/g, preview.batch_code)
     .replace(/{course_name}/g, preview.course_name)
     .replace(/{sender_name}/g, 'Team The Strategist')
     .replace(/{absentee_table}/g, tableHtml);
+
+  // Convert markdown bold **text** to <b>text</b>
+  processedBody = processedBody.replace(/\*\*(.*?)\*\*/g, '<b>$1</b>');
+
+  // Auto-bold Batch: and Date: if plain
+  processedBody = processedBody
+    .replace(/(?<!<b>|<strong>)Batch:(?!<\/b>|<\/strong>)/gi, '<b>Batch:</b>')
+    .replace(/(?<!<b>|<strong>)Date:(?!<\/b>|<\/strong>)/gi, '<b>Date:</b>');
 
   // Wrap in clean HTML email container with "Absentees Report" title only
   const fullHtml = `
@@ -251,6 +260,8 @@ export function buildAbsenteeReportHtml(params: {
   ).join('\n');
 
   const textBody = rawTemplate
+    .replace(/<\/?(b|strong)>/gi, '')
+    .replace(/\*\*(.*?)\*\*/g, '$1')
     .replace(/{recipient_name}|{Coordinator Name}|{coordinator_name}/g, preview.recipient_name || 'College Coordinator')
     .replace(/{session_date}|{DD-MM-YYYY}|{date}/g, formattedDate)
     .replace(/{batch_code}/g, preview.batch_code)
