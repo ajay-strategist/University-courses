@@ -1215,7 +1215,7 @@ export default function BatchDetails() {
         </div>
       </div>
 
-      {/* 8 Workspace Tabs */}
+      {/* Workspace Tabs */}
       <div className="flex border-b border-border bg-card rounded-2xl p-1 gap-1 overflow-x-auto">
         {!isStudentCoordinator && (
           <button
@@ -1223,7 +1223,7 @@ export default function BatchDetails() {
             className={`flex items-center gap-2 px-4 py-2 text-xs font-semibold rounded-xl transition-all whitespace-nowrap ${activeTab === 'students' ? 'bg-primary text-primary-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground'
               }`}
           >
-            <Users className="h-3.5 w-3.5" /> 7.1 Students ({students.length})
+            <Users className="h-3.5 w-3.5" /> Students
           </button>
         )}
         <button
@@ -1231,7 +1231,7 @@ export default function BatchDetails() {
           className={`flex items-center gap-2 px-4 py-2 text-xs font-semibold rounded-xl transition-all whitespace-nowrap ${activeTab === 'attendance' ? 'bg-primary text-primary-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground'
             }`}
         >
-          <CalendarCheck className="h-3.5 w-3.5" /> 7.2 Attendance Register & Matrix
+          <CalendarCheck className="h-3.5 w-3.5" /> Attendance
         </button>
         {!isStudentCoordinator && (
           <>
@@ -1240,42 +1240,42 @@ export default function BatchDetails() {
               className={`flex items-center gap-2 px-4 py-2 text-xs font-semibold rounded-xl transition-all whitespace-nowrap ${activeTab === 'marks' ? 'bg-primary text-primary-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground'
                 }`}
             >
-              <Award className="h-3.5 w-3.5" /> 7.3 Marks & Excel Import
+              <Award className="h-3.5 w-3.5" /> Marks
             </button>
             <button
               onClick={() => setActiveTab('trainer_log')}
               className={`flex items-center gap-2 px-4 py-2 text-xs font-semibold rounded-xl transition-all whitespace-nowrap ${activeTab === 'trainer_log' ? 'bg-primary text-primary-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground'
                 }`}
             >
-              <Clock className="h-3.5 w-3.5" /> 7.4 Trainer Log
+              <Clock className="h-3.5 w-3.5" /> Trainer Log
             </button>
             <button
               onClick={() => setActiveTab('task_list')}
               className={`flex items-center gap-2 px-4 py-2 text-xs font-semibold rounded-xl transition-all whitespace-nowrap ${activeTab === 'task_list' ? 'bg-primary text-primary-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground'
                 }`}
             >
-              <ListTodo className="h-3.5 w-3.5" /> 7.5 Task List
+              <ListTodo className="h-3.5 w-3.5" /> Task List
             </button>
             <button
               onClick={() => setActiveTab('syllabus')}
               className={`flex items-center gap-2 px-4 py-2 text-xs font-semibold rounded-xl transition-all whitespace-nowrap ${activeTab === 'syllabus' ? 'bg-primary text-primary-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground'
                 }`}
             >
-              <CheckSquare className="h-3.5 w-3.5" /> 7.6 Syllabus
+              <CheckSquare className="h-3.5 w-3.5" /> Syllabus
             </button>
             <button
               onClick={() => setActiveTab('coverage')}
               className={`flex items-center gap-2 px-4 py-2 text-xs font-semibold rounded-xl transition-all whitespace-nowrap ${activeTab === 'coverage' ? 'bg-primary text-primary-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground'
                 }`}
             >
-              <CheckCircle2 className="h-3.5 w-3.5" /> 7.7 Course Coverage ({coveragePct}%)
+              <CheckCircle2 className="h-3.5 w-3.5" /> Course Coverage
             </button>
             <button
               onClick={() => setActiveTab('courses')}
               className={`flex items-center gap-2 px-4 py-2 text-xs font-semibold rounded-xl transition-all whitespace-nowrap ${activeTab === 'courses' ? 'bg-primary text-primary-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground'
                 }`}
             >
-              <BookOpen className="h-3.5 w-3.5" /> 7.8 Courses ({batchCourses.length})
+              <BookOpen className="h-3.5 w-3.5" /> Courses
             </button>
           </>
         )}
