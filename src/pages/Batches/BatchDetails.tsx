@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { store, generateUUID } from '@/lib/store';
 import { useAuth } from '@/contexts/AuthContext';
@@ -171,6 +171,11 @@ export default function BatchDetails() {
   const [attendanceReportMode, setAttendanceReportMode] = useState<'single' | 'range'>('single');
   const [attendanceStartDate, setAttendanceStartDate] = useState(new Date().toISOString().split('T')[0]);
   const [attendanceEndDate, setAttendanceEndDate] = useState(new Date().toISOString().split('T')[0]);
+
+  // Reset manual overrides when session parameters change so saved records take effect
+  useEffect(() => {
+    setRegisterStatusMap({});
+  }, [selectedBatchCourseId, attendanceDate, attendanceHour]);
 
   // Marks State
   const initialAssessments = store.assessments.filter(a => a.batch_course_id === selectedBatchCourseId);
@@ -653,7 +658,7 @@ export default function BatchDetails() {
 
     // Find or create session
     let session = store.sessions.find(
-      s => s.batch_course_id === selectedBatchCourseId && s.session_date === attendanceDate && s.hour_no === attendanceHour
+      s => s.batch_course_id === selectedBatchCourseId && s.session_date === attendanceDate && Number(s.hour_no) === Number(attendanceHour)
     );
     const isNew = !session;
     if (isNew) {
@@ -661,7 +666,7 @@ export default function BatchDetails() {
         id: generateUUID(),
         batch_course_id: selectedBatchCourseId,
         session_date: attendanceDate,
-        hour_no: attendanceHour,
+        hour_no: Number(attendanceHour),
       };
     }
 
@@ -670,8 +675,8 @@ export default function BatchDetails() {
     // Save attendance for every student in batch
     const attendanceToSave: Attendance[] = [];
     students.forEach((stu) => {
-      const status = registerStatusMap[stu.id] || 'present';
       const existing = store.attendance.find(a => a.session_id === savedSession.id && a.student_id === stu.id);
+      const status = registerStatusMap[stu.id] ?? existing?.status ?? 'present';
       attendanceToSave.push({
         id: existing?.id || generateUUID(),
         session_id: savedSession.id,
@@ -681,18 +686,21 @@ export default function BatchDetails() {
     });
 
     await store.saveAttendanceRecords(attendanceToSave);
+    setRefreshTrigger(r => r + 1);
     toast.success(`Attendance saved for ${attendanceDate} (Hour ${attendanceHour})!`);
   };
 
   const handleDeleteSession = async (sessionId: string, sessionDate: string, hourNo: number) => {
     if (!confirm(`Delete the entire session for ${sessionDate} (Hour ${hourNo})? This will remove all attendance records for this session.`)) return;
     await store.deleteSession(sessionId);
+    setRefreshTrigger(r => r + 1);
     toast.success(`Session ${sessionDate} (Hour ${hourNo}) deleted.`);
   };
 
   const handleDeleteAttendanceRecord = async (attendanceId: string, studentName: string) => {
     if (!confirm(`Delete attendance record for ${studentName} in this session?`)) return;
     await store.deleteAttendanceRecord(attendanceId);
+    setRefreshTrigger(r => r + 1);
     toast.success(`Attendance record for ${studentName} deleted.`);
   };
 
@@ -1559,14 +1567,14 @@ export default function BatchDetails() {
                 </thead>
                 <tbody className="divide-y divide-border">
                   {students.map((stu) => {
-                    const status = registerStatusMap[stu.id] || 'present';
                     // Find existing saved attendance record for this student in current session
                     const currentSession = store.sessions.find(
-                      s => s.batch_course_id === selectedBatchCourseId && s.session_date === attendanceDate && s.hour_no === attendanceHour
+                      s => s.batch_course_id === selectedBatchCourseId && s.session_date === attendanceDate && Number(s.hour_no) === Number(attendanceHour)
                     );
                     const savedRecord = currentSession
                       ? store.attendance.find(a => a.session_id === currentSession.id && a.student_id === stu.id)
                       : undefined;
+                    const status = registerStatusMap[stu.id] ?? savedRecord?.status ?? 'present';
                     return (
                       <tr key={stu.id} className="hover:bg-muted/30">
                         <td className="p-3 font-mono font-bold text-accent">{stu.register_no}</td>
@@ -1626,7 +1634,10 @@ export default function BatchDetails() {
                   <tr>
                     <th className="p-2">Reg No</th>
                     <th className="p-2">Name</th>
-                    {store.sessions.filter(s => s.batch_course_id === selectedBatchCourseId).map(s => (
+                    {store.sessions
+                      .filter(s => s.batch_course_id === selectedBatchCourseId)
+                      .sort((a, b) => a.session_date.localeCompare(b.session_date) || Number(a.hour_no) - Number(b.hour_no))
+                      .map(s => (
                       <th key={s.id} className="p-2 text-center min-w-[100px]">
                         <div className="flex flex-col items-center gap-1">
                           <span>{s.session_date}</span>
@@ -1647,7 +1658,10 @@ export default function BatchDetails() {
                     <tr key={stu.id}>
                       <td className="p-2 font-bold text-accent">{stu.register_no}</td>
                       <td className="p-2 font-sans font-medium text-foreground">{stu.name}</td>
-                      {store.sessions.filter(s => s.batch_course_id === selectedBatchCourseId).map(s => {
+                      {store.sessions
+                        .filter(s => s.batch_course_id === selectedBatchCourseId)
+                        .sort((a, b) => a.session_date.localeCompare(b.session_date) || Number(a.hour_no) - Number(b.hour_no))
+                        .map(s => {
                         const rec = store.attendance.find(a => a.session_id === s.id && a.student_id === stu.id);
                         const st = rec?.status || 'present';
                         return (

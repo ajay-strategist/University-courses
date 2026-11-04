@@ -37,3 +37,4 @@ LEFT JOIN (
     GROUP BY batch_course_id
 ) tl ON tl.batch_course_id = bc.id
 GROUP BY bc.id, c.code, b.code, crs.name, tr.full_name, bc.planned_hours, tl.total_delivered_minutes;
+

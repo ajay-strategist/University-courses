@@ -186,6 +186,35 @@ class DataStore {
     }
   }
 
+  private async fetchAllRows<T = any>(
+    table: string,
+    orderBy?: string,
+    ascending: boolean = true
+  ): Promise<{ data: T[] | null; error: any }> {
+    let allRows: T[] = [];
+    let page = 0;
+    const pageSize = 1000;
+    while (true) {
+      let query = supabase.from(table).select('*').range(page * pageSize, (page + 1) * pageSize - 1);
+      if (orderBy) {
+        query = query.order(orderBy, { ascending });
+      }
+      const { data, error } = await query;
+      if (error) {
+        console.error(`Error fetching page ${page} of ${table}:`, error.message);
+        return { data: allRows.length > 0 ? allRows : null, error };
+      }
+      if (data && data.length > 0) {
+        allRows = allRows.concat(data as T[]);
+      }
+      if (!data || data.length < pageSize) {
+        break;
+      }
+      page++;
+    }
+    return { data: allRows, error: null };
+  }
+
   async init(): Promise<void> {
     // 1. Load local cache immediately so UI shows data
     this.loadLocalCache();
@@ -220,21 +249,21 @@ class DataStore {
         supabase.from('uct_colleges').select('*'),
         supabase.from('uct_programs').select('*'),
         supabase.from('uct_courses').select('*'),
-        supabase.from('uct_course_default_syllabus').select('*'),
+        this.fetchAllRows('uct_course_default_syllabus'),
         supabase.from('uct_assessment_types').select('*'),
         supabase.from('uct_batches').select('*'),
         supabase.from('uct_students').select('*'),
         supabase.from('uct_batch_courses').select('*'),
-        supabase.from('uct_batch_course_syllabus').select('*'),
-        supabase.from('uct_sessions').select('*'),
-        supabase.from('uct_attendance').select('*'),
+        this.fetchAllRows('uct_batch_course_syllabus'),
+        this.fetchAllRows('uct_sessions'),
+        this.fetchAllRows('uct_attendance'),
         supabase.from('uct_assessments').select('*'),
-        supabase.from('uct_assessment_marks').select('*'),
+        this.fetchAllRows('uct_assessment_marks'),
         supabase.from('uct_user_email_config').select('*'),
         supabase.from('uct_notification_log').select('*'),
         supabase.from('uct_migration_runs').select('*').order('created_at', { ascending: false }),
         supabase.from('uct_migration_mappings').select('*').order('created_at', { ascending: false }),
-        supabase.from('uct_trainer_logs').select('*').order('log_date', { ascending: false }),
+        this.fetchAllRows('uct_trainer_logs', 'log_date', false),
         supabase.from('uct_batch_tasks').select('*').order('created_at', { ascending: true }),
         supabase.from('uct_academic_semesters').select('*').order('semester_no', { ascending: true }),
         supabase.from('uct_academic_activities').select('*').order('start_date', { ascending: true }),
@@ -1364,21 +1393,41 @@ class DataStore {
   }
 
   async saveSession(session: Session): Promise<Session> {
-    const idx = this.sessions.findIndex(s => s.id === session.id);
+    const existing = this.sessions.find(
+      s => (s.id === session.id) || (s.batch_course_id === session.batch_course_id && s.session_date === session.session_date && Number(s.hour_no) === Number(session.hour_no))
+    );
+    const resolvedSession: Session = {
+      ...session,
+      id: existing?.id || session.id,
+      hour_no: Number(session.hour_no),
+    };
+
+    const idx = this.sessions.findIndex(s => s.id === resolvedSession.id);
     if (idx >= 0) {
-      this.sessions[idx] = session;
+      this.sessions[idx] = resolvedSession;
     } else {
-      this.sessions.push(session);
+      this.sessions.push(resolvedSession);
     }
     this.saveLocalCache();
 
     try {
-      const { error } = await supabase.from('uct_sessions').upsert(session, { onConflict: 'batch_course_id,session_date,hour_no' });
-      if (error) console.error('Supabase saveSession error:', error.message);
+      const { data, error } = await supabase
+        .from('uct_sessions')
+        .upsert(resolvedSession, { onConflict: 'batch_course_id,session_date,hour_no' })
+        .select()
+        .single();
+      if (error) {
+        console.error('Supabase saveSession error:', error.message);
+      } else if (data) {
+        resolvedSession.id = data.id;
+        const sIdx = this.sessions.findIndex(s => s.id === resolvedSession.id || (s.batch_course_id === data.batch_course_id && s.session_date === data.session_date && Number(s.hour_no) === Number(data.hour_no)));
+        if (sIdx >= 0) this.sessions[sIdx] = data;
+        this.saveLocalCache();
+      }
     } catch (e) {
       console.warn('Supabase session sync warning:', e);
     }
-    return session;
+    return resolvedSession;
   }
 
   async saveAttendanceRecords(records: Attendance[]): Promise<void> {
