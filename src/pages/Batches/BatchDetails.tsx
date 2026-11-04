@@ -4,7 +4,8 @@ import { store, generateUUID } from '@/lib/store';
 import { useAuth } from '@/contexts/AuthContext';
 import type {
   Student, BatchCourse, BatchCourseSyllabus, Session, Attendance,
-  Assessment, AssessmentMark, Course, AbsenteePreview, TrainerLog, BatchTask, MissedReason
+  Assessment, AssessmentMark, Course, AbsenteePreview, TrainerLog, BatchTask, MissedReason,
+  NotificationLog
 } from '@/types';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -13,10 +14,11 @@ import {
   ArrowLeft, Users, BookOpen, CalendarCheck, Award,
   CheckSquare, Plus, Download, Upload, Mail, CheckCircle2, Clock,
   AlertTriangle, Check, X, FileSpreadsheet, Send, Edit2, Trash2,
-  ListTodo, Calendar
+  ListTodo, Calendar, Loader2
 } from 'lucide-react';
 import * as XLSX from 'xlsx';
 import { CollegeLogo } from '@/components/common/CollegeLogo';
+import { sendEmail, buildAbsenteeReportHtml } from '@/lib/emailService';
 
 export default function BatchDetails() {
   const { id } = useParams<{ id: string }>();
@@ -59,6 +61,7 @@ export default function BatchDetails() {
   const [showAddCourseModal, setShowAddCourseModal] = useState(false);
   const [showAddTopicModal, setShowAddTopicModal] = useState(false);
   const [showAbsenteeModal, setShowAbsenteeModal] = useState(false);
+  const [isSendingAbsenteeEmail, setIsSendingAbsenteeEmail] = useState(false);
 
   // Task List state
   const [newTaskText, setNewTaskText] = useState('');
@@ -848,18 +851,64 @@ export default function BatchDetails() {
 
   const handleConfirmSendAbsenteeEmail = async () => {
     if (!absenteePreview) return;
-    await store.saveNotificationLog({
-      id: generateUUID(),
-      batch_course_id: selectedBatchCourseId,
-      session_date: absenteePreview.session_date,
-      sender_id: store.profiles[0].id,
-      recipient_email: absenteePreview.recipient_email,
-      absentee_count: absenteePreview.absentees.length,
-      status: 'sent',
-      sent_at: new Date().toISOString(),
-    });
-    setShowAbsenteeModal(false);
-    toast.success(`Absentee notification sent via SMTP to ${absenteePreview.recipient_email}!`);
+    if (!absenteePreview.recipient_email) {
+      toast.error('Recipient email address is missing for this batch.');
+      return;
+    }
+
+    setIsSendingAbsenteeEmail(true);
+
+    try {
+      // Find trainer SMTP config
+      const trainerCourse = store.batchCourses.find(bc => bc.id === selectedBatchCourseId);
+      const userConfig = store.emailConfigs.find(c => c.user_id === trainerCourse?.trainer_id)
+        || store.emailConfigs[0];
+
+      // Build real email body
+      const savedTemplate = localStorage.getItem('uct_absentee_template');
+      const sessionHeaders = getSessionHeaders();
+      const { html, text } = buildAbsenteeReportHtml({
+        preview: absenteePreview,
+        sessionHeaders,
+        template: savedTemplate || undefined,
+      });
+
+      const subject = `Absentee Report - ${absenteePreview.batch_code} (${absenteePreview.course_name}) - ${absenteePreview.session_date}`;
+
+      const sendResult = await sendEmail({
+        to: absenteePreview.recipient_email,
+        subject,
+        html,
+        text,
+        config: userConfig,
+      });
+
+      const logEntry: NotificationLog = {
+        id: generateUUID(),
+        batch_course_id: selectedBatchCourseId,
+        session_date: absenteePreview.session_date,
+        sender_id: userConfig?.user_id || store.profiles[0]?.id,
+        recipient_email: absenteePreview.recipient_email,
+        absentee_count: absenteePreview.absentees.length,
+        status: sendResult.success ? 'sent' : 'failed',
+        error: sendResult.error,
+        sent_at: new Date().toISOString(),
+      };
+
+      await store.saveNotificationLog(logEntry);
+
+      if (sendResult.success) {
+        setShowAbsenteeModal(false);
+        toast.success(`Absentee notification sent via SMTP to ${absenteePreview.recipient_email}!`);
+      } else {
+        toast.error(`Email delivery failed: ${sendResult.error}`);
+      }
+    } catch (err: any) {
+      console.error('Absentee email dispatch failed:', err);
+      toast.error(`Failed to send email: ${err.message || 'Unknown error'}`);
+    } finally {
+      setIsSendingAbsenteeEmail(false);
+    }
   };
 
   // -------------------------------------------------------------------------------------
@@ -3229,9 +3278,19 @@ export default function BatchDetails() {
             </div>
 
             <div className="flex justify-end gap-2 pt-2 border-t border-border">
-              <Button variant="outline" onClick={() => setShowAbsenteeModal(false)}>Cancel</Button>
-              <Button onClick={handleConfirmSendAbsenteeEmail} className="bg-primary text-primary-foreground">
-                <Send className="h-3.5 w-3.5 mr-1" /> Send Absentee Email Now
+              <Button variant="outline" onClick={() => setShowAbsenteeModal(false)} disabled={isSendingAbsenteeEmail}>
+                Cancel
+              </Button>
+              <Button onClick={handleConfirmSendAbsenteeEmail} disabled={isSendingAbsenteeEmail} className="bg-primary text-primary-foreground">
+                {isSendingAbsenteeEmail ? (
+                  <>
+                    <Loader2 className="h-3.5 w-3.5 mr-1 animate-spin" /> Sending via SMTP...
+                  </>
+                ) : (
+                  <>
+                    <Send className="h-3.5 w-3.5 mr-1" /> Send Absentee Email Now
+                  </>
+                )}
               </Button>
             </div>
           </div>
