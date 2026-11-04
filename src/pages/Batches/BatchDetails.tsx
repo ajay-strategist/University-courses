@@ -28,7 +28,7 @@ export default function BatchDetails() {
   const isStudentCoordinator = profile?.role === 'student_coordinator';
 
   const [activeTab, setActiveTab] = useState<
-    'students' | 'courses' | 'attendance' | 'marks' | 'syllabus' | 'coverage' | 'trainer_log' | 'task_list'
+    'students' | 'attendance' | 'marks' | 'trainer_log' | 'task_list' | 'syllabus' | 'coverage' | 'courses'
   >(isStudentCoordinator ? 'attendance' : 'students');
 
   // Local reactive states for this batch
@@ -1218,32 +1218,23 @@ export default function BatchDetails() {
         </div>
       </div>
 
-      {/* 7 Workspace Tabs */}
+      {/* 8 Workspace Tabs */}
       <div className="flex border-b border-border bg-card rounded-2xl p-1 gap-1 overflow-x-auto">
         {!isStudentCoordinator && (
-          <>
-            <button
-              onClick={() => setActiveTab('students')}
-              className={`flex items-center gap-2 px-4 py-2 text-xs font-semibold rounded-xl transition-all whitespace-nowrap ${activeTab === 'students' ? 'bg-primary text-primary-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground'
-                }`}
-            >
-              <Users className="h-3.5 w-3.5" /> 7.1 Students ({students.length})
-            </button>
-            <button
-              onClick={() => setActiveTab('courses')}
-              className={`flex items-center gap-2 px-4 py-2 text-xs font-semibold rounded-xl transition-all whitespace-nowrap ${activeTab === 'courses' ? 'bg-primary text-primary-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground'
-                }`}
-            >
-              <BookOpen className="h-3.5 w-3.5" /> 7.2 Courses ({batchCourses.length})
-            </button>
-          </>
+          <button
+            onClick={() => setActiveTab('students')}
+            className={`flex items-center gap-2 px-4 py-2 text-xs font-semibold rounded-xl transition-all whitespace-nowrap ${activeTab === 'students' ? 'bg-primary text-primary-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground'
+              }`}
+          >
+            <Users className="h-3.5 w-3.5" /> 7.1 Students ({students.length})
+          </button>
         )}
         <button
           onClick={() => setActiveTab('attendance')}
           className={`flex items-center gap-2 px-4 py-2 text-xs font-semibold rounded-xl transition-all whitespace-nowrap ${activeTab === 'attendance' ? 'bg-primary text-primary-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground'
             }`}
         >
-          <CalendarCheck className="h-3.5 w-3.5" /> 7.3 Attendance Register & Matrix
+          <CalendarCheck className="h-3.5 w-3.5" /> 7.2 Attendance Register & Matrix
         </button>
         {!isStudentCoordinator && (
           <>
@@ -1252,35 +1243,42 @@ export default function BatchDetails() {
               className={`flex items-center gap-2 px-4 py-2 text-xs font-semibold rounded-xl transition-all whitespace-nowrap ${activeTab === 'marks' ? 'bg-primary text-primary-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground'
                 }`}
             >
-              <Award className="h-3.5 w-3.5" /> 7.4 Marks & Excel Import
-            </button>
-            <button
-              onClick={() => setActiveTab('syllabus')}
-              className={`flex items-center gap-2 px-4 py-2 text-xs font-semibold rounded-xl transition-all whitespace-nowrap ${activeTab === 'syllabus' ? 'bg-primary text-primary-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground'
-                }`}
-            >
-              <CheckSquare className="h-3.5 w-3.5" /> 7.5 Syllabus
-            </button>
-            <button
-              onClick={() => setActiveTab('coverage')}
-              className={`flex items-center gap-2 px-4 py-2 text-xs font-semibold rounded-xl transition-all whitespace-nowrap ${activeTab === 'coverage' ? 'bg-primary text-primary-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground'
-                }`}
-            >
-              <CheckCircle2 className="h-3.5 w-3.5" /> 7.6 Course Coverage ({coveragePct}%)
+              <Award className="h-3.5 w-3.5" /> 7.3 Marks & Excel Import
             </button>
             <button
               onClick={() => setActiveTab('trainer_log')}
               className={`flex items-center gap-2 px-4 py-2 text-xs font-semibold rounded-xl transition-all whitespace-nowrap ${activeTab === 'trainer_log' ? 'bg-primary text-primary-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground'
                 }`}
             >
-              <Clock className="h-3.5 w-3.5" /> 7.7 Trainer Log
+              <Clock className="h-3.5 w-3.5" /> 7.4 Trainer Log
             </button>
             <button
               onClick={() => setActiveTab('task_list')}
               className={`flex items-center gap-2 px-4 py-2 text-xs font-semibold rounded-xl transition-all whitespace-nowrap ${activeTab === 'task_list' ? 'bg-primary text-primary-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground'
                 }`}
             >
-              <ListTodo className="h-3.5 w-3.5" /> 7.8 Task List
+              <ListTodo className="h-3.5 w-3.5" /> 7.5 Task List
+            </button>
+            <button
+              onClick={() => setActiveTab('syllabus')}
+              className={`flex items-center gap-2 px-4 py-2 text-xs font-semibold rounded-xl transition-all whitespace-nowrap ${activeTab === 'syllabus' ? 'bg-primary text-primary-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground'
+                }`}
+            >
+              <CheckSquare className="h-3.5 w-3.5" /> 7.6 Syllabus
+            </button>
+            <button
+              onClick={() => setActiveTab('coverage')}
+              className={`flex items-center gap-2 px-4 py-2 text-xs font-semibold rounded-xl transition-all whitespace-nowrap ${activeTab === 'coverage' ? 'bg-primary text-primary-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground'
+                }`}
+            >
+              <CheckCircle2 className="h-3.5 w-3.5" /> 7.7 Course Coverage ({coveragePct}%)
+            </button>
+            <button
+              onClick={() => setActiveTab('courses')}
+              className={`flex items-center gap-2 px-4 py-2 text-xs font-semibold rounded-xl transition-all whitespace-nowrap ${activeTab === 'courses' ? 'bg-primary text-primary-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground'
+                }`}
+            >
+              <BookOpen className="h-3.5 w-3.5" /> 7.8 Courses ({batchCourses.length})
             </button>
           </>
         )}
@@ -1399,7 +1397,7 @@ export default function BatchDetails() {
         </div>
       )}
 
-      {/* TAB 7.2: COURSES */}
+      {/* TAB 7.8: COURSES */}
       {activeTab === 'courses' && (
         <div className="space-y-4">
           <div className="flex justify-between items-center">
@@ -1462,7 +1460,7 @@ export default function BatchDetails() {
         </div>
       )}
 
-      {/* TAB 7.3: ATTENDANCE */}
+      {/* TAB 7.2: ATTENDANCE */}
       {activeTab === 'attendance' && (
         <div className="space-y-6">
           {/* Attendance Header Controls */}
@@ -1670,7 +1668,7 @@ export default function BatchDetails() {
         </div>
       )}
 
-      {/* TAB 7.4: ASSIGNMENT / EXAM MARKS */}
+      {/* TAB 7.3: ASSIGNMENT / EXAM MARKS */}
       {activeTab === 'marks' && (
         <div className="space-y-6">
           <div className="flex flex-col xl:flex-row xl:items-center xl:justify-between gap-4 bg-card p-4 rounded-2xl border border-border">
@@ -1932,7 +1930,7 @@ export default function BatchDetails() {
         </div>
       )}
 
-      {/* TAB 7.5: SYLLABUS */}
+      {/* TAB 7.6: SYLLABUS */}
       {activeTab === 'syllabus' && (
         <div className="space-y-4">
           <div className="flex flex-wrap justify-between items-center gap-2">
@@ -2189,7 +2187,7 @@ export default function BatchDetails() {
         </div>
       )}
 
-      {/* TAB 7.8: TRAINER LOG */}
+      {/* TAB 7.4: TRAINER LOG */}
       {activeTab === 'trainer_log' && (() => {
         const pendingTopics = currentSyllabus.filter(s => !s.is_completed);
         const searchFiltered = (topics: typeof currentSyllabus) => {
@@ -2887,7 +2885,7 @@ export default function BatchDetails() {
         );
       })()}
 
-      {/* TAB 7.9: TASK LIST */}
+      {/* TAB 7.5: TASK LIST */}
       {activeTab === 'task_list' && (() => {
         const currentBc = store.batchCourses.find(bc => bc.id === selectedBatchCourseId);
         const currentCourseId = currentBc?.course_id || (batchCourses[0]?.course_id || '');
