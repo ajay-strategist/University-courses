@@ -6,6 +6,9 @@ export interface SendEmailPayload {
   smtp_user?: string;
   smtp_pass?: string;
   from_name?: string;
+  sender_name?: string;
+  sender_email?: string;
+  reply_to?: string;
   to?: string;
   subject?: string;
   html?: string;
@@ -18,7 +21,6 @@ export async function handleSendEmail(payload: SendEmailPayload) {
   const port = Number(payload.smtp_port || process.env.SMTP_PORT || 587);
   const user = payload.smtp_user || process.env.SMTP_USER;
   const pass = payload.smtp_pass || process.env.SMTP_PASS;
-  const fromName = payload.from_name || process.env.SMTP_FROM_NAME || 'University Training Tracker';
 
   if (!user || !pass) {
     throw new Error('SMTP Username and App Password are required. Please configure them in Email & Notifications settings.');
@@ -51,8 +53,12 @@ export async function handleSendEmail(payload: SendEmailPayload) {
     throw new Error('Email subject is required.');
   }
 
+  const senderDisplayName = payload.sender_name || payload.from_name || process.env.SMTP_FROM_NAME || 'University Training Tracker';
+  const replyToAddress = payload.reply_to || payload.sender_email || user;
+
   const mailOptions = {
-    from: `"${fromName}" <${user}>`,
+    from: `"${senderDisplayName}" <${user}>`,
+    replyTo: replyToAddress,
     to: payload.to,
     subject: payload.subject,
     text: payload.text || (payload.html ? payload.html.replace(/<[^>]*>?/gm, '') : ''),

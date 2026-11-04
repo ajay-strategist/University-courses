@@ -791,14 +791,19 @@ export default function BatchDetails() {
         return (a.register_no || '').localeCompare(b.register_no || '');
       });
 
-      const trainer = store.profiles.find(p => p.id === store.batchCourses.find(bc => bc.id === selectedBatchCourseId)?.trainer_id);
+      const trainerCourse = store.batchCourses.find(bc => bc.id === selectedBatchCourseId);
+      const trainer = store.profiles.find(p => p.id === trainerCourse?.trainer_id);
       const recipientName = batch.college_coordinator?.full_name || batch.college?.contact_person || 'College Coordinator';
       const recipientEmail = batch.college_coordinator?.email || batch.college?.contact_email || '';
+
+      const trainerEmail = trainer?.email || 'baijuanoop810@gmail.com';
+      const trainerName = trainer?.full_name || 'Anoop Baiju';
 
       setAbsenteePreview({
         recipient_name: recipientName,
         recipient_email: recipientEmail,
-        sender_email: trainer?.email || 'trainer.excel@gmail.com',
+        sender_email: trainerEmail,
+        sender_name: trainerName,
         session_date: titleDate,
         batch_code: batch.code,
         course_name: activeCourse?.name || 'Excel',
@@ -833,14 +838,19 @@ export default function BatchDetails() {
       return (a.register_no || '').localeCompare(b.register_no || '');
     });
 
-    const trainer = store.profiles.find(p => p.id === store.batchCourses.find(bc => bc.id === selectedBatchCourseId)?.trainer_id);
+    const trainerCourse = store.batchCourses.find(bc => bc.id === selectedBatchCourseId);
+    const trainer = store.profiles.find(p => p.id === trainerCourse?.trainer_id);
     const recipientName = batch.college_coordinator?.full_name || batch.college?.contact_person || 'College Coordinator';
     const recipientEmail = batch.college_coordinator?.email || batch.college?.contact_email || '';
+
+    const trainerEmail = trainer?.email || 'baijuanoop810@gmail.com';
+    const trainerName = trainer?.full_name || 'Anoop Baiju';
 
     setAbsenteePreview({
       recipient_name: recipientName,
       recipient_email: recipientEmail,
-      sender_email: trainer?.email || 'trainer.excel@gmail.com',
+      sender_email: trainerEmail,
+      sender_name: trainerName,
       session_date: titleDate,
       batch_code: batch.code,
       course_name: activeCourse?.name || 'Excel',
@@ -859,16 +869,25 @@ export default function BatchDetails() {
     setIsSendingAbsenteeEmail(true);
 
     try {
-      // Find trainer SMTP config
+      // Find trainer and trainer SMTP config
       const trainerCourse = store.batchCourses.find(bc => bc.id === selectedBatchCourseId);
+      const trainer = store.profiles.find(p => p.id === trainerCourse?.trainer_id);
+      const trainerEmail = trainer?.email || absenteePreview.sender_email || 'baijuanoop810@gmail.com';
+      const trainerName = trainer?.full_name || absenteePreview.sender_name || 'Anoop Baiju';
+
       const userConfig = store.emailConfigs.find(c => c.user_id === trainerCourse?.trainer_id)
+        || store.emailConfigs.find(c => c.is_verified)
         || store.emailConfigs[0];
 
       // Build real email body
       const savedTemplate = localStorage.getItem('uct_absentee_template');
       const sessionHeaders = getSessionHeaders();
       const { html, text } = buildAbsenteeReportHtml({
-        preview: absenteePreview,
+        preview: {
+          ...absenteePreview,
+          sender_name: trainerName,
+          sender_email: trainerEmail,
+        },
         sessionHeaders,
         template: savedTemplate || undefined,
       });
@@ -881,13 +900,16 @@ export default function BatchDetails() {
         html,
         text,
         config: userConfig,
+        sender_name: trainerName,
+        sender_email: trainerEmail,
+        reply_to: trainerEmail,
       });
 
       const logEntry: NotificationLog = {
         id: generateUUID(),
         batch_course_id: selectedBatchCourseId,
         session_date: absenteePreview.session_date,
-        sender_id: userConfig?.user_id || store.profiles[0]?.id,
+        sender_id: trainer?.id || userConfig?.user_id || store.profiles[0]?.id,
         recipient_email: absenteePreview.recipient_email,
         absentee_count: absenteePreview.absentees.length,
         status: sendResult.success ? 'sent' : 'failed',
@@ -3224,7 +3246,7 @@ export default function BatchDetails() {
             <div className="space-y-3 text-xs font-mono">
               <div className="bg-sunken p-3 rounded-xl space-y-1">
                 <div>Recipient: <span className="font-bold text-foreground">{absenteePreview.recipient_name}</span> ({absenteePreview.recipient_email})</div>
-                <div>Sender: <span className="font-bold text-foreground">{absenteePreview.sender_email}</span> (Trainer SMTP)</div>
+                <div>Sender: <span className="font-bold text-foreground">{absenteePreview.sender_name ? `${absenteePreview.sender_name} (${absenteePreview.sender_email})` : absenteePreview.sender_email}</span> (Trainer SMTP)</div>
                 <div>Subject: <span className="font-bold text-primary">Absentee Report - {absenteePreview.batch_code} ({absenteePreview.course_name}) - {absenteePreview.session_date}</span></div>
               </div>
 

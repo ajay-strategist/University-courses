@@ -7,6 +7,9 @@ export interface SendEmailOptions {
   html: string;
   text?: string;
   config?: UserEmailConfig;
+  sender_name?: string;
+  sender_email?: string;
+  reply_to?: string;
 }
 
 export interface SendEmailResult {
@@ -36,6 +39,9 @@ export async function sendEmail(options: SendEmailOptions): Promise<SendEmailRes
     smtp_user: options.config?.smtp_user,
     smtp_pass: options.config?.smtp_app_password,
     from_name: options.config?.from_name,
+    sender_name: options.sender_name,
+    sender_email: options.sender_email,
+    reply_to: options.reply_to || options.sender_email,
   };
 
   // 1. Try local dev / Vercel API endpoint
@@ -190,7 +196,7 @@ Regards,
 {sender_name}
 University Training Tracker`;
 
-  const senderName = preview.sender_email.split('@')[0];
+  const senderName = preview.sender_name || (preview.sender_email ? preview.sender_email.split('@')[0] : 'Trainer');
 
   const processedBody = rawTemplate
     .replace(/{recipient_name}/g, preview.recipient_name || 'College Coordinator')
@@ -242,3 +248,4 @@ University Training Tracker`;
 
   return { html: fullHtml, text: textBody };
 }
+

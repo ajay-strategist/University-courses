@@ -25,7 +25,7 @@ export default function EmailNotifications() {
     const existing = store.emailConfigs.find(c => c.user_id === profile?.id) || store.emailConfigs[0];
     if (existing) return existing;
     return {
-      user_id: profile?.id || 'usr-trainer-1',
+      user_id: profile?.id || store.profiles[0]?.id || '',
       smtp_host: 'smtp.gmail.com',
       smtp_port: 587,
       smtp_user: profile?.email || '',

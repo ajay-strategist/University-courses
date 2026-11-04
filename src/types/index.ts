@@ -189,6 +189,7 @@ export interface AbsenteePreview {
   recipient_email: string;
   recipient_name: string;
   sender_email: string;
+  sender_name?: string;
   session_date: string;
   batch_code: string;
   course_name: string;
