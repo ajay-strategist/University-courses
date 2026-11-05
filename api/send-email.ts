@@ -53,7 +53,7 @@ export async function handleSendEmail(payload: SendEmailPayload) {
     throw new Error('Email subject is required.');
   }
 
-  const senderDisplayName = payload.sender_name || payload.from_name || process.env.SMTP_FROM_NAME || 'University Training Tracker';
+  const senderDisplayName = payload.sender_name || payload.from_name || process.env.SMTP_FROM_NAME || 'Team The Strategist';
   const replyToAddress = payload.reply_to || payload.sender_email || user;
 
   const mailOptions = {

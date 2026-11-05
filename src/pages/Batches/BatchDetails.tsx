@@ -906,7 +906,11 @@ export default function BatchDetails() {
       const senderEmail = personalConfig?.smtp_user || activeSender?.email || absenteePreview.sender_email || activeConfig.smtp_user;
 
       // Build real email body
-      const savedTemplate = localStorage.getItem('uct_absentee_template');
+      let savedTemplate = localStorage.getItem('uct_absentee_template');
+      if (savedTemplate && (savedTemplate.includes('University Training Tracker') || savedTemplate.includes('Official Attendance') || !savedTemplate.includes('<b>Batch:</b>'))) {
+        localStorage.removeItem('uct_absentee_template');
+        savedTemplate = null;
+      }
       const sessionHeaders = getSessionHeaders();
       const { html, text } = buildAbsenteeReportHtml({
         preview: {

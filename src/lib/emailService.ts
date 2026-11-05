@@ -212,8 +212,11 @@ export function buildAbsenteeReportHtml(params: {
     </div>
   ` : `<p style="padding: 12px; background-color: #f0fdf4; color: #16a34a; border-radius: 6px; font-weight: bold;">No absentees reported for this session.</p>`;
 
-  // Default template if not supplied
-  const rawTemplate = template || DEFAULT_ABSENTEE_TEMPLATE;
+  // Ensure template does not retain outdated University Training Tracker / Official Attendance wording
+  let rawTemplate = template || DEFAULT_ABSENTEE_TEMPLATE;
+  if (!rawTemplate || rawTemplate.includes('University Training Tracker') || rawTemplate.includes('Official Attendance') || !rawTemplate.includes('<b>Batch:</b>')) {
+    rawTemplate = DEFAULT_ABSENTEE_TEMPLATE;
+  }
   const formattedDate = formatDateToDDMMYYYY(preview.session_date);
 
   let processedBody = rawTemplate
@@ -232,6 +235,11 @@ export function buildAbsenteeReportHtml(params: {
     .replace(/(?<!<b>|<strong>)Batch:(?!<\/b>|<\/strong>)/gi, '<b>Batch:</b>')
     .replace(/(?<!<b>|<strong>)Date:(?!<\/b>|<\/strong>)/gi, '<b>Date:</b>');
 
+  // Hard guarantee: strip any legacy wording
+  processedBody = processedBody
+    .replace(/Official Attendance & Absentee Notification/gi, '')
+    .replace(/University Training Tracker/gi, 'Team The Strategist');
+
   // Wrap in clean HTML email container with "Absentees Report" title only
   const fullHtml = `
 <!DOCTYPE html>
@@ -243,7 +251,7 @@ export function buildAbsenteeReportHtml(params: {
 <body style="margin: 0; padding: 24px; background-color: #f8fafc; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; color: #1e293b;">
   <div style="max-width: 680px; margin: 0 auto; background-color: #ffffff; border: 1px solid #e2e8f0; border-radius: 12px; padding: 32px; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);">
     <div style="border-bottom: 2px solid #0f766e; padding-bottom: 12px; margin-bottom: 24px;">
-      <h2 style="margin: 0; color: #0f766e; font-size: 22px; font-weight: 700;">Absentees Report</h2>
+      <h1 style="margin: 0; color: #0f766e; font-size: 24px; font-weight: 700; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;">Absentees Report</h1>
     </div>
 
     <div style="font-size: 14px; line-height: 1.6; color: #334155; white-space: pre-line;">

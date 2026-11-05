@@ -45,7 +45,7 @@ export default function EmailNotifications() {
 
   const [emailTemplate, setEmailTemplate] = useState<string>(() => {
     const saved = localStorage.getItem('uct_absentee_template');
-    if (!saved || saved.includes('University Training Tracker') || !saved.includes('<b>Batch:</b>')) {
+    if (!saved || saved.includes('University Training Tracker') || saved.includes('Official Attendance') || !saved.includes('<b>Batch:</b>')) {
       localStorage.setItem('uct_absentee_template', DEFAULT_ABSENTEE_TEMPLATE);
       return DEFAULT_ABSENTEE_TEMPLATE;
     }
@@ -100,7 +100,7 @@ export default function EmailNotifications() {
     const testLogId = generateUUID();
 
     try {
-      const senderDisplayName = smtpConfig.from_name || activeUserProfile?.full_name || 'University Training Tracker';
+      const senderDisplayName = smtpConfig.from_name || activeUserProfile?.full_name || 'Team The Strategist';
       const result = await sendEmail({
         to: smtpConfig.smtp_user,
         subject: `[Test] SMTP Verification - ${senderDisplayName} (${new Date().toLocaleTimeString()})`,
@@ -116,7 +116,7 @@ export default function EmailNotifications() {
               <p style="margin: 4px 0;"><strong>SMTP Server:</strong> ${smtpConfig.smtp_host}:${smtpConfig.smtp_port}</p>
               <p style="margin: 4px 0;"><strong>Sent Timestamp:</strong> ${new Date().toLocaleString()}</p>
             </div>
-            <p style="font-size: 12px; color: #94a3b8; margin-bottom: 0;">University Training Tracker &bull; Configured SMTP Delivery</p>
+            <p style="font-size: 12px; color: #94a3b8; margin-bottom: 0;">Team The Strategist &bull; Configured SMTP Delivery</p>
           </div>
         `,
         config: {

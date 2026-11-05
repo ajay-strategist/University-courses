@@ -33,7 +33,7 @@ serve(async (req) => {
     const port = Number(payload.smtp_port || Deno.env.get("SMTP_PORT") || 587);
     const user = payload.smtp_user || Deno.env.get("SMTP_USER");
     const pass = payload.smtp_pass || Deno.env.get("SMTP_PASS");
-    const fromName = payload.from_name || Deno.env.get("SMTP_FROM_NAME") || "University Training Tracker";
+    const fromName = payload.from_name || Deno.env.get("SMTP_FROM_NAME") || "Team The Strategist";
 
     if (!user || !pass) {
       throw new Error("SMTP user and password (or App Password) are required.");
@@ -68,7 +68,7 @@ serve(async (req) => {
     const info = await transporter.sendMail({
       from: `"${fromName}" <${user}>`,
       to: recipient,
-      subject: payload.subject || "University Training Tracker Notification",
+      subject: payload.subject || "Absentees Report",
       text: payload.text,
       html: payload.html || payload.html_body || payload.text,
     });
