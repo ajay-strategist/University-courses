@@ -902,8 +902,16 @@ export default function BatchDetails() {
         return;
       }
 
-      const senderName = personalConfig?.from_name || activeSender?.full_name || absenteePreview.sender_name || 'Team The Strategist';
-      const senderEmail = personalConfig?.smtp_user || activeSender?.email || absenteePreview.sender_email || activeConfig.smtp_user;
+      const isDirectPersonal = !!personalConfig;
+      const sendingAccountProfile = store.profiles.find(p => p.id === activeConfig.user_id);
+
+      // When sending from Team The Strategist account, From must show "Team The Strategist"
+      const senderDisplayName = isDirectPersonal
+        ? (personalConfig.from_name || activeSender?.full_name || 'Trainer')
+        : (activeConfig.from_name || sendingAccountProfile?.full_name || 'Team The Strategist');
+
+      const senderEmailAddress = activeConfig.smtp_user;
+      const trainerReplyTo = activeSender?.email || senderEmailAddress;
 
       // Build real email body
       let savedTemplate = localStorage.getItem('uct_absentee_template');
@@ -915,8 +923,8 @@ export default function BatchDetails() {
       const { html, text } = buildAbsenteeReportHtml({
         preview: {
           ...absenteePreview,
-          sender_name: senderName,
-          sender_email: senderEmail,
+          sender_name: senderDisplayName,
+          sender_email: senderEmailAddress,
         },
         sessionHeaders,
         template: savedTemplate || undefined,
@@ -930,9 +938,9 @@ export default function BatchDetails() {
         html,
         text,
         config: activeConfig,
-        sender_name: senderName,
-        sender_email: senderEmail,
-        reply_to: senderEmail,
+        sender_name: senderDisplayName,
+        sender_email: senderEmailAddress,
+        reply_to: trainerReplyTo,
       });
 
       const logEntry: NotificationLog = {
@@ -3280,68 +3288,94 @@ export default function BatchDetails() {
                   <span className="font-bold text-foreground">{absenteePreview.recipient_name} <span className="text-muted-foreground font-normal">({absenteePreview.recipient_email})</span></span>
                 </div>
 
-                {/* Dynamic Sender Selector */}
-                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-1.5 pt-1 border-t border-border/60">
-                  <label className="text-muted-foreground font-medium flex items-center gap-1">
-                    <UserCheck className="h-3.5 w-3.5 text-primary" /> Sender Account:
-                  </label>
-                  <select
-                    value={absenteeSenderId}
-                    onChange={(e) => {
-                      const newSenderId = e.target.value;
-                      setAbsenteeSenderId(newSenderId);
-                      const p = store.profiles.find(prof => prof.id === newSenderId);
-                      const cfg = store.emailConfigs.find(c => c.user_id === newSenderId);
-                      if (p) {
-                        setAbsenteePreview({
-                          ...absenteePreview,
-                          sender_name: cfg?.from_name || p.full_name,
-                          sender_email: cfg?.smtp_user || p.email,
-                        });
-                      }
-                    }}
-                    className="bg-card border border-border rounded-lg px-2.5 py-1 text-xs font-semibold text-foreground focus:outline-none focus:ring-1 focus:ring-primary max-w-sm"
-                  >
-                    {store.profiles
-                      .filter(p => p.role === 'admin' || p.role === 'trainer')
-                      .map(p => {
-                        const hasConfig = store.emailConfigs.some(c => c.user_id === p.id && c.is_verified);
-                        return (
-                          <option key={p.id} value={p.id}>
-                            {p.full_name} ({p.email}) - {p.role.toUpperCase()} {hasConfig ? '✓ (Direct SMTP)' : '(via Relay)'}
-                          </option>
-                        );
-                      })}
-                  </select>
-                </div>
+                {(() => {
+                  const directCfg = store.emailConfigs.find(c => c.user_id === absenteeSenderId && c.is_verified);
+                  const relayCfg = store.emailConfigs.find(c => c.is_verified) || store.emailConfigs[0];
+                  const activeCfg = directCfg || relayCfg;
+                  const activeSender = store.profiles.find(p => p.id === absenteeSenderId);
+                  const isDirect = !!directCfg;
+                  const sendingName = isDirect ? (directCfg.from_name || activeSender?.full_name) : (activeCfg?.from_name || 'Team The Strategist');
+                  const sendingEmail = activeCfg?.smtp_user || 'teamthestrategist@gmail.com';
 
-                {/* Delivery Route Status */}
-                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-1 text-[11px] pt-1 border-t border-border/60">
-                  <span className="text-muted-foreground font-medium">Delivery Mode:</span>
-                  {(() => {
-                    const directCfg = store.emailConfigs.find(c => c.user_id === absenteeSenderId && c.is_verified);
-                    if (directCfg) {
-                      return (
-                        <span className="text-success font-semibold flex items-center gap-1">
-                          <ShieldCheck className="h-3.5 w-3.5" /> Direct SMTP ({directCfg.smtp_user}) &bull; From: {absenteePreview.sender_name}
+                  return (
+                    <>
+                      {/* Sending Account Details */}
+                      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-1 text-xs pt-1 border-t border-border/60">
+                        <span className="text-muted-foreground font-medium flex items-center gap-1">
+                          <UserCheck className="h-3.5 w-3.5 text-primary" /> Sender (From Account):
                         </span>
-                      );
-                    }
-                    const relayCfg = store.emailConfigs.find(c => c.is_verified);
-                    if (relayCfg) {
-                      return (
-                        <span className="text-accent font-semibold">
-                          Relay via {relayCfg.smtp_user} &bull; Reply-To: {absenteePreview.sender_email}
-                        </span>
-                      );
-                    }
-                    return (
-                      <span className="text-destructive font-semibold">
-                        ⚠️ No verified SMTP configured in system
-                      </span>
-                    );
-                  })()}
-                </div>
+                        <div className="text-right">
+                          <span className="font-bold text-foreground">{sendingName}</span>
+                          <span className="text-muted-foreground ml-1">&lt;{sendingEmail}&gt;</span>
+                        </div>
+                      </div>
+
+                      {/* Course Trainer / Reply-To */}
+                      {!isDirect && activeSender && (
+                        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-1 text-xs pt-1 border-t border-border/60">
+                          <span className="text-muted-foreground font-medium">Trainer In-Charge:</span>
+                          <div className="text-right">
+                            <span className="font-semibold text-foreground">{activeSender.full_name}</span>
+                            <span className="text-muted-foreground ml-1">(Reply-To: {activeSender.email})</span>
+                          </div>
+                        </div>
+                      )}
+
+                      {/* Trainer Selection */}
+                      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-1.5 pt-1 border-t border-border/60">
+                        <label className="text-muted-foreground font-medium flex items-center gap-1">
+                          Select Sender / Trainer:
+                        </label>
+                        <select
+                          value={absenteeSenderId}
+                          onChange={(e) => {
+                            const newSenderId = e.target.value;
+                            setAbsenteeSenderId(newSenderId);
+                            const p = store.profiles.find(prof => prof.id === newSenderId);
+                            const cfg = store.emailConfigs.find(c => c.user_id === newSenderId);
+                            if (p) {
+                              setAbsenteePreview({
+                                ...absenteePreview,
+                                sender_name: cfg?.from_name || p.full_name,
+                                sender_email: cfg?.smtp_user || p.email,
+                              });
+                            }
+                          }}
+                          className="bg-card border border-border rounded-lg px-2.5 py-1 text-xs font-semibold text-foreground focus:outline-none focus:ring-1 focus:ring-primary max-w-sm"
+                        >
+                          {store.profiles
+                            .filter(p => p.role === 'admin' || p.role === 'trainer')
+                            .map(p => {
+                              const hasConfig = store.emailConfigs.some(c => c.user_id === p.id && c.is_verified);
+                              return (
+                                <option key={p.id} value={p.id}>
+                                  {p.full_name} ({p.email}) - {hasConfig ? '✓ (Direct Personal SMTP)' : '(via Team The Strategist)'}
+                                </option>
+                              );
+                            })}
+                        </select>
+                      </div>
+
+                      {/* Delivery Mode Status */}
+                      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-1 text-[11px] pt-1 border-t border-border/60">
+                        <span className="text-muted-foreground font-medium">Delivery Route:</span>
+                        {isDirect ? (
+                          <span className="text-success font-semibold flex items-center gap-1">
+                            <ShieldCheck className="h-3.5 w-3.5" /> Direct SMTP ({sendingEmail}) &bull; From: {sendingName}
+                          </span>
+                        ) : activeCfg ? (
+                          <span className="text-accent font-semibold flex items-center gap-1">
+                            <ShieldCheck className="h-3.5 w-3.5" /> Sent from Team The Strategist ({sendingEmail}) &bull; Reply-To: {activeSender?.email}
+                          </span>
+                        ) : (
+                          <span className="text-destructive font-semibold">
+                            ⚠️ No verified SMTP configured in system
+                          </span>
+                        )}
+                      </div>
+                    </>
+                  );
+                })()}
 
                 <div className="pt-1 border-t border-border/60">
                   <span className="text-muted-foreground font-medium">Subject:</span>{' '}
