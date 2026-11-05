@@ -41,14 +41,15 @@ Team The Strategist`;
  */
 export function formatDateToDDMMYYYY(dateStr: string): string {
   if (!dateStr) return '';
-  if (dateStr.includes(' to ')) {
-    return dateStr.split(' to ').map(formatDateToDDMMYYYY).join(' to ');
+  const trimmed = dateStr.trim();
+  if (trimmed.includes(' to ')) {
+    return trimmed.split(' to ').map(formatDateToDDMMYYYY).join(' to ');
   }
-  const match = dateStr.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+  const match = trimmed.match(/(\d{4})-(\d{2})-(\d{2})/);
   if (match) {
     return `${match[3]}-${match[2]}-${match[1]}`;
   }
-  return dateStr;
+  return trimmed;
 }
 
 /**
@@ -230,10 +231,20 @@ export function buildAbsenteeReportHtml(params: {
   // Convert markdown bold **text** to <b>text</b>
   processedBody = processedBody.replace(/\*\*(.*?)\*\*/g, '<b>$1</b>');
 
-  // Auto-bold Batch: and Date: if plain
-  processedBody = processedBody
-    .replace(/(?<!<b>|<strong>)Batch:(?!<\/b>|<\/strong>)/gi, '<b>Batch:</b>')
-    .replace(/(?<!<b>|<strong>)Date:(?!<\/b>|<\/strong>)/gi, '<b>Date:</b>');
+  // Ensure Batch and its value are bold
+  processedBody = processedBody.replace(
+    /(?:<b>|<\/b>|<strong>|<\/strong>|\*)*Batch:(?:<b>|<\/b>|<strong>|<\/strong>|\*|\s)*(?:<b>|<strong>)?([^\n<]+?)(?:<\/b>|<\/strong>)?(?=\n|$|<)/gi,
+    (_, val) => `<b>Batch:</b> <b>${val.replace(/<\/?(b|strong)>/gi, '').trim()}</b>`
+  );
+
+  // Ensure Date and its value are bold, and value is formatted strictly as DD-MM-YYYY
+  processedBody = processedBody.replace(
+    /(?:<b>|<\/b>|<strong>|<\/strong>|\*)*Date:(?:<b>|<\/b>|<strong>|<\/strong>|\*|\s)*(?:<b>|<strong>)?([^\n<]+?)(?:<\/b>|<\/strong>)?(?=\n|$|<)/gi,
+    (_, dateVal) => {
+      const cleanVal = dateVal.replace(/<\/?(b|strong)>/gi, '').trim();
+      return `<b>Date:</b> <b>${formatDateToDDMMYYYY(cleanVal)}</b>`;
+    }
+  );
 
   // Hard guarantee: strip any legacy wording
   processedBody = processedBody
@@ -267,7 +278,7 @@ export function buildAbsenteeReportHtml(params: {
     a => `${a.register_no.padEnd(14)} | ${a.name.padEnd(25)} | ${a.class.padEnd(8)} | Hours: ${a.hours_absent.map(h => sessionHeaders[h] || `H${h}`).join(', ')}`
   ).join('\n');
 
-  const textBody = rawTemplate
+  let textBody = rawTemplate
     .replace(/<\/?(b|strong)>/gi, '')
     .replace(/\*\*(.*?)\*\*/g, '$1')
     .replace(/{recipient_name}|{Coordinator Name}|{coordinator_name}/g, preview.recipient_name || 'College Coordinator')
@@ -276,6 +287,14 @@ export function buildAbsenteeReportHtml(params: {
     .replace(/{course_name}/g, preview.course_name)
     .replace(/{sender_name}/g, 'Team The Strategist')
     .replace(/{absentee_table}/g, textTable);
+
+  textBody = textBody.replace(
+    /(?:Batch:)\s*([^\n]+)/gi,
+    (_, val) => `Batch: ${val.trim()}`
+  ).replace(
+    /(?:Date:)\s*([^\n]+)/gi,
+    (_, dateVal) => `Date: ${formatDateToDDMMYYYY(dateVal.trim())}`
+  );
 
   return { html: fullHtml, text: textBody };
 }
