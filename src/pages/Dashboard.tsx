@@ -277,21 +277,13 @@ export default function Dashboard() {
   return (
     <div className="space-y-6 pb-12">
       {/* Page Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-        <div>
-          <h1 className="text-2xl font-bold font-heading text-foreground tracking-tight">
-            Operational Console Dashboard
-          </h1>
-          <p className="text-sm text-muted-foreground mt-0.5">
-            Academic operations, batch activity, and performance insights at a glance.
-          </p>
-        </div>
-        <Button
-          onClick={() => navigate('/reports')}
-          className="bg-[#103C35] hover:bg-[#21483D] text-white shadow-sm transition-colors font-medium"
-        >
-          <BarChart3 className="h-4 w-4 mr-2" /> Open Power BI Report Layer
-        </Button>
+      <div>
+        <h1 className="text-2xl font-bold font-heading text-foreground tracking-tight">
+          Operational Console Dashboard
+        </h1>
+        <p className="text-sm text-muted-foreground mt-0.5">
+          Academic operations, batch activity, and performance insights at a glance.
+        </p>
       </div>
 
       {/* ========================================================= */}
