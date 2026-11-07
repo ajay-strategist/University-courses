@@ -291,7 +291,7 @@ export default function Dashboard() {
       {/* ========================================================= */}
       <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3.5 sm:gap-4">
         {/* 1. Colleges */}
-        <div className="card-meridian p-4 border-l-4 border-l-[#103C35] flex items-center justify-between">
+        <div className="card-meridian p-4 border-l-4 border-l-[#103C35] dark:border-l-emerald-400 flex items-center justify-between">
           <div className="space-y-1">
             <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wider block">
               Colleges
@@ -300,13 +300,13 @@ export default function Dashboard() {
               {collegesCount}
             </span>
           </div>
-          <div className="h-11 w-11 rounded-xl bg-[#103C35]/10 flex items-center justify-center text-[#103C35]">
+          <div className="h-11 w-11 rounded-xl bg-[#103C35]/10 dark:bg-emerald-500/20 flex items-center justify-center text-[#103C35] dark:text-emerald-400 shadow-xs">
             <Building2 className="h-5 w-5" />
           </div>
         </div>
 
         {/* 2. Active Batches */}
-        <div className="card-meridian p-4 border-l-4 border-l-[#D99A20] flex items-center justify-between">
+        <div className="card-meridian p-4 border-l-4 border-l-[#D99A20] dark:border-l-amber-400 flex items-center justify-between">
           <div className="space-y-1">
             <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wider block">
               Active Batches
@@ -315,13 +315,13 @@ export default function Dashboard() {
               {activeBatchesCount}
             </span>
           </div>
-          <div className="h-11 w-11 rounded-xl bg-[#D99A20]/15 flex items-center justify-center text-[#D99A20]">
+          <div className="h-11 w-11 rounded-xl bg-[#D99A20]/15 dark:bg-amber-500/20 flex items-center justify-center text-[#D99A20] dark:text-amber-400 shadow-xs">
             <BookOpen className="h-5 w-5" />
           </div>
         </div>
 
         {/* 3. Tools */}
-        <div className="card-meridian p-4 border-l-4 border-l-teal-600 flex items-center justify-between">
+        <div className="card-meridian p-4 border-l-4 border-l-teal-600 dark:border-l-teal-400 flex items-center justify-between">
           <div className="space-y-1">
             <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wider block">
               Tools
@@ -330,13 +330,13 @@ export default function Dashboard() {
               {toolsCount}
             </span>
           </div>
-          <div className="h-11 w-11 rounded-xl bg-teal-500/10 flex items-center justify-center text-teal-600">
+          <div className="h-11 w-11 rounded-xl bg-teal-500/10 dark:bg-teal-500/20 flex items-center justify-center text-teal-600 dark:text-teal-300 shadow-xs">
             <Layers className="h-5 w-5" />
           </div>
         </div>
 
         {/* 4. Current Sem Tools */}
-        <div className="card-meridian p-4 border-l-4 border-l-amber-500 flex items-center justify-between">
+        <div className="card-meridian p-4 border-l-4 border-l-amber-500 dark:border-l-amber-400 flex items-center justify-between">
           <div className="space-y-1">
             <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wider block">
               Current Sem Tools
@@ -345,13 +345,13 @@ export default function Dashboard() {
               {currentSemToolsCount}
             </span>
           </div>
-          <div className="h-11 w-11 rounded-xl bg-amber-500/15 flex items-center justify-center text-amber-600">
+          <div className="h-11 w-11 rounded-xl bg-amber-500/15 dark:bg-amber-500/20 flex items-center justify-center text-amber-600 dark:text-amber-400 shadow-xs">
             <Layers className="h-5 w-5" />
           </div>
         </div>
 
         {/* 5. Students */}
-        <div className="card-meridian p-4 border-l-4 border-l-[#103C35] flex items-center justify-between col-span-2 sm:col-span-1">
+        <div className="card-meridian p-4 border-l-4 border-l-[#103C35] dark:border-l-emerald-400 flex items-center justify-between col-span-2 sm:col-span-1">
           <div className="space-y-1">
             <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wider block">
               Students
@@ -360,7 +360,7 @@ export default function Dashboard() {
               {totalStudentsCount.toLocaleString()}
             </span>
           </div>
-          <div className="h-11 w-11 rounded-xl bg-[#103C35]/10 flex items-center justify-center text-[#103C35]">
+          <div className="h-11 w-11 rounded-xl bg-[#103C35]/10 dark:bg-emerald-500/20 flex items-center justify-center text-[#103C35] dark:text-emerald-400 shadow-xs">
             <GraduationCap className="h-5 w-5" />
           </div>
         </div>
@@ -373,7 +373,7 @@ export default function Dashboard() {
         {/* Section Header with Date Selector */}
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 pb-2 border-b border-border/50">
           <div className="flex items-center gap-2.5">
-            <Calendar className="h-5 w-5 text-[#103C35]" />
+            <Calendar className="h-5 w-5 text-[#103C35] dark:text-emerald-400" />
             <h2 className="text-lg font-bold font-heading text-foreground">
               Today's Class Activity (Batch-wise)
             </h2>
@@ -381,8 +381,8 @@ export default function Dashboard() {
 
           {/* Date Picker & Jump Controls */}
           <div className="flex items-center gap-2">
-            <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-muted/60 border border-border/70 text-xs font-mono text-foreground">
-              <Calendar className="h-3.5 w-3.5 text-muted-foreground" />
+            <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-muted/60 dark:bg-white/[0.04] border border-border/70 dark:border-white/[0.08] text-xs font-mono text-foreground">
+              <Calendar className="h-3.5 w-3.5 text-muted-foreground dark:text-emerald-400/80" />
               <span className="font-semibold">
                 {selectedDate === todayStr ? 'Today, ' : ''}
                 {formatDateDDMMYYYY(selectedDate)}
@@ -393,7 +393,7 @@ export default function Dashboard() {
               type="date"
               value={selectedDate}
               onChange={(e) => setSelectedDate(e.target.value)}
-              className="text-xs p-1.5 rounded-lg border border-border/70 bg-background text-foreground font-mono cursor-pointer"
+              className="text-xs p-1.5 rounded-lg border border-border/70 dark:border-white/[0.08] bg-background dark:bg-white/[0.04] text-foreground font-mono cursor-pointer"
               title="Select date"
             />
 
@@ -402,7 +402,7 @@ export default function Dashboard() {
                 variant="outline"
                 size="sm"
                 onClick={handleJumpToLatestActiveDate}
-                className="text-xs h-8 text-[#103C35] hover:text-[#103C35] hover:bg-[#103C35]/10 border-[#103C35]/30"
+                className="text-xs h-8 text-[#103C35] dark:text-emerald-400 hover:text-[#103C35] dark:hover:text-emerald-300 hover:bg-[#103C35]/10 dark:hover:bg-emerald-500/15 border-[#103C35]/30 dark:border-emerald-500/30"
               >
                 View Latest Activity (06-11-2026)
               </Button>
@@ -413,7 +413,7 @@ export default function Dashboard() {
                 variant="ghost"
                 size="sm"
                 onClick={() => setSelectedDate(todayStr)}
-                className="text-xs h-8 text-muted-foreground"
+                className="text-xs h-8 text-muted-foreground hover:text-foreground"
               >
                 Reset to Today
               </Button>
@@ -423,8 +423,8 @@ export default function Dashboard() {
 
         {/* Body: Activity Content or Clean Empty State */}
         {batchesWithActivity.length === 0 ? (
-          <div className="p-8 text-center rounded-xl bg-muted/30 border border-dashed border-border flex flex-col items-center justify-center space-y-3">
-            <div className="h-12 w-12 rounded-full bg-muted flex items-center justify-center text-muted-foreground">
+          <div className="p-8 text-center rounded-xl bg-muted/30 dark:bg-white/[0.02] border border-dashed border-border dark:border-white/10 flex flex-col items-center justify-center space-y-3">
+            <div className="h-12 w-12 rounded-full bg-muted dark:bg-white/[0.05] flex items-center justify-center text-muted-foreground dark:text-emerald-400">
               <CalendarCheck className="h-6 w-6" />
             </div>
             <div>
@@ -437,7 +437,7 @@ export default function Dashboard() {
             </div>
             <Button
               onClick={handleJumpToLatestActiveDate}
-              className="bg-[#103C35] hover:bg-[#21483D] text-white text-xs mt-2"
+              className="bg-[#103C35] hover:bg-[#21483D] dark:bg-emerald-600 dark:hover:bg-emerald-500 text-white text-xs mt-2"
             >
               Inspect Latest Active Class Day (06-11-2026)
             </Button>
@@ -458,8 +458,8 @@ export default function Dashboard() {
                       onClick={() => setSelectedBatchId(b.id)}
                       className={`p-3.5 rounded-xl border transition-all cursor-pointer flex items-center justify-between ${
                         isSelected
-                          ? 'bg-[#D99A20]/10 border-[#D99A20] shadow-xs'
-                          : 'bg-background hover:bg-muted/50 border-border/70'
+                          ? 'bg-[#D99A20]/10 dark:bg-amber-500/15 border-[#D99A20] dark:border-amber-400/70 shadow-xs'
+                          : 'bg-background dark:bg-white/[0.02] hover:bg-muted/50 dark:hover:bg-white/[0.05] border-border/70 dark:border-white/[0.07]'
                       }`}
                     >
                       <div className="space-y-0.5">
@@ -476,7 +476,7 @@ export default function Dashboard() {
                       </div>
                       <ChevronRight
                         className={`h-4 w-4 transition-transform ${
-                          isSelected ? 'text-[#D99A20] translate-x-0.5' : 'text-muted-foreground'
+                          isSelected ? 'text-[#D99A20] dark:text-amber-400 translate-x-0.5' : 'text-muted-foreground dark:text-white/40'
                         }`}
                       />
                     </div>
@@ -489,7 +489,7 @@ export default function Dashboard() {
             {activeSelectedBatch && batchDayData && (
               <div className="lg:col-span-8 xl:col-span-9 space-y-4">
                 {/* Batch Summary Header Bar */}
-                <div className="p-4 rounded-xl bg-muted/40 border border-border/70 flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+                <div className="p-4 rounded-xl bg-muted/40 dark:bg-white/[0.03] border border-border/70 dark:border-white/[0.08] flex flex-col md:flex-row md:items-center md:justify-between gap-4">
                   <div>
                     <h3 className="text-lg font-bold font-heading text-foreground">
                       {activeSelectedBatch.code}
@@ -502,8 +502,8 @@ export default function Dashboard() {
                   {/* Stat Chips */}
                   <div className="flex flex-wrap items-center gap-2.5 sm:gap-4 text-xs font-mono">
                     {/* Students */}
-                    <div className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-background border border-border/60">
-                      <Users className="h-4 w-4 text-muted-foreground" />
+                    <div className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-background dark:bg-white/[0.04] border border-border/60 dark:border-white/[0.08]">
+                      <Users className="h-4 w-4 text-muted-foreground dark:text-emerald-400" />
                       <div className="flex flex-col">
                         <span className="text-[10px] text-muted-foreground uppercase leading-none">Students</span>
                         <span className="font-bold text-foreground leading-tight mt-0.5">
@@ -513,8 +513,8 @@ export default function Dashboard() {
                     </div>
 
                     {/* Attendance % */}
-                    <div className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-background border border-border/60">
-                      <BarChart3 className="h-4 w-4 text-[#103C35]" />
+                    <div className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-background dark:bg-white/[0.04] border border-border/60 dark:border-white/[0.08]">
+                      <BarChart3 className="h-4 w-4 text-[#103C35] dark:text-emerald-400" />
                       <div className="flex flex-col">
                         <span className="text-[10px] text-muted-foreground uppercase leading-none">Attendance</span>
                         <span className="font-bold text-[#103C35] dark:text-emerald-400 leading-tight mt-0.5">
@@ -528,9 +528,9 @@ export default function Dashboard() {
                 {/* Sub-grid: Trainer Log (Left) vs Hour-wise Attendance (Right) */}
                 <div className="grid grid-cols-1 xl:grid-cols-12 gap-4">
                   {/* 3.4 Trainer Log – Today's Activity */}
-                  <div className="xl:col-span-6 p-4 rounded-xl border border-border/70 bg-background space-y-3">
+                  <div className="xl:col-span-6 p-4 rounded-xl border border-border/70 dark:border-white/[0.08] bg-background dark:bg-white/[0.02] space-y-3">
                     <div className="flex items-center gap-2 text-foreground font-semibold text-sm">
-                      <UserCheck className="h-4 w-4 text-[#103C35]" />
+                      <UserCheck className="h-4 w-4 text-[#103C35] dark:text-emerald-400" />
                       <span>Trainer Log (Today)</span>
                     </div>
 
@@ -543,10 +543,10 @@ export default function Dashboard() {
                         {batchDayData.consolidatedLogs.map((log) => (
                           <div
                             key={log.id}
-                            className="p-3.5 rounded-xl bg-muted/40 border border-border/60 flex flex-col sm:flex-row sm:items-start justify-between gap-3"
+                            className="p-3.5 rounded-xl bg-muted/40 dark:bg-white/[0.03] border border-border/60 dark:border-white/[0.07] flex flex-col sm:flex-row sm:items-start justify-between gap-3"
                           >
                             <div className="flex items-start gap-3 shrink-0">
-                              <span className="px-2.5 py-1 rounded text-[11px] font-mono font-semibold bg-emerald-500/15 text-emerald-700 dark:text-emerald-300 border border-emerald-500/30 whitespace-nowrap mt-0.5">
+                              <span className="px-2.5 py-1 rounded text-[11px] font-mono font-semibold bg-emerald-500/15 dark:bg-emerald-500/25 text-emerald-700 dark:text-emerald-300 border border-emerald-500/30 dark:border-emerald-500/40 whitespace-nowrap mt-0.5">
                                 {log.hourLabel}
                               </span>
                               <div className="space-y-0.5">
@@ -579,10 +579,10 @@ export default function Dashboard() {
                   </div>
 
                   {/* 3.2 Hour-wise Attendance */}
-                  <div className="xl:col-span-6 p-4 rounded-xl border border-border/70 bg-background space-y-3">
+                  <div className="xl:col-span-6 p-4 rounded-xl border border-border/70 dark:border-white/[0.08] bg-background dark:bg-white/[0.02] space-y-3">
                     <div className="flex items-center justify-between">
                       <div className="flex items-center gap-2 text-foreground font-semibold text-sm">
-                        <BarChart3 className="h-4 w-4 text-[#103C35]" />
+                        <BarChart3 className="h-4 w-4 text-[#103C35] dark:text-emerald-400" />
                         <span>Hour-wise Attendance</span>
                       </div>
                     </div>
@@ -596,7 +596,7 @@ export default function Dashboard() {
                         <div className="overflow-x-auto">
                           <table className="w-full text-xs">
                             <thead>
-                              <tr className="border-b border-border/60 text-muted-foreground font-mono uppercase text-[10px]">
+                              <tr className="border-b border-border/60 dark:border-white/[0.08] text-muted-foreground font-mono uppercase text-[10px]">
                                 <th className="text-left pb-2 font-semibold">Hour</th>
                                 <th className="text-center pb-2 font-semibold">Present</th>
                                 <th className="text-center pb-2 font-semibold">Absent</th>
@@ -604,16 +604,16 @@ export default function Dashboard() {
                                 <th className="text-right pb-2 font-semibold">Absentees</th>
                               </tr>
                             </thead>
-                            <tbody className="divide-y divide-border/40">
+                            <tbody className="divide-y divide-border/40 dark:divide-white/[0.06]">
                               {batchDayData.hourRows.map((row) => (
-                                <tr key={row.session.id} className="hover:bg-muted/30">
+                                <tr key={row.session.id} className="hover:bg-muted/30 dark:hover:bg-white/[0.03] transition-colors">
                                   <td className="py-2.5 font-bold text-foreground">
                                     Hour {row.hourNo}
                                   </td>
-                                  <td className="py-2.5 text-center font-mono text-emerald-600 font-medium">
+                                  <td className="py-2.5 text-center font-mono text-emerald-600 dark:text-emerald-400 font-medium">
                                     {row.presentCount}
                                   </td>
-                                  <td className="py-2.5 text-center font-mono text-rose-600 font-medium">
+                                  <td className="py-2.5 text-center font-mono text-rose-600 dark:text-rose-400 font-medium">
                                     {row.absentCount}
                                   </td>
                                   <td className="py-2.5 text-center font-mono font-bold text-foreground">
@@ -630,7 +630,7 @@ export default function Dashboard() {
                                           absentees: row.absentees
                                         })
                                       }
-                                      className="p-1 rounded-md text-muted-foreground hover:text-[#103C35] hover:bg-muted transition-colors cursor-pointer"
+                                      className="p-1 rounded-md text-muted-foreground hover:text-[#103C35] dark:hover:text-emerald-400 hover:bg-muted dark:hover:bg-white/[0.08] transition-colors cursor-pointer"
                                       title={`View absentees for Hour ${row.hourNo}`}
                                     >
                                       <Eye className="h-4 w-4" />
@@ -655,8 +655,8 @@ export default function Dashboard() {
       {/* SECTION 3: ACTIVE BATCHES OVERVIEW                        */}
       {/* ========================================================= */}
       <div className="card-meridian p-5 sm:p-6 space-y-4">
-        <div className="flex items-center gap-2.5 pb-2 border-b border-border/50">
-          <Layers className="h-5 w-5 text-[#103C35]" />
+        <div className="flex items-center gap-2.5 pb-2 border-b border-border/50 dark:border-white/[0.08]">
+          <Layers className="h-5 w-5 text-[#103C35] dark:text-emerald-400" />
           <h2 className="text-lg font-bold font-heading text-foreground">
             Active Batches Overview
           </h2>
@@ -665,7 +665,7 @@ export default function Dashboard() {
         <div className="overflow-x-auto">
           <table className="w-full text-xs">
             <thead>
-              <tr className="border-b border-border/60 text-muted-foreground font-mono uppercase text-[11px]">
+              <tr className="border-b border-border/60 dark:border-white/[0.08] text-muted-foreground font-mono uppercase text-[11px]">
                 <th className="text-left pb-3 font-semibold">Batch</th>
                 <th className="text-left pb-3 font-semibold">College</th>
                 <th className="text-center pb-3 font-semibold">Current Semester</th>
@@ -675,21 +675,21 @@ export default function Dashboard() {
                 <th className="text-left pb-3 font-semibold min-w-[200px]">Current Semester Topic Coverage %</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-border/40">
+            <tbody className="divide-y divide-border/40 dark:divide-white/[0.06]">
               {activeBatchesOverview.map((item) => (
                 <tr
                   key={item.id}
                   onClick={() => navigate(`/batches/${item.id}`)}
-                  className="hover:bg-muted/40 transition-colors cursor-pointer group"
+                  className="hover:bg-muted/40 dark:hover:bg-white/[0.03] transition-colors cursor-pointer group"
                 >
-                  <td className="py-3.5 font-bold font-heading text-foreground group-hover:text-[#103C35] transition-colors">
+                  <td className="py-3.5 font-bold font-heading text-foreground group-hover:text-[#103C35] dark:group-hover:text-emerald-400 transition-colors">
                     {item.code}
                   </td>
                   <td className="py-3.5 text-muted-foreground">
                     {item.collegeName}
                   </td>
                   <td className="py-3.5 text-center">
-                    <span className="px-2.5 py-0.5 rounded-full text-[11px] font-semibold bg-emerald-500/10 text-emerald-700 dark:text-emerald-300 border border-emerald-500/20">
+                    <span className="px-2.5 py-0.5 rounded-full text-[11px] font-semibold bg-emerald-500/10 dark:bg-emerald-500/20 text-emerald-700 dark:text-emerald-300 border border-emerald-500/20 dark:border-emerald-500/30">
                       Semester {item.currentSemester}
                     </span>
                   </td>
@@ -704,9 +704,9 @@ export default function Dashboard() {
                           {item.currentAvgAttendancePct.toFixed(2)}%
                         </span>
                       </div>
-                      <div className="w-full h-2 rounded-full bg-muted overflow-hidden">
+                      <div className="w-full h-2 rounded-full bg-muted dark:bg-white/10 overflow-hidden">
                         <div
-                          className="h-full bg-[#103C35] rounded-full transition-all duration-300"
+                          className="h-full bg-[#103C35] dark:bg-emerald-400 rounded-full transition-all duration-300 shadow-xs"
                           style={{ width: `${Math.min(100, Math.max(0, item.currentAvgAttendancePct))}%` }}
                         />
                       </div>
@@ -720,9 +720,9 @@ export default function Dashboard() {
                           {item.currentSemTopicCoveragePct.toFixed(2)}%
                         </span>
                       </div>
-                      <div className="w-full h-2 rounded-full bg-muted overflow-hidden">
+                      <div className="w-full h-2 rounded-full bg-muted dark:bg-white/10 overflow-hidden">
                         <div
-                          className="h-full bg-[#103C35] rounded-full transition-all duration-300"
+                          className="h-full bg-[#103C35] dark:bg-emerald-400 rounded-full transition-all duration-300 shadow-xs"
                           style={{ width: `${Math.min(100, Math.max(0, item.currentSemTopicCoveragePct))}%` }}
                         />
                       </div>
@@ -742,11 +742,11 @@ export default function Dashboard() {
         <div
           role="dialog"
           aria-modal="true"
-          className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-xs animate-in fade-in-0 duration-150"
+          className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-xs animate-in fade-in-0 duration-150"
         >
-          <div className="bg-background rounded-2xl border border-border shadow-2xl max-w-lg w-full overflow-hidden flex flex-col max-h-[85vh]">
+          <div className="bg-background dark:bg-[#142420] rounded-2xl border border-border dark:border-white/10 shadow-2xl max-w-lg w-full overflow-hidden flex flex-col max-h-[85vh]">
             {/* Modal Header */}
-            <div className="p-5 border-b border-border/60 flex items-start justify-between gap-4 bg-muted/30">
+            <div className="p-5 border-b border-border/60 dark:border-white/[0.08] flex items-start justify-between gap-4 bg-muted/30 dark:bg-white/[0.02]">
               <div>
                 <h3 className="font-heading font-bold text-base text-foreground">
                   Absentee Details &ndash; {absenteeModal.batchCode}
@@ -758,7 +758,7 @@ export default function Dashboard() {
               <button
                 type="button"
                 onClick={() => setAbsenteeModal(null)}
-                className="p-1 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted transition-colors cursor-pointer"
+                className="p-1 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted dark:hover:bg-white/10 transition-colors cursor-pointer"
               >
                 <X className="h-5 w-5" />
               </button>

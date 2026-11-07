@@ -78,11 +78,11 @@ export function Header({ isCollapsed = false, onToggleSidebar, onMobileToggle }:
       
       <div className="flex-1 flex items-center gap-4 max-w-md hidden md:flex">
         <div className="relative w-full max-w-sm">
-          <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+          <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground dark:text-muted-foreground/80" />
           <Input 
             type="search" 
             placeholder="Search students, courses..." 
-            className="w-full bg-muted/50 pl-9 border-none shadow-none focus-visible:ring-1 focus-visible:ring-primary/30 h-9 rounded-full" 
+            className="w-full bg-muted/50 dark:bg-white/[0.05] dark:border dark:border-white/10 dark:text-foreground placeholder:text-muted-foreground/70 pl-9 border-none shadow-none focus-visible:ring-1 focus-visible:ring-primary/40 h-9 rounded-full transition-all" 
           />
         </div>
       </div>

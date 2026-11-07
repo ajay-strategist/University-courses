@@ -106,54 +106,54 @@
   }
 
   .dark {
-    /* Verdant Dark */
-    --background: 170 34% 8%; /* #0D1A17 canvas */
-    --foreground: 150 14% 92%; /* #E7EEEB ink */
+    /* Verdant Dark - Elevated Obsidian & Emerald Luxe */
+    --background: 170 36% 6%; /* #0A1412 rich obsidian canvas */
+    --foreground: 150 16% 94%; /* #EDF4F1 crisp high-contrast white */
 
-    --surface: 160 33% 11%; /* #12241F surface */
-    --surface-sunken: 165 31% 9%; /* #0F1E1A sunken */
+    --surface: 164 26% 11%; /* #142420 elevated surface */
+    --surface-sunken: 170 30% 7%; /* #0C1714 sunken */
 
-    --card: 160 33% 11%;
-    --card-foreground: 150 14% 92%;
+    --card: 164 26% 11%; /* #142420 card surface with clear elevation from canvas */
+    --card-foreground: 150 16% 94%;
 
-    --popover: 160 33% 11%;
-    --popover-foreground: 150 14% 92%;
+    --popover: 164 26% 11%;
+    --popover-foreground: 150 16% 94%;
 
-    --primary: 171 49% 42%; /* #37A08F primary */
-    --primary-foreground: 170 34% 8%;
-    --primary-hover: 171 49% 38%;
-    --primary-tint: 165 31% 14%;
+    --primary: 160 70% 48%; /* #24D396 vibrant luminous emerald */
+    --primary-foreground: 170 36% 6%;
+    --primary-hover: 160 70% 42%;
+    --primary-tint: 164 35% 15%;
 
-    --accent: 38 72% 58%; /* #E0A94A accent */
-    --accent-foreground: 170 34% 8%;
+    --accent: 38 85% 58%; /* #F0B238 vibrant luminous gold */
+    --accent-foreground: 170 36% 6%;
 
-    --secondary: 165 31% 9%; /* #0F1E1A sunken */
-    --secondary-foreground: 150 14% 92%;
+    --secondary: 164 24% 14%; /* #1B2F2A */
+    --secondary-foreground: 150 16% 94%;
 
-    --muted: 165 31% 9%;
-    --muted-foreground: 158 11% 60%; /* #8FA39C text-muted */
+    --muted: 164 24% 13%; /* #182B26 */
+    --muted-foreground: 155 12% 68%; /* #9EB4AC high readability */
 
-    --destructive: 8 70% 61%; /* #E06A57 danger */
+    --destructive: 8 76% 63%; /* #EB6A55 */
     --destructive-foreground: 0 0% 100%;
 
-    --success: 156 43% 48%; /* #46B085 */
-    --success-tint: 156 49% 15%; /* #133829 */
-    --success-text-on-tint: 156 43% 48%;
+    --success: 156 60% 50%; /* #32CE8A */
+    --success-tint: 156 45% 16%;
+    --success-text-on-tint: 156 65% 65%;
 
-    --warning: 39 77% 60%; /* #E6B24E */
-    --warning-tint: 38 49% 15%; /* #382A13 */
-    --warning-text-on-tint: 39 77% 60%;
+    --warning: 39 85% 60%; /* #F5B942 */
+    --warning-tint: 38 45% 16%;
+    --warning-text-on-tint: 39 85% 65%;
 
-    --danger-tint: 8 47% 16%; /* #3D1B16 */
-    --danger-text-on-tint: 8 70% 61%;
+    --danger-tint: 8 45% 18%;
+    --danger-text-on-tint: 8 76% 63%;
 
-    --info: 185 50% 46%; /* #3BA9B2 */
-    --info-tint: 187 48% 12%; /* #102B2E */
-    --info-text-on-tint: 185 50% 46%;
+    --info: 185 65% 50%;
+    --info-tint: 187 45% 14%;
+    --info-text-on-tint: 185 65% 60%;
 
-    --border: 163 26% 18%; /* #223A33 border */
-    --input: 163 26% 18%;
-    --ring: 38 72% 58%; /* #E0A94A accent */
+    --border: 164 20% 20%; /* #29423A crisp boundary */
+    --input: 164 20% 20%;
+    --ring: 38 85% 58%;
   }
 }
 
@@ -180,5 +180,10 @@
     border: 1px solid var(--color-border);
     box-shadow: 0 1px 2px rgba(18,33,43,0.06), 0 8px 24px -12px rgba(18,33,43,0.12);
     transition: all 0.2s ease;
+  }
+
+  .dark .card-meridian {
+    border-color: rgba(255, 255, 255, 0.08);
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.4), 0 12px 32px -12px rgba(0, 0, 0, 0.6);
   }
 }
