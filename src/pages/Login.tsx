@@ -253,16 +253,9 @@ export default function Login() {
           </div>
         </div>
 
-        {/* BOTTOM: Neoclassical Campus Hall Visual */}
-        <div className="relative z-10 pt-2">
-          <div className="rounded-2xl overflow-hidden border border-white/15 shadow-2xl max-w-lg bg-[#06241b] group">
-            <img
-              src="/campus-photo.jpg"
-              alt="University Academic Campus"
-              className="w-full h-32 sm:h-36 object-cover object-center transition-transform duration-500 group-hover:scale-105"
-            />
-          </div>
-          <p className="text-[11px] text-emerald-200/60 mt-3 font-mono">
+        {/* BOTTOM: Copyright footer */}
+        <div className="relative z-10 pt-4">
+          <p className="text-xs text-emerald-200/60 font-mono">
             &copy; {new Date().getFullYear()} KVJ Analytics &bull; EduCore Platform
           </p>
         </div>
