@@ -14,7 +14,6 @@ import {
   Eye,
   UserCheck,
   Users,
-  UserX,
   X,
   CalendarCheck
 } from 'lucide-react';
@@ -521,28 +520,6 @@ export default function Dashboard() {
                         <span className="text-[10px] text-muted-foreground uppercase leading-none">Students</span>
                         <span className="font-bold text-foreground leading-tight mt-0.5">
                           {batchDayData.studentCount}
-                        </span>
-                      </div>
-                    </div>
-
-                    {/* Present */}
-                    <div className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-background border border-border/60">
-                      <UserCheck className="h-4 w-4 text-emerald-600" />
-                      <div className="flex flex-col">
-                        <span className="text-[10px] text-muted-foreground uppercase leading-none">Present</span>
-                        <span className="font-bold text-emerald-600 leading-tight mt-0.5">
-                          {batchDayData.summaryPresent}
-                        </span>
-                      </div>
-                    </div>
-
-                    {/* Absent */}
-                    <div className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-background border border-border/60">
-                      <UserX className="h-4 w-4 text-rose-600" />
-                      <div className="flex flex-col">
-                        <span className="text-[10px] text-muted-foreground uppercase leading-none">Absent</span>
-                        <span className="font-bold text-rose-600 leading-tight mt-0.5">
-                          {batchDayData.summaryAbsent}
                         </span>
                       </div>
                     </div>
