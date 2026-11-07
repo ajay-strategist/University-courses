@@ -126,10 +126,10 @@ export function Sidebar({ isCollapsed = false, onToggle }: SidebarProps) {
               </div>
               <div className="flex flex-col whitespace-nowrap overflow-hidden">
                 <span className="font-heading text-base font-bold tracking-tight text-white leading-tight">
-                  Training Tracker
+                  EduCore
                 </span>
                 <span className="text-[11px] text-accent font-mono font-bold uppercase tracking-wider">
-                  Meridian Console
+                  KVJ Analytics
                 </span>
               </div>
             </>
