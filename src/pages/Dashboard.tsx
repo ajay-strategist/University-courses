@@ -190,12 +190,7 @@ export default function Dashboard() {
         .map((tid) => syllabusItems.find((sy) => sy.id === tid)?.topic_name)
         .filter(Boolean) as string[];
 
-      const topicDescription =
-        topicsCoveredNames.length > 0
-          ? `${course?.name || 'Course'} - ${topicsCoveredNames.slice(0, 2).join(', ')}${
-              topicsCoveredNames.length > 2 ? ` (+${topicsCoveredNames.length - 2} more)` : ''
-            }`
-          : course?.name || 'Class Session';
+      const courseName = course?.name || 'Tool / Course';
 
       return {
         id: log.id,
@@ -203,7 +198,8 @@ export default function Dashboard() {
         startTime: log.start_time,
         endTime: log.end_time,
         hourLabel,
-        topicDescription
+        courseName,
+        topicNames: topicsCoveredNames
       };
     });
 
@@ -551,14 +547,14 @@ export default function Dashboard() {
                         No trainer log entries recorded for this batch today.
                       </div>
                     ) : (
-                      <div className="space-y-2.5">
+                      <div className="space-y-3">
                         {batchDayData.consolidatedLogs.map((log) => (
                           <div
                             key={log.id}
-                            className="p-3 rounded-lg bg-muted/40 border border-border/50 flex items-start justify-between gap-3"
+                            className="p-3.5 rounded-xl bg-muted/40 border border-border/60 flex flex-col sm:flex-row sm:items-start justify-between gap-3"
                           >
-                            <div className="flex items-start gap-2.5">
-                              <span className="px-2 py-0.5 rounded text-[11px] font-mono font-semibold bg-emerald-500/15 text-emerald-700 dark:text-emerald-300 border border-emerald-500/30 whitespace-nowrap">
+                            <div className="flex items-start gap-3 shrink-0">
+                              <span className="px-2.5 py-1 rounded text-[11px] font-mono font-semibold bg-emerald-500/15 text-emerald-700 dark:text-emerald-300 border border-emerald-500/30 whitespace-nowrap mt-0.5">
                                 {log.hourLabel}
                               </span>
                               <div className="space-y-0.5">
@@ -570,10 +566,19 @@ export default function Dashboard() {
                                 </div>
                               </div>
                             </div>
-                            <div className="text-right max-w-[180px]">
-                              <div className="text-xs font-medium text-foreground truncate" title={log.topicDescription}>
-                                {log.topicDescription}
+                            <div className="text-left sm:text-right flex-1 sm:pl-3">
+                              <div className="text-xs font-bold text-foreground">
+                                {log.courseName}
                               </div>
+                              {log.topicNames.length > 0 ? (
+                                <div className="text-[11px] text-muted-foreground mt-1 leading-relaxed">
+                                  {log.topicNames.join(', ')}
+                                </div>
+                              ) : (
+                                <div className="text-[11px] text-muted-foreground italic mt-0.5">
+                                  Standard curriculum session
+                                </div>
+                              )}
                             </div>
                           </div>
                         ))}
@@ -581,7 +586,7 @@ export default function Dashboard() {
                     )}
                   </div>
 
-                  {/* 3.2 Hour-wise Attendance & 3.3 Average Attendance */}
+                  {/* 3.2 Hour-wise Attendance */}
                   <div className="xl:col-span-6 p-4 rounded-xl border border-border/70 bg-background space-y-3">
                     <div className="flex items-center justify-between">
                       <div className="flex items-center gap-2 text-foreground font-semibold text-sm">
@@ -643,21 +648,6 @@ export default function Dashboard() {
                               ))}
                             </tbody>
                           </table>
-                        </div>
-
-                        {/* 3.3 Average Attendance Card */}
-                        <div className="p-3.5 rounded-xl bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-between">
-                          <div className="space-y-0.5">
-                            <span className="text-xs font-semibold text-emerald-900 dark:text-emerald-200">
-                              Average Attendance
-                            </span>
-                            <span className="text-[10px] text-emerald-800/80 dark:text-emerald-300/80 block">
-                              Aggregate weighted attendance across all hours
-                            </span>
-                          </div>
-                          <div className="text-2xl font-bold font-mono text-[#103C35] dark:text-emerald-400">
-                            {batchDayData.averageAttendancePct.toFixed(2)}%
-                          </div>
                         </div>
                       </div>
                     )}
