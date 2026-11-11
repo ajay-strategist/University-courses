@@ -11,6 +11,7 @@ import {
   LogOut,
   ChevronRight,
   Shield,
+  ShieldAlert,
   GraduationCap,
   CalendarDays,
   PanelLeftClose,
@@ -64,6 +65,12 @@ export function Sidebar({ isCollapsed = false, onToggle }: SidebarProps) {
       name: 'Email & Notifications', 
       path: '/notifications', 
       icon: Mail, 
+      roles: ['admin', 'trainer'] 
+    },
+    { 
+      name: 'Student Risk', 
+      path: '/risk-management', 
+      icon: ShieldAlert, 
       roles: ['admin', 'trainer'] 
     },
     { 

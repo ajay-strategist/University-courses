@@ -215,7 +215,17 @@ export default function BatchDetails() {
   const [marksState, setMarksState] = useState<Record<string, number>>({});
   const [marksImportPreview, setMarksImportPreview] = useState<{
     validRows: { student_id: string; register_no: string; name: string; mark: number }[];
-    errorRows: { register_no: string; name: string; mark: number; error: string }[];
+    errorRows: { register_no: string; name: string; mark: any; max_mark: number; reason: string }[];
+    skippedBlankCount: number;
+  } | null>(null);
+
+  // REQ-ASM-01.2: Post-Import Rejection Report State
+  const [rejectionReport, setRejectionReport] = useState<{
+    assessmentName: string;
+    maxMark: number;
+    importedCount: number;
+    errorRows: { register_no: string; name: string; mark: any; max_mark: number; reason: string }[];
+    skippedBlankCount: number;
   } | null>(null);
 
   // Absentee Email Preview Modal State
@@ -1014,36 +1024,73 @@ export default function BatchDetails() {
 
         const validRows: any[] = [];
         const errorRows: any[] = [];
+        let skippedBlankCount = 0;
 
         rows.forEach((r) => {
           const regNo = String(r['Register Number'] || r['Register No'] || r.register_no || r['Reg No'] || '').trim();
-          const name = String(r['Name'] || r['Student Name'] || r.name || '').trim();
-          const markVal = Number(r['Mark'] !== undefined ? r['Mark'] : r.mark);
+          const name = String(r['Student Name'] || r['Name'] || r.name || '').trim();
+          const rawMark = r['Mark'] !== undefined ? r['Mark'] : (r['Marks'] !== undefined ? r['Marks'] : r.mark);
 
+          // REQ-ASM-01.2 Rule 8: Blank cells must remain blank and NOT overwrite DB marks or convert to zero
+          if (rawMark === undefined || rawMark === null || String(rawMark).trim() === '') {
+            skippedBlankCount++;
+            return;
+          }
+
+          const markNum = Number(rawMark);
           const student = students.find(s => s.register_no.toLowerCase() === regNo.toLowerCase());
 
-          if (!student) {
-            errorRows.push({ register_no: regNo || 'N/A', name: name || 'Unknown', mark: markVal, error: 'Register Number not found in batch roster' });
-          } else if (isNaN(markVal) || markVal < 0) {
-            errorRows.push({ register_no: student.register_no, name: student.name, mark: markVal, error: 'Invalid mark value (must be >= 0)' });
-          } else if (markVal > limitMark) {
+          if (!regNo) {
+            errorRows.push({
+              register_no: 'N/A',
+              name: name || 'Unknown',
+              mark: String(rawMark),
+              max_mark: limitMark,
+              reason: 'Missing Register Number'
+            });
+          } else if (!student) {
+            errorRows.push({
+              register_no: regNo,
+              name: name || 'Unknown',
+              mark: String(rawMark),
+              max_mark: limitMark,
+              reason: `Register Number "${regNo}" not found in current batch roster`
+            });
+          } else if (isNaN(markNum) || markNum < 0) {
             errorRows.push({
               register_no: student.register_no,
               name: student.name,
-              mark: markVal,
-              error: `Mark (${markVal}) exceeds assessment max mark limit of ${limitMark}`
+              mark: String(rawMark),
+              max_mark: limitMark,
+              reason: 'Invalid mark value (must be numeric and >= 0)'
+            });
+          } else if (markNum > limitMark) {
+            // REQ-ASM-01.2 Rule 2 & 3: Mark exceeds max mark, reject only that student row
+            errorRows.push({
+              register_no: student.register_no,
+              name: student.name,
+              mark: markNum,
+              max_mark: limitMark,
+              reason: `Mark (${markNum}) exceeds Maximum Marks (${limitMark})`
             });
           } else {
-            validRows.push({ student_id: student.id, register_no: student.register_no, name: student.name, mark: markVal });
+            // REQ-ASM-01.2 Rule 4: Accept and import all other valid rows
+            validRows.push({
+              student_id: student.id,
+              register_no: student.register_no,
+              name: student.name,
+              mark: markNum
+            });
           }
         });
 
-        setMarksImportPreview({ validRows, errorRows });
+        setMarksImportPreview({ validRows, errorRows, skippedBlankCount });
       } catch (err) {
         toast.error('Failed to parse Excel file');
       }
     };
     reader.readAsArrayBuffer(file);
+    e.target.value = '';
   };
 
   const handleCommitMarksImport = async () => {
@@ -1091,12 +1138,56 @@ export default function BatchDetails() {
 
     try {
       await store.saveAssessmentMarks(marksToSave);
+      
+      // REQ-ASM-01.2 Rule 7: Immediate sync so marks remain editable in manual interface
+      setMarksState(prev => {
+        const next = { ...prev };
+        marksImportPreview.validRows.forEach(row => {
+          next[row.student_id] = row.mark;
+        });
+        return next;
+      });
+
+      const validCount = marksImportPreview.validRows.length;
+      const errorCount = marksImportPreview.errorRows.length;
+      const skippedCount = marksImportPreview.skippedBlankCount;
+
+      // REQ-ASM-01.2 Rule 5: Show clear rejection report after import
+      if (errorCount > 0) {
+        setRejectionReport({
+          assessmentName: assessmentName.trim() || currentAssessment?.name || 'Assessment',
+          maxMark: assessmentMaxMark,
+          importedCount: validCount,
+          errorRows: marksImportPreview.errorRows,
+          skippedBlankCount: skippedCount,
+        });
+      }
+
       setMarksImportPreview(null);
-      toast.success(`Successfully committed marks for ${marksImportPreview.validRows.length} students!`);
+      toast.success(
+        `Successfully imported ${validCount} valid marks!${errorCount > 0 ? ` (${errorCount} rows rejected)` : ''}${skippedCount > 0 ? ` (${skippedCount} blanks preserved)` : ''}`
+      );
     } catch (err: any) {
       console.error('Error committing marks:', err);
       toast.error(`Failed to commit marks: ${err.message || 'Database error'}`);
     }
+  };
+
+  const handleExportRejectionReport = () => {
+    if (!rejectionReport || rejectionReport.errorRows.length === 0) return;
+    const ws = XLSX.utils.json_to_sheet(
+      rejectionReport.errorRows.map(r => ({
+        'Register Number': r.register_no,
+        'Student Name': r.name,
+        'Invalid Mark': r.mark,
+        'Maximum Marks': r.max_mark,
+        'Rejection Reason': r.reason,
+      }))
+    );
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, 'Rejection Report');
+    XLSX.writeFile(wb, `${batch.code}_Marks_Rejection_Report.xlsx`);
+    toast.success('Downloaded Marks Rejection Report (.xlsx)');
   };
 
   // -------------------------------------------------------------------------------------
@@ -1954,34 +2045,130 @@ export default function BatchDetails() {
             </div>
           </div>
 
-          {/* Validation Preview Modal/Box */}
+          {/* REQ-ASM-01.2: Validation Preview Modal/Box */}
           {marksImportPreview && (
             <div className="bg-card border-2 border-primary rounded-2xl p-5 space-y-4 shadow-xl">
-              <div className="flex justify-between items-center border-b border-border pb-3">
-                <h3 className="font-heading font-bold text-foreground">Import Validation Preview</h3>
-                <span className="text-xs font-mono font-bold text-success">
-                  {marksImportPreview.validRows.length} Valid Rows · {marksImportPreview.errorRows.length} Errors
-                </span>
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between border-b border-border pb-3 gap-2">
+                <div>
+                  <h3 className="font-heading font-bold text-foreground">Import Validation Preview</h3>
+                  <p className="text-xs text-muted-foreground">
+                    Partial acceptance active: Valid rows will be imported. Rows with invalid marks or exceeding Max Marks will be rejected.
+                  </p>
+                </div>
+                <div className="flex items-center gap-2 text-xs font-mono">
+                  <span className="px-2.5 py-1 rounded-lg bg-success/15 text-success font-bold">
+                    {marksImportPreview.validRows.length} Valid
+                  </span>
+                  <span className={`px-2.5 py-1 rounded-lg font-bold ${marksImportPreview.errorRows.length > 0 ? 'bg-destructive/15 text-destructive' : 'bg-muted text-muted-foreground'}`}>
+                    {marksImportPreview.errorRows.length} Rejected
+                  </span>
+                  {marksImportPreview.skippedBlankCount > 0 && (
+                    <span className="px-2.5 py-1 rounded-lg bg-muted text-muted-foreground font-medium">
+                      {marksImportPreview.skippedBlankCount} Blanks Preserved
+                    </span>
+                  )}
+                </div>
               </div>
 
+              {/* REQ-ASM-01.2 Rejection Table in Preview */}
               {marksImportPreview.errorRows.length > 0 && (
-                <div className="bg-destructive/10 border border-destructive/30 rounded-xl p-3 text-xs space-y-1 text-destructive">
-                  <div className="font-bold flex items-center gap-1">
-                    <AlertTriangle className="h-4 w-4" /> Row-Level Validation Errors (Commit Blocked for Invalid Rows):
+                <div className="space-y-2">
+                  <div className="flex items-center justify-between text-xs font-semibold text-destructive">
+                    <span className="flex items-center gap-1.5">
+                      <AlertTriangle className="h-4 w-4" />
+                      Rejected Rows ({marksImportPreview.errorRows.length}) — Will NOT be imported:
+                    </span>
+                    <span className="text-muted-foreground font-mono text-[11px]">
+                      (Valid rows will be imported safely)
+                    </span>
                   </div>
-                  {marksImportPreview.errorRows.map((err, i) => (
-                    <div key={i} className="font-mono">
-                      • Reg {err.register_no}: {err.error} (Attempted Mark: {err.mark})
-                    </div>
-                  ))}
+                  <div className="max-h-56 overflow-y-auto rounded-xl border border-destructive/30 bg-destructive/5">
+                    <table className="w-full text-left text-xs">
+                      <thead className="bg-destructive/10 border-b border-destructive/20 text-destructive font-mono uppercase">
+                        <tr>
+                          <th className="p-2.5">Register Number</th>
+                          <th className="p-2.5">Student Name</th>
+                          <th className="p-2.5 text-center">Invalid Mark</th>
+                          <th className="p-2.5 text-center">Maximum Marks</th>
+                          <th className="p-2.5">Rejection Reason</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-destructive/10">
+                        {marksImportPreview.errorRows.map((err, i) => (
+                          <tr key={i} className="hover:bg-destructive/10">
+                            <td className="p-2.5 font-mono font-bold text-destructive">{err.register_no}</td>
+                            <td className="p-2.5 text-foreground">{err.name || '—'}</td>
+                            <td className="p-2.5 text-center font-mono font-bold text-destructive">{String(err.mark)}</td>
+                            <td className="p-2.5 text-center font-mono text-muted-foreground">{err.max_mark}</td>
+                            <td className="p-2.5 text-destructive font-medium">{err.reason}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
                 </div>
               )}
 
-              <div className="flex justify-end gap-2 pt-2">
+              <div className="flex justify-end gap-2 pt-2 border-t border-border">
                 <Button variant="outline" size="sm" onClick={() => setMarksImportPreview(null)}>Cancel</Button>
                 <Button size="sm" onClick={handleCommitMarksImport} disabled={marksImportPreview.validRows.length === 0} className="bg-primary text-primary-foreground">
                   Commit {marksImportPreview.validRows.length} Valid Marks
                 </Button>
+              </div>
+            </div>
+          )}
+
+          {/* REQ-ASM-01.2: Post-Import Rejection Report Modal */}
+          {rejectionReport && (
+            <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4">
+              <div className="bg-card border border-border rounded-2xl p-6 max-w-3xl w-full shadow-2xl space-y-4">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between border-b border-border pb-3 gap-2">
+                  <div>
+                    <h3 className="text-lg font-bold font-heading text-foreground flex items-center gap-2">
+                      <AlertTriangle className="h-5 w-5 text-amber-500" />
+                      Marks Import Rejection Report
+                    </h3>
+                    <p className="text-xs text-muted-foreground mt-0.5">
+                      Successfully imported <span className="font-bold text-success">{rejectionReport.importedCount}</span> valid marks.
+                      {rejectionReport.skippedBlankCount > 0 && ` (${rejectionReport.skippedBlankCount} blanks untouched).`}
+                      {' '}<span className="font-bold text-destructive">{rejectionReport.errorRows.length}</span> rows were rejected.
+                    </p>
+                  </div>
+                  <Button size="sm" variant="outline" onClick={handleExportRejectionReport} className="text-xs">
+                    <Download className="h-3.5 w-3.5 mr-1" /> Export Report (.xlsx)
+                  </Button>
+                </div>
+
+                <div className="max-h-72 overflow-y-auto rounded-xl border border-border">
+                  <table className="w-full text-left text-xs">
+                    <thead className="bg-muted/60 border-b border-border text-muted-foreground font-mono uppercase">
+                      <tr>
+                        <th className="p-2.5">Register Number</th>
+                        <th className="p-2.5">Student Name</th>
+                        <th className="p-2.5 text-center">Invalid Mark</th>
+                        <th className="p-2.5 text-center">Maximum Marks</th>
+                        <th className="p-2.5">Rejection Reason</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-border">
+                      {rejectionReport.errorRows.map((err, i) => (
+                        <tr key={i} className="hover:bg-muted/30">
+                          <td className="p-2.5 font-mono font-bold text-destructive">{err.register_no}</td>
+                          <td className="p-2.5 text-foreground">{err.name || '—'}</td>
+                          <td className="p-2.5 text-center font-mono font-bold text-destructive">{String(err.mark)}</td>
+                          <td className="p-2.5 text-center font-mono text-muted-foreground">{err.max_mark}</td>
+                          <td className="p-2.5 text-destructive font-medium">{err.reason}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+
+                <div className="flex justify-end pt-2">
+                  <Button onClick={() => setRejectionReport(null)} className="bg-primary text-primary-foreground">
+                    Acknowledge & Close
+                  </Button>
+                </div>
               </div>
             </div>
           )}

@@ -3,6 +3,7 @@ import { store } from '@/lib/store';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { toast } from 'sonner';
+import { NativeReportsEngine } from '@/components/reports/NativeReportsEngine';
 import {
   BarChart3,
   Database,
@@ -161,6 +162,7 @@ const DB_ROLE   = 'pbi_reporting_role';
    MAIN COMPONENT
 ══════════════════════════════════════════════════════ */
 export default function Reports() {
+  const [reportsLayer, setReportsLayer] = useState<'native' | 'powerbi'>('native');
   const [urlDraft, setUrlDraft] = useState(store.powerBiUrl);
   const [reportUrl, setReportUrl] = useState(store.powerBiUrl);
   const [activeTab, setActiveTab] = useState<'embed' | 'connect' | 'views'>('embed');
@@ -179,7 +181,35 @@ export default function Reports() {
 
   return (
     <div className="space-y-6">
-      {/* ── Page Header ── */}
+      {/* Top Segmented Layer Switcher */}
+      <div className="flex items-center rounded-2xl bg-muted/60 p-1 border border-border w-fit shadow-xs">
+        <button
+          onClick={() => setReportsLayer('native')}
+          className={`flex items-center gap-2 px-4 py-2 text-xs font-semibold rounded-xl transition-all ${
+            reportsLayer === 'native'
+              ? 'bg-primary text-primary-foreground shadow-xs'
+              : 'text-muted-foreground hover:text-foreground'
+          }`}
+        >
+          <BarChart3 className="h-4 w-4" /> EduCore Native Reports
+        </button>
+        <button
+          onClick={() => setReportsLayer('powerbi')}
+          className={`flex items-center gap-2 px-4 py-2 text-xs font-semibold rounded-xl transition-all ${
+            reportsLayer === 'powerbi'
+              ? 'bg-primary text-primary-foreground shadow-xs'
+              : 'text-muted-foreground hover:text-foreground'
+          }`}
+        >
+          <Database className="h-4 w-4" /> Power BI Analytics Layer
+        </button>
+      </div>
+
+      {reportsLayer === 'native' ? (
+        <NativeReportsEngine />
+      ) : (
+        <>
+          {/* ── Page Header ── */}
       <div className="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-4">
         <div>
           <div className="flex items-center gap-2 mb-1">
@@ -480,6 +510,8 @@ export default function Reports() {
             </div>
           </div>
         </div>
+      )}
+      </>
       )}
     </div>
   );

@@ -13,8 +13,9 @@ export default function ImportCenter() {
   const [selectedCourseId, setSelectedCourseId] = useState<string>('');
   const [selectedAssessmentId, setSelectedAssessmentId] = useState<string>('new');
   const [newAssessmentName, setNewAssessmentName] = useState<string>('');
-  const [newAssessmentTypeId, setNewAssessmentTypeId] = useState<string>('');
+  const [newAssessmentCategory, setNewAssessmentCategory] = useState<string>('Assignment');
   const [newAssessmentMaxMark, setNewAssessmentMaxMark] = useState<number>(100);
+  const ASSESSMENT_CATEGORIES = ['Assignment', 'Assessment', 'Internal Exam', 'Internal Assessment', 'Exam'];
   
   const [previewData, setPreviewData] = useState<{
     validRows: any[];
@@ -62,11 +63,6 @@ export default function ImportCenter() {
     setPreviewData(null);
   }, [selectedBatchId, selectedCourseId, courseAssessments.length]);
 
-  useEffect(() => {
-    if (store.assessmentTypes.length > 0 && !newAssessmentTypeId) {
-      setNewAssessmentTypeId(store.assessmentTypes[0].id);
-    }
-  }, [store.assessmentTypes]);
 
 
   // Download template with live roster pre-filled where applicable
@@ -271,7 +267,14 @@ export default function ImportCenter() {
         } else if (importType === 'marks') {
           rows.forEach((r, idx) => {
             const regNo = getRowVal(r, ['register number', 'register no', 'register_no', 'reg no', 'roll']);
-            const mark = Number(getRowVal(r, ['mark', 'marks', 'score'], ''));
+            const rawMark = getRowVal(r, ['mark', 'marks', 'score'], '');
+
+            // REQ-ASM-01.2 Rule 8: Excel blank cells must remain blank and NOT overwrite DB marks or convert to zero
+            if (rawMark === undefined || rawMark === null || String(rawMark).trim() === '') {
+              return;
+            }
+
+            const mark = Number(rawMark);
             const stu = batchStudents.find(s => s.register_no.toLowerCase() === String(regNo || '').toLowerCase());
             if (!regNo) {
               errorRows.push({ row: idx + 1, data: r, error: 'Missing register number' });
@@ -429,7 +432,7 @@ export default function ImportCenter() {
             id: generateUUID(),
             batch_course_id: currentBatchCourse.id,
             name: newAssessmentName.trim(),
-            type_id: newAssessmentTypeId,
+            assignment_category: newAssessmentCategory,
             max_mark: newAssessmentMaxMark,
           });
           assessmentId = newAssessment.id;
@@ -579,14 +582,14 @@ export default function ImportCenter() {
                   </div>
 
                   <div>
-                    <label className="text-xs font-mono font-medium text-muted-foreground uppercase">Assessment Type</label>
+                    <label className="text-xs font-mono font-medium text-muted-foreground uppercase">Assessment Category</label>
                     <select
-                      value={newAssessmentTypeId}
-                      onChange={(e) => { setNewAssessmentTypeId(e.target.value); setPreviewData(null); }}
+                      value={newAssessmentCategory}
+                      onChange={(e) => { setNewAssessmentCategory(e.target.value); setPreviewData(null); }}
                       className="w-full mt-1 bg-background border border-border rounded-xl px-3 py-2 text-sm font-semibold text-foreground focus:outline-none"
                     >
-                      {store.assessmentTypes.map(t => (
-                        <option key={t.id} value={t.id}>{t.name}</option>
+                      {ASSESSMENT_CATEGORIES.map(cat => (
+                        <option key={cat} value={cat}>{cat}</option>
                       ))}
                     </select>
                   </div>

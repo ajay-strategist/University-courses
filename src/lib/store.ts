@@ -789,6 +789,10 @@ class DataStore {
       code: college.code || '',
       name: college.name || '',
       location: college.location || '',
+      contact_person: college.contact_person || '',
+      contact_email: college.contact_email || '',
+      contact_phone: college.contact_phone || '',
+      hod_email: college.hod_email || '',
       logo_url: college.logo_url || '',
       image_url: college.image_url || '',
     };
@@ -800,7 +804,15 @@ class DataStore {
     this.saveLocalCache();
 
     try {
-      const { error } = await supabase.from('uct_colleges').upsert(item);
+      const dbPayload: any = {
+        id: item.id,
+        code: item.code,
+        name: item.name,
+        location: item.location,
+        logo_url: item.logo_url,
+        image_url: item.image_url,
+      };
+      const { error } = await supabase.from('uct_colleges').upsert(dbPayload);
       if (error) console.error('Supabase saveCollege error:', error.message);
     } catch (e) {
       console.warn('Supabase college sync warning:', e);

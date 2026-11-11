@@ -11,11 +11,10 @@ import * as XLSX from 'xlsx';
 import { CollegeLogo } from '@/components/common/CollegeLogo';
 
 export default function MasterData() {
-  const [activeTab, setActiveTab] = useState<'colleges' | 'courses' | 'programs' | 'assessments'>('colleges');
+  const [activeTab, setActiveTab] = useState<'colleges' | 'courses' | 'programs'>('colleges');
   const [colleges, setColleges] = useState<College[]>([...store.colleges]);
   const [courses, setCourses] = useState<Course[]>([...store.courses]);
   const [programs, setPrograms] = useState<Program[]>([...store.programs]);
-  const [assessmentTypes, setAssessmentTypes] = useState<AssessmentType[]>([...store.assessmentTypes]);
   const [defaultSyllabus, setDefaultSyllabus] = useState<CourseDefaultSyllabus[]>([...store.defaultSyllabus]);
 
   useEffect(() => {
@@ -29,7 +28,6 @@ export default function MasterData() {
   const [showCollegeModal, setShowCollegeModal] = useState(false);
   const [showCourseModal, setShowCourseModal] = useState(false);
   const [showProgramModal, setShowProgramModal] = useState(false);
-  const [showAssessmentModal, setShowAssessmentModal] = useState(false);
   const [showSyllabusTopicModal, setShowSyllabusTopicModal] = useState(false);
 
   // Form Inputs
@@ -37,18 +35,18 @@ export default function MasterData() {
     code: '', 
     name: '', 
     location: '', 
+    contact_email: '',
+    hod_email: '',
     logo_url: '', 
     image_url: '' 
   });
   const [courseForm, setCourseForm] = useState<Partial<Course>>({ code: '', name: '' });
   const [programForm, setProgramForm] = useState<Partial<Program>>({ code: '', name: '' });
-  const [assessmentForm, setAssessmentForm] = useState<Partial<AssessmentType>>({ name: '', default_max_mark: 100 });
   const [topicForm, setTopicForm] = useState<{ topic_no: number; topic_name: string }>({ topic_no: 1, topic_name: '' });
 
   const [editingCollegeId, setEditingCollegeId] = useState<string | null>(null);
   const [editingCourseId, setEditingCourseId] = useState<string | null>(null);
   const [editingProgramId, setEditingProgramId] = useState<string | null>(null);
-  const [editingAssessmentTypeId, setEditingAssessmentTypeId] = useState<string | null>(null);
 
   // Add / Edit College
   const handleSaveCollege = async () => {
@@ -62,6 +60,8 @@ export default function MasterData() {
       code: collegeForm.code.toUpperCase(),
       name: collegeForm.name,
       location: collegeForm.location || '',
+      contact_email: collegeForm.contact_email || '',
+      hod_email: collegeForm.hod_email || '',
       logo_url: collegeForm.logo_url || '',
       image_url: collegeForm.image_url || '',
     });
@@ -69,7 +69,7 @@ export default function MasterData() {
     setColleges([...store.colleges]);
     setShowCollegeModal(false);
     setEditingCollegeId(null);
-    setCollegeForm({ code: '', name: '', location: '', logo_url: '', image_url: '' });
+    setCollegeForm({ code: '', name: '', location: '', contact_email: '', hod_email: '', logo_url: '', image_url: '' });
     toast.success(`College ${saved.code} saved successfully!`);
   };
 
@@ -110,24 +110,6 @@ export default function MasterData() {
     setEditingProgramId(null);
     setProgramForm({ code: '', name: '' });
     toast.success(`Program ${saved.code} saved successfully!`);
-  };
-
-  // Add / Edit Assessment Type
-  const handleSaveAssessment = async () => {
-    if (!assessmentForm.name) {
-      toast.error('Name is required');
-      return;
-    }
-    const saved = await store.saveAssessmentType({
-      id: editingAssessmentTypeId || undefined,
-      name: assessmentForm.name,
-      default_max_mark: Number(assessmentForm.default_max_mark) || 100,
-    });
-    setAssessmentTypes([...store.assessmentTypes]);
-    setShowAssessmentModal(false);
-    setEditingAssessmentTypeId(null);
-    setAssessmentForm({ name: '', default_max_mark: 100 });
-    toast.success(`Assessment Type ${saved.name} saved successfully!`);
   };
 
   // Add Default Syllabus Topic
@@ -241,14 +223,6 @@ export default function MasterData() {
         >
           <GraduationCap className="h-4 w-4" /> Programs ({programs.length})
         </button>
-        <button
-          onClick={() => setActiveTab('assessments')}
-          className={`flex items-center gap-2 px-4 py-2 text-sm font-medium rounded-lg transition-colors ${
-            activeTab === 'assessments' ? 'bg-primary text-primary-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground'
-          }`}
-        >
-          <Award className="h-4 w-4" /> Assessment Types ({assessmentTypes.length})
-        </button>
       </div>
 
       {/* Tab 1: Colleges */}
@@ -293,7 +267,14 @@ export default function MasterData() {
                         />
                       </td>
                       <td className="p-4 font-mono font-bold text-accent">{col.code}</td>
-                      <td className="p-4 font-medium text-foreground">{col.name}</td>
+                      <td className="p-4">
+                        <div className="font-medium text-foreground">{col.name}</div>
+                        {col.hod_email && (
+                          <div className="text-xs font-mono text-primary flex items-center gap-1 mt-0.5">
+                            <span className="text-muted-foreground">HOD:</span> {col.hod_email}
+                          </div>
+                        )}
+                      </td>
                       <td className="p-4 text-muted-foreground">{col.location || '—'}</td>
                       <td className="p-4">
                         {col.image_url ? (
@@ -313,6 +294,8 @@ export default function MasterData() {
                               code: col.code,
                               name: col.name,
                               location: col.location || '',
+                              contact_email: col.contact_email || '',
+                              hod_email: col.hod_email || '',
                               logo_url: col.logo_url || '',
                               image_url: col.image_url || '',
                             });
@@ -534,64 +517,6 @@ export default function MasterData() {
         </div>
       )}
 
-      {/* Tab 4: Assessment Types */}
-      {activeTab === 'assessments' && (
-        <div className="space-y-4">
-          <div className="flex justify-between items-center">
-            <h2 className="text-lg font-semibold font-heading">Assessment Types & Default Max Marks</h2>
-            <Button onClick={() => { setEditingAssessmentTypeId(null); setAssessmentForm({ name: '', default_max_mark: 100 }); setShowAssessmentModal(true); }} className="bg-primary text-primary-foreground">
-              <Plus className="h-4 w-4 mr-2" /> Add Assessment Type
-            </Button>
-          </div>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            {assessmentTypes.length === 0 ? (
-              <div className="col-span-full card-meridian p-8 text-center text-xs font-mono text-muted-foreground">
-                No assessment types added yet. Click "+ Add Assessment Type" to define grading categories.
-              </div>
-            ) : (
-              assessmentTypes.map((at) => (
-                <div key={at.id} className="card-meridian p-5 flex items-center justify-between">
-                  <div>
-                    <h3 className="font-bold text-foreground text-base">{at.name}</h3>
-                    <div className="text-xs text-muted-foreground font-mono mt-1">
-                      Default Suggestion: <span className="font-bold text-primary">{at.default_max_mark} marks</span>
-                    </div>
-                  </div>
-                  <div className="flex items-center gap-1">
-                    <Button 
-                      variant="ghost" 
-                      size="icon" 
-                      className="h-8 w-8 text-primary hover:bg-primary/10" 
-                      onClick={() => {
-                        setEditingAssessmentTypeId(at.id);
-                        setAssessmentForm({ name: at.name, default_max_mark: at.default_max_mark });
-                        setShowAssessmentModal(true);
-                      }}
-                    >
-                      <Edit2 className="h-4 w-4" />
-                    </Button>
-                    <Button 
-                      variant="ghost" 
-                      size="icon" 
-                      className="h-8 w-8 text-destructive hover:bg-destructive/10" 
-                      onClick={async () => {
-                        if (confirm(`Remove assessment type "${at.name}"?`)) {
-                          await store.deleteAssessmentType(at.id);
-                          setAssessmentTypes([...store.assessmentTypes]);
-                          toast.success('Assessment type removed');
-                        }
-                      }}
-                    >
-                      <Trash2 className="h-4 w-4" />
-                    </Button>
-                  </div>
-                </div>
-              ))
-            )}
-          </div>
-        </div>
-      )}
-
       {/* MODAL 1: Add College */}
       {showCollegeModal && (
         <div className="fixed inset-0 z-50 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4">
@@ -609,6 +534,14 @@ export default function MasterData() {
               <div>
                 <label className="text-xs font-mono font-medium text-muted-foreground">Location / Campus</label>
                 <Input value={collegeForm.location} onChange={(e) => setCollegeForm({ ...collegeForm, location: e.target.value })} placeholder="Kuttikkanam" className="mt-1" />
+              </div>
+              <div>
+                <label className="text-xs font-mono font-medium text-muted-foreground">Contact Email</label>
+                <Input type="email" value={collegeForm.contact_email || ''} onChange={(e) => setCollegeForm({ ...collegeForm, contact_email: e.target.value })} placeholder="office@college.ac.in" className="mt-1" />
+              </div>
+              <div>
+                <label className="text-xs font-mono font-medium text-muted-foreground">HOD / Higher Authority Email (for Risk Notifications)</label>
+                <Input type="email" value={collegeForm.hod_email || ''} onChange={(e) => setCollegeForm({ ...collegeForm, hod_email: e.target.value })} placeholder="hod.mgmt@college.ac.in" className="mt-1" />
               </div>
               <div>
                 <label className="text-xs font-mono font-medium text-muted-foreground">College Logo URL</label>
@@ -673,31 +606,6 @@ export default function MasterData() {
               <Button variant="outline" onClick={() => { setShowProgramModal(false); setEditingProgramId(null); setProgramForm({ code: '', name: '' }); }}>Cancel</Button>
               <Button onClick={handleSaveProgram} className="bg-primary text-primary-foreground">
                 {editingProgramId ? 'Save Changes' : 'Save Program'}
-              </Button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* MODAL 4: Add / Edit Assessment Type */}
-      {showAssessmentModal && (
-        <div className="fixed inset-0 z-50 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4">
-          <div className="bg-card border border-border rounded-2xl p-6 max-w-md w-full shadow-2xl space-y-4">
-            <h3 className="text-lg font-bold font-heading">{editingAssessmentTypeId ? 'Edit Assessment Type' : 'Add Assessment Type'}</h3>
-            <div className="space-y-3">
-              <div>
-                <label className="text-xs font-mono font-medium text-muted-foreground">Assessment Type Name</label>
-                <Input value={assessmentForm.name} onChange={(e) => setAssessmentForm({ ...assessmentForm, name: e.target.value })} placeholder="Assignment / Exam / Quiz" className="mt-1" />
-              </div>
-              <div>
-                <label className="text-xs font-mono font-medium text-muted-foreground">Default Max Mark (Suggestion)</label>
-                <Input type="number" value={assessmentForm.default_max_mark} onChange={(e) => setAssessmentForm({ ...assessmentForm, default_max_mark: Number(e.target.value) })} placeholder="100" className="mt-1 font-mono" />
-              </div>
-            </div>
-            <div className="flex justify-end gap-2 pt-2">
-              <Button variant="outline" onClick={() => { setShowAssessmentModal(false); setEditingAssessmentTypeId(null); setAssessmentForm({ name: '', default_max_mark: 100 }); }}>Cancel</Button>
-              <Button onClick={handleSaveAssessment} className="bg-primary text-primary-foreground">
-                {editingAssessmentTypeId ? 'Save Changes' : 'Save Type'}
               </Button>
             </div>
           </div>

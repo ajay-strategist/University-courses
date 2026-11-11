@@ -41,6 +41,7 @@ export interface College {
   contact_person?: string;
   contact_email?: string;
   contact_phone?: string;
+  hod_email?: string; // HOD / Higher Authority for Risk Notifications
   logo_url?: string;
   image_url?: string;
   created_at?: string;
@@ -101,8 +102,14 @@ export interface Student {
   batch_id: string;
   register_no: string; // Unique within batch
   name: string;
-  class: string; // Division
+  class: string; // Division / Class
+  division?: string;
+  gender?: 'Male' | 'Female' | 'Other' | string;
+  previous_qualification?: 'Plus Two' | 'Diploma' | 'Degree' | 'PG' | string;
   phone?: string;
+  photo_url?: string;
+  linkedin_url?: string;
+  linkedin_post_count?: number;
   attendance_pct?: number;
 }
 

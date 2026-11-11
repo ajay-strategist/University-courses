@@ -16,8 +16,10 @@ import {
   ChevronLeft,
   ChevronRight,
   Sparkles,
-  Info
+  Info,
+  Clock
 } from 'lucide-react';
+import { BatchScheduleView } from '@/components/calendar/BatchScheduleView';
 
 const ACTIVITY_TYPES: { type: AcademicActivityType; label: string; badgeClass: string }[] = [
   {
@@ -127,6 +129,7 @@ export default function AcademicCalendar() {
     }
   }, [availableAcademicYears, selectedYear]);
 
+  const [activeViewTab, setActiveViewTab] = useState<'calendar' | 'batch_schedule'>('calendar');
   const [calendarViewMode, setCalendarViewMode] = useState<'calendar' | 'agenda'>('calendar');
   const [activityTypeFilter, setActivityTypeFilter] = useState<string>('all');
 
@@ -407,7 +410,35 @@ export default function AcademicCalendar() {
         )}
       </div>
 
-      {/* Global Filter Bar */}
+      {/* REQ-AC-01: Top Segmented Mode Selector */}
+      <div className="flex items-center rounded-2xl bg-muted/60 p-1 border border-border w-fit shadow-xs">
+        <button
+          onClick={() => setActiveViewTab('calendar')}
+          className={`flex items-center gap-2 px-4 py-2 text-xs font-semibold rounded-xl transition-all ${
+            activeViewTab === 'calendar'
+              ? 'bg-primary text-primary-foreground shadow-xs'
+              : 'text-muted-foreground hover:text-foreground'
+          }`}
+        >
+          <CalendarDays className="h-4 w-4" /> Institutional Calendar & Semesters
+        </button>
+        <button
+          onClick={() => setActiveViewTab('batch_schedule')}
+          className={`flex items-center gap-2 px-4 py-2 text-xs font-semibold rounded-xl transition-all ${
+            activeViewTab === 'batch_schedule'
+              ? 'bg-primary text-primary-foreground shadow-xs'
+              : 'text-muted-foreground hover:text-foreground'
+          }`}
+        >
+          <Clock className="h-4 w-4" /> Batch Timetable & Date-wise Schedule
+        </button>
+      </div>
+
+      {activeViewTab === 'batch_schedule' ? (
+        <BatchScheduleView />
+      ) : (
+        <>
+          {/* Global Filter Bar */}
       <div className="card-meridian p-4 grid grid-cols-1 md:grid-cols-3 gap-4 items-center">
         <div>
           <label className="text-xs font-mono font-medium text-muted-foreground flex items-center gap-1.5 mb-1.5">
@@ -877,6 +908,8 @@ export default function AcademicCalendar() {
           </div>
         )}
       </div>
+      </>
+      )}
 
       {/* MODAL 1: Add / Edit Semester */}
       {showSemesterModal && (

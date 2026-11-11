@@ -2,7 +2,8 @@ import type { UserEmailConfig, AbsenteePreview } from '@/types';
 import { supabase } from '@/lib/supabase';
 
 export interface SendEmailOptions {
-  to: string;
+  to: string | string[];
+  cc?: string | string[];
   subject: string;
   html: string;
   text?: string;
@@ -57,8 +58,12 @@ export function formatDateToDDMMYYYY(dateStr: string): string {
  * Checks /api/send-email first, and if 404/unavailable falls back to Supabase Edge Function send-email.
  */
 export async function sendEmail(options: SendEmailOptions): Promise<SendEmailResult> {
+  const toStr = Array.isArray(options.to) ? options.to.join(', ') : options.to;
+  const ccStr = Array.isArray(options.cc) ? options.cc.join(', ') : options.cc;
+
   const payload = {
-    to: options.to,
+    to: toStr,
+    cc: ccStr,
     subject: options.subject,
     html: options.html,
     text: options.text,

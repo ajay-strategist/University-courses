@@ -1,7 +1,8 @@
 import { useAuth } from '@/contexts/AuthContext';
 import { Button } from '@/components/ui/button';
 import { store } from '@/lib/store';
-import { Menu, Bell, Search, Sun, Moon, RefreshCw, KeyRound, Loader2, PanelLeftClose, PanelLeftOpen } from 'lucide-react';
+import { Menu, Bell, Search, Sun, Moon, RefreshCw, KeyRound, Loader2, PanelLeftClose, PanelLeftOpen, AlertTriangle, CheckCircle, Clock } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -13,7 +14,7 @@ import {
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { Input } from '@/components/ui/input';
 import { useTheme } from 'next-themes';
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useMemo } from 'react';
 import { toast } from 'sonner';
 
 interface HeaderProps {
@@ -24,8 +25,63 @@ interface HeaderProps {
 
 export function Header({ isCollapsed = false, onToggleSidebar, onMobileToggle }: HeaderProps) {
   const { profile, signOut, updateUserPassword } = useAuth();
+  const navigate = useNavigate();
   const { theme, setTheme } = useTheme();
   const [mounted, setMounted] = useState(false);
+
+  const todayStr = new Date().toISOString().split('T')[0];
+
+  // REQ-AC-01: Operational Notifications (Pending Attendance & Missing Trainer Logs)
+  const pendingAttendanceSessions = useMemo(() => {
+    return store.sessions
+      .filter(sess => {
+        if (sess.session_date > todayStr) return false;
+        const count = store.attendance.filter(a => a.session_id === sess.id).length;
+        return count === 0;
+      })
+      .map(sess => {
+        const bc = store.batchCourses.find(c => c.id === sess.batch_course_id);
+        const batch = store.batches.find(b => b.id === bc?.batch_id);
+        const course = store.courses.find(c => c.id === bc?.course_id);
+        return {
+          id: sess.id,
+          batchId: bc?.batch_id || '',
+          batchCode: batch?.code || 'Batch',
+          courseCode: course?.code || 'Tool',
+          date: sess.session_date,
+          hour: sess.hour_no,
+        };
+      })
+      .slice(0, 5);
+  }, [store.sessions, store.attendance, store.batchCourses, store.batches, store.courses, todayStr]);
+
+  const missingTrainerLogs = useMemo(() => {
+    const alerts: { batchId: string; batchCode: string; date: string }[] = [];
+    const seen = new Set<string>();
+    store.sessions.forEach(sess => {
+      if (sess.session_date > todayStr) return;
+      const bc = store.batchCourses.find(c => c.id === sess.batch_course_id);
+      if (!bc) return;
+      const key = `${bc.batch_id}_${sess.session_date}`;
+      if (seen.has(key)) return;
+      seen.add(key);
+
+      const hasLog = store.trainerLogs.some(
+        l => l.batch_course_id === sess.batch_course_id && l.log_date === sess.session_date
+      );
+      if (!hasLog) {
+        const b = store.batches.find(batch => batch.id === bc.batch_id);
+        alerts.push({
+          batchId: bc.batch_id,
+          batchCode: b?.code || 'Batch',
+          date: sess.session_date,
+        });
+      }
+    });
+    return alerts.slice(0, 5);
+  }, [store.sessions, store.batchCourses, store.trainerLogs, store.batches, todayStr]);
+
+  const totalAlertsCount = pendingAttendanceSessions.length + missingTrainerLogs.length;
 
   // Password change states
   const [isPasswordModalOpen, setIsPasswordModalOpen] = useState(false);
@@ -116,11 +172,73 @@ export function Header({ isCollapsed = false, onToggleSidebar, onMobileToggle }:
           <span className="sr-only">Sync from Database</span>
         </Button>
 
-        <Button variant="ghost" size="icon" className="relative rounded-full h-9 w-9 text-muted-foreground hover:text-foreground">
-          <Bell className="h-4 w-4" />
-          <span className="absolute top-2 right-2.5 h-1.5 w-1.5 rounded-full bg-destructive" />
-          <span className="sr-only">Notifications</span>
-        </Button>
+        <DropdownMenu>
+          <DropdownMenuTrigger className="relative rounded-full h-9 w-9 flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-muted focus-visible:outline-none transition-colors">
+            <Bell className="h-4 w-4" />
+            {totalAlertsCount > 0 && (
+              <span className="absolute -top-0.5 -right-0.5 h-4 min-w-[16px] px-1 rounded-full bg-destructive text-white text-[10px] font-mono font-bold flex items-center justify-center shadow-xs">
+                {totalAlertsCount}
+              </span>
+            )}
+            <span className="sr-only">Notifications</span>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent className="w-80 p-2 space-y-1.5" align="end">
+            <div className="flex items-center justify-between px-2 py-1.5 border-b border-border">
+              <span className="font-heading font-bold text-xs uppercase tracking-wider text-foreground flex items-center gap-1.5">
+                <Bell className="h-3.5 w-3.5 text-primary" /> Operational Alerts
+              </span>
+              <span className="text-[11px] font-mono text-muted-foreground">
+                {totalAlertsCount} pending
+              </span>
+            </div>
+
+            {totalAlertsCount === 0 ? (
+              <div className="p-4 text-center space-y-1.5">
+                <CheckCircle className="h-8 w-8 text-success mx-auto opacity-80" />
+                <p className="text-xs font-semibold text-foreground">All Caught Up!</p>
+                <p className="text-[11px] text-muted-foreground">No pending attendance or missing trainer logs.</p>
+              </div>
+            ) : (
+              <div className="max-h-72 overflow-y-auto space-y-1 divide-y divide-border/50">
+                {pendingAttendanceSessions.map((item) => (
+                  <div
+                    key={`att-${item.id}`}
+                    onClick={() => item.batchId && navigate(`/batches/${item.batchId}`)}
+                    className="p-2 rounded-lg hover:bg-muted/50 cursor-pointer transition-colors space-y-0.5"
+                  >
+                    <div className="flex items-center justify-between text-xs font-semibold text-destructive">
+                      <span className="flex items-center gap-1">
+                        <AlertTriangle className="h-3 w-3" /> Attendance Pending
+                      </span>
+                      <span className="font-mono text-[10px] text-muted-foreground">{item.date}</span>
+                    </div>
+                    <p className="text-xs text-foreground font-medium truncate">
+                      {item.batchCode} · Hour {item.hour} ({item.courseCode})
+                    </p>
+                  </div>
+                ))}
+
+                {missingTrainerLogs.map((item, idx) => (
+                  <div
+                    key={`log-${idx}`}
+                    onClick={() => item.batchId && navigate(`/batches/${item.batchId}`)}
+                    className="p-2 rounded-lg hover:bg-muted/50 cursor-pointer transition-colors space-y-0.5"
+                  >
+                    <div className="flex items-center justify-between text-xs font-semibold text-amber-500">
+                      <span className="flex items-center gap-1">
+                        <Clock className="h-3 w-3" /> Missing Trainer Log
+                      </span>
+                      <span className="font-mono text-[10px] text-muted-foreground">{item.date}</span>
+                    </div>
+                    <p className="text-xs text-foreground font-medium truncate">
+                      {item.batchCode} · No log submitted
+                    </p>
+                  </div>
+                ))}
+              </div>
+            )}
+          </DropdownMenuContent>
+        </DropdownMenu>
 
         <div className="h-6 w-px bg-border/50 mx-1" />
 
