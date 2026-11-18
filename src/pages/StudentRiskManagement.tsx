@@ -156,10 +156,33 @@ export default function StudentRiskManagement() {
     return store.colleges.find(c => c.id === targetBatch?.college_id);
   }, [targetBatch]);
 
-  // Email Recipients Resolution
-  const collegeCoordProfile = store.profiles.find(p => p.id === targetBatch?.college_coordinator_id);
-  const studentCoordProfile = store.profiles.find(p => p.id === targetBatch?.student_coordinator_id);
-  const toRecipients = [collegeCoordProfile?.email, studentCoordProfile?.email].filter(Boolean) as string[];
+  // Email Recipients Resolution — All assigned College Coordinators & Student Coordinators
+  const detailedTargetBatch = useMemo(() => {
+    return targetBatch ? store.getBatchWithDetails(targetBatch.id) : undefined;
+  }, [targetBatch]);
+
+  const toRecipients = useMemo(() => {
+    if (!detailedTargetBatch) return [];
+    const emails: string[] = [];
+    if (detailedTargetBatch.college_coordinators && detailedTargetBatch.college_coordinators.length > 0) {
+      detailedTargetBatch.college_coordinators.forEach(c => {
+        if (c.email && !emails.includes(c.email)) emails.push(c.email);
+      });
+    } else if (detailedTargetBatch.college_coordinator?.email) {
+      emails.push(detailedTargetBatch.college_coordinator.email);
+    }
+
+    if (detailedTargetBatch.student_coordinators && detailedTargetBatch.student_coordinators.length > 0) {
+      detailedTargetBatch.student_coordinators.forEach(c => {
+        if (c.email && !emails.includes(c.email)) emails.push(c.email);
+      });
+    } else if (detailedTargetBatch.student_coordinator?.email) {
+      if (!emails.includes(detailedTargetBatch.student_coordinator.email)) {
+        emails.push(detailedTargetBatch.student_coordinator.email);
+      }
+    }
+    return emails;
+  }, [detailedTargetBatch]);
   
   // CEO email from settings + College HOD
   const ceoEmail = localStorage.getItem('uct_ceo_email') || 'ceo@kvjanalytics.com';

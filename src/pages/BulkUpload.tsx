@@ -475,15 +475,25 @@ export default function BulkUpload() {
           if (!progExists) reasons.push(`Referenced program code not found: ${row.program_code}`);
 
           if (row.college_coordinator_email) {
-            const email = String(row.college_coordinator_email).trim().toLowerCase();
-            const exists = store.profiles.some(p => p.email.toLowerCase() === email) || usersInWorkbook.has(email);
-            if (!exists) reasons.push(`Referenced college coordinator email not found: ${row.college_coordinator_email}`);
+            const emails = String(row.college_coordinator_email)
+              .split(/[;,]/)
+              .map(e => e.trim().toLowerCase())
+              .filter(Boolean);
+            emails.forEach(email => {
+              const exists = store.profiles.some(p => p.email.toLowerCase() === email) || usersInWorkbook.has(email);
+              if (!exists) reasons.push(`Referenced college coordinator email not found: ${email}`);
+            });
           }
 
           if (row.student_coordinator_email) {
-            const email = String(row.student_coordinator_email).trim().toLowerCase();
-            const exists = store.profiles.some(p => p.email.toLowerCase() === email) || usersInWorkbook.has(email);
-            if (!exists) reasons.push(`Referenced student coordinator email not found: ${row.student_coordinator_email}`);
+            const emails = String(row.student_coordinator_email)
+              .split(/[;,]/)
+              .map(e => e.trim().toLowerCase())
+              .filter(Boolean);
+            emails.forEach(email => {
+              const exists = store.profiles.some(p => p.email.toLowerCase() === email) || usersInWorkbook.has(email);
+              if (!exists) reasons.push(`Referenced student coordinator email not found: ${email}`);
+            });
           }
 
           const derivedCode = `${colCode}-${progCode}-${String(row.academic_year).trim()}`;

@@ -1,6 +1,6 @@
 import type { 
   College, Program, Course, CourseDefaultSyllabus, AssessmentType, 
-  Batch, Student, BatchCourse, BatchCourseSyllabus, Session, TrainerLog, MissedReason,
+  Batch, BatchCoordinatorMapping, Student, BatchCourse, BatchCourseSyllabus, Session, TrainerLog, MissedReason,
   Attendance, Assessment, AssessmentMark, Profile, UserEmailConfig, NotificationLog,
   MigrationRun, MigrationMapping, BatchTask, AcademicSemester, AcademicActivity
 } from '@/types';
@@ -27,6 +27,7 @@ class DataStore {
   defaultSyllabus: CourseDefaultSyllabus[] = [];
   assessmentTypes: AssessmentType[] = [];
   batches: Batch[] = [];
+  batchCoordinators: BatchCoordinatorMapping[] = [];
   students: Student[] = [];
   batchCourses: BatchCourse[] = [];
   batchSyllabus: BatchCourseSyllabus[] = [];
@@ -138,8 +139,49 @@ class DataStore {
 
       const cActivities = localStorage.getItem('uct_academic_activities');
       if (cActivities) this.academicActivities = JSON.parse(cActivities);
+
+      const cBatchCoords = localStorage.getItem('uct_batch_coordinators');
+      if (cBatchCoords) this.batchCoordinators = JSON.parse(cBatchCoords);
+      this.backfillCoordinatorsFromBatches();
     } catch (e) {
       console.warn('LocalStorage load warning:', e);
+    }
+  }
+
+  // Ensures existing batches with single coordinator IDs are seamlessly hydrated into multi-coordinator state
+  backfillCoordinatorsFromBatches() {
+    const existingSet = new Set(this.batchCoordinators.map(c => `${c.batch_id}_${c.profile_id}`));
+    let added = false;
+    this.batches.forEach(b => {
+      if (b.college_coordinator_id && !existingSet.has(`${b.id}_${b.college_coordinator_id}`)) {
+        this.batchCoordinators.push({
+          id: generateUUID(),
+          batch_id: b.id,
+          profile_id: b.college_coordinator_id,
+          role: 'college_coordinator',
+          created_at: new Date().toISOString()
+        });
+        existingSet.add(`${b.id}_${b.college_coordinator_id}`);
+        added = true;
+      }
+      if (b.student_coordinator_id && !existingSet.has(`${b.id}_${b.student_coordinator_id}`)) {
+        this.batchCoordinators.push({
+          id: generateUUID(),
+          batch_id: b.id,
+          profile_id: b.student_coordinator_id,
+          role: 'student_coordinator',
+          created_at: new Date().toISOString()
+        });
+        existingSet.add(`${b.id}_${b.student_coordinator_id}`);
+        added = true;
+      }
+    });
+    if (added) {
+      try {
+        localStorage.setItem('uct_batch_coordinators', JSON.stringify(this.batchCoordinators));
+      } catch (e) {
+        // ignore
+      }
     }
   }
 
@@ -147,7 +189,7 @@ class DataStore {
   clearCacheAndReload() {
     const cacheKeys = [
       'uct_colleges', 'uct_programs', 'uct_courses', 'uct_default_syllabus',
-      'uct_assessment_types', 'uct_batches', 'uct_students', 'uct_batch_courses',
+      'uct_assessment_types', 'uct_batches', 'uct_batch_coordinators', 'uct_students', 'uct_batch_courses',
       'uct_batch_syllabus', 'uct_sessions', 'uct_attendance', 'uct_assessments',
       'uct_assessment_marks', 'uct_profiles', 'uct_user_email_config',
       'uct_notification_logs', 'uct_migration_runs', 'uct_migration_mappings', 'uct_trainer_logs',
@@ -165,6 +207,7 @@ class DataStore {
       localStorage.setItem('uct_default_syllabus', JSON.stringify(this.defaultSyllabus));
       localStorage.setItem('uct_assessment_types', JSON.stringify(this.assessmentTypes));
       localStorage.setItem('uct_batches', JSON.stringify(this.batches));
+      localStorage.setItem('uct_batch_coordinators', JSON.stringify(this.batchCoordinators));
       localStorage.setItem('uct_students', JSON.stringify(this.students));
       localStorage.setItem('uct_batch_courses', JSON.stringify(this.batchCourses));
       localStorage.setItem('uct_batch_syllabus', JSON.stringify(this.batchSyllabus));
@@ -358,6 +401,18 @@ class DataStore {
       if (tks !== null) this.batchTasks = (tks || []) as BatchTask[];
       if (aSemesters !== null) this.academicSemesters = (aSemesters || []) as AcademicSemester[];
       if (aActivities !== null) this.academicActivities = (aActivities || []) as AcademicActivity[];
+
+      // Multi-coordinator mappings
+      try {
+        const { data: bCoords, error: eBCoords } = await supabase.from('uct_batch_coordinators').select('*');
+        if (!eBCoords && bCoords) {
+          this.batchCoordinators = bCoords as BatchCoordinatorMapping[];
+        }
+      } catch (eBC) {
+        console.warn('uct_batch_coordinators fetch notice:', eBC);
+      }
+      this.backfillCoordinatorsFromBatches();
+
       const allErrors = {
         eProfs, eCols, eProgs, eCrses, eDefSyl, eAssTypes, eBts, eStds, eBCrs, eBSyl, eSess, eAtts, eAsms, eMarks, eEmails, eLogs, eRuns, eMappings, eTLogs, eTks, eASemesters, eAActivities
       };
@@ -981,6 +1036,21 @@ class DataStore {
   // BATCHES
   // -------------------------
   async saveBatch(batch: Partial<Batch>): Promise<Batch> {
+    // Resolve coordinator arrays (supporting multi-coordinator selection & backward compatibility)
+    let ccIds: string[] = [];
+    if (batch.college_coordinator_ids && Array.isArray(batch.college_coordinator_ids)) {
+      ccIds = batch.college_coordinator_ids.filter(Boolean);
+    } else if (batch.college_coordinator_id) {
+      ccIds = [batch.college_coordinator_id];
+    }
+
+    let scIds: string[] = [];
+    if (batch.student_coordinator_ids && Array.isArray(batch.student_coordinator_ids)) {
+      scIds = batch.student_coordinator_ids.filter(Boolean);
+    } else if (batch.student_coordinator_id) {
+      scIds = [batch.student_coordinator_id];
+    }
+
     const item: Batch = {
       id: batch.id || generateUUID(),
       code: batch.code || '',
@@ -988,8 +1058,10 @@ class DataStore {
       program_id: batch.program_id!,
       academic_year: batch.academic_year || '',
       current_semester: batch.current_semester || 1,
-      college_coordinator_id: batch.college_coordinator_id,
-      student_coordinator_id: batch.student_coordinator_id,
+      college_coordinator_id: ccIds[0] || undefined,
+      student_coordinator_id: scIds[0] || undefined,
+      college_coordinator_ids: ccIds,
+      student_coordinator_ids: scIds,
       status: batch.status || 'Active',
       start_date: batch.start_date,
       end_date: batch.end_date,
@@ -998,6 +1070,26 @@ class DataStore {
     const idx = this.batches.findIndex(b => b.id === item.id);
     if (idx >= 0) this.batches[idx] = item;
     else this.batches.push(item);
+
+    // Sync multi-coordinator mappings in local state
+    this.batchCoordinators = this.batchCoordinators.filter(c => c.batch_id !== item.id);
+    const newMappings: BatchCoordinatorMapping[] = [
+      ...ccIds.map(pId => ({
+        id: generateUUID(),
+        batch_id: item.id,
+        profile_id: pId,
+        role: 'college_coordinator' as const,
+        created_at: new Date().toISOString()
+      })),
+      ...scIds.map(pId => ({
+        id: generateUUID(),
+        batch_id: item.id,
+        profile_id: pId,
+        role: 'student_coordinator' as const,
+        created_at: new Date().toISOString()
+      }))
+    ];
+    this.batchCoordinators.push(...newMappings);
 
     this.saveLocalCache();
 
@@ -1016,6 +1108,25 @@ class DataStore {
         end_date: item.end_date,
       });
       if (error) console.error('Supabase saveBatch error:', error.message);
+
+      // Sync uct_batch_coordinators in Supabase (with fallback if remote table is not yet migrated)
+      try {
+        await supabase.from('uct_batch_coordinators').delete().eq('batch_id', item.id);
+        const validDbRows = newMappings
+          .filter(m => !m.profile_id.startsWith('usr-'))
+          .map(m => ({
+            id: m.id,
+            batch_id: m.batch_id,
+            profile_id: m.profile_id,
+            role: m.role,
+            created_at: m.created_at
+          }));
+        if (validDbRows.length > 0) {
+          await supabase.from('uct_batch_coordinators').insert(validDbRows);
+        }
+      } catch (eCoord) {
+        console.warn('Supabase batch coordinators sync notice:', eCoord);
+      }
     } catch (e) {
       console.warn('Supabase batch sync warning:', e);
     }
@@ -1025,7 +1136,15 @@ class DataStore {
   async deleteBatch(id: string): Promise<void> {
     this.batches = this.batches.filter(b => b.id !== id);
     this.students = this.students.filter(s => s.batch_id !== id);
+    this.batchCoordinators = this.batchCoordinators.filter(c => c.batch_id !== id);
     this.saveLocalCache();
+
+    try {
+      await supabase.from('uct_batch_coordinators').delete().eq('batch_id', id);
+    } catch (eCoord) {
+      // Ignore if table not present
+    }
+
     try {
       const { error } = await supabase.from('uct_batches').delete().eq('id', id);
       if (error) console.error('Supabase deleteBatch error:', error.message);
@@ -1259,8 +1378,32 @@ class DataStore {
     
     const college = this.colleges.find(c => c.id === batch.college_id);
     const program = this.programs.find(p => p.id === batch.program_id);
-    const college_coordinator = this.profiles.find(p => p.id === batch.college_coordinator_id);
-    const student_coordinator = this.profiles.find(p => p.id === batch.student_coordinator_id);
+
+    // Multi-coordinator resolution
+    const batchCoords = this.batchCoordinators.filter(c => c.batch_id === batchId);
+    let college_coordinators: Profile[] = [];
+    const ccProfileIds = batchCoords.filter(c => c.role === 'college_coordinator').map(c => c.profile_id);
+    if (ccProfileIds.length > 0) {
+      college_coordinators = ccProfileIds.map(id => this.profiles.find(p => p.id === id)).filter((p): p is Profile => !!p);
+    } else if (batch.college_coordinator_id) {
+      const p = this.profiles.find(pr => pr.id === batch.college_coordinator_id);
+      if (p) college_coordinators = [p];
+    }
+
+    let student_coordinators: Profile[] = [];
+    const scProfileIds = batchCoords.filter(c => c.role === 'student_coordinator').map(c => c.profile_id);
+    if (scProfileIds.length > 0) {
+      student_coordinators = scProfileIds.map(id => this.profiles.find(p => p.id === id)).filter((p): p is Profile => !!p);
+    } else if (batch.student_coordinator_id) {
+      const p = this.profiles.find(pr => pr.id === batch.student_coordinator_id);
+      if (p) student_coordinators = [p];
+    }
+
+    const college_coordinator = college_coordinators[0];
+    const student_coordinator = student_coordinators[0];
+    const college_coordinator_ids = college_coordinators.map(p => p.id);
+    const student_coordinator_ids = student_coordinators.map(p => p.id);
+
     const batchStudents = this.students.filter(s => s.batch_id === batchId);
     
     // Compute avg attendance
@@ -1306,6 +1449,10 @@ class DataStore {
       program,
       college_coordinator,
       student_coordinator,
+      college_coordinators,
+      student_coordinators,
+      college_coordinator_ids,
+      student_coordinator_ids,
       student_count: batchStudents.length,
       avg_attendance_pct,
       avg_coverage_pct
@@ -1892,10 +2039,13 @@ class DataStore {
             const existingId = batchCodeToId[derivedBatchCode];
             const isUpdate = !!existingId;
 
-            const ccEmail = row.college_coordinator_email?.trim().toLowerCase();
-            const scEmail = row.student_coordinator_email?.trim().toLowerCase();
-            const ccId = ccEmail ? userEmailToId[ccEmail] : undefined;
-            const scId = scEmail ? userEmailToId[scEmail] : undefined;
+            const ccRaw = row.college_coordinator_email ? String(row.college_coordinator_email) : '';
+            const ccEmails = ccRaw.split(/[;,]/).map(e => e.trim().toLowerCase()).filter(Boolean);
+            const ccIds = ccEmails.map(e => userEmailToId[e]).filter((id): id is string => !!id);
+
+            const scRaw = row.student_coordinator_email ? String(row.student_coordinator_email) : '';
+            const scEmails = scRaw.split(/[;,]/).map(e => e.trim().toLowerCase()).filter(Boolean);
+            const scIds = scEmails.map(e => userEmailToId[e]).filter((id): id is string => !!id);
 
             const saved = await this.saveBatch({
               id: existingId,
@@ -1904,8 +2054,10 @@ class DataStore {
               program_id: programId,
               academic_year: row.academic_year.trim(),
               current_semester: Number(row.current_semester) || 1,
-              college_coordinator_id: ccId,
-              student_coordinator_id: scId,
+              college_coordinator_id: ccIds[0],
+              student_coordinator_id: scIds[0],
+              college_coordinator_ids: ccIds,
+              student_coordinator_ids: scIds,
               start_date: row.start_date || undefined,
               end_date: row.end_date || undefined,
             });

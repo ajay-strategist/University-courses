@@ -75,6 +75,14 @@ export interface AssessmentType {
   default_max_mark: number;
 }
 
+export interface BatchCoordinatorMapping {
+  id: string;
+  batch_id: string;
+  profile_id: string;
+  role: 'college_coordinator' | 'student_coordinator';
+  created_at?: string;
+}
+
 export interface Batch {
   id: string;
   code: string; // Auto = college.code-program.code-academic_year
@@ -84,6 +92,8 @@ export interface Batch {
   current_semester: number;
   college_coordinator_id?: string;
   student_coordinator_id?: string;
+  college_coordinator_ids?: string[];
+  student_coordinator_ids?: string[];
   status: 'Active' | 'Completed';
   start_date?: string;
   end_date?: string;
@@ -91,6 +101,8 @@ export interface Batch {
   program?: Program;
   college_coordinator?: Profile;
   student_coordinator?: Profile;
+  college_coordinators?: Profile[];
+  student_coordinators?: Profile[];
   student_count?: number;
   avg_attendance_pct?: number;
   avg_coverage_pct?: number;

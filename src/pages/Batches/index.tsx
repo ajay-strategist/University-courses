@@ -7,6 +7,7 @@ import { Input } from '@/components/ui/input';
 import { toast } from 'sonner';
 import { Plus, Users, BookOpen, ChevronRight, Sparkles, Building2, Calendar, Award, Edit2, Trash2, X } from 'lucide-react';
 import { CollegeLogo } from '@/components/common/CollegeLogo';
+import { CoordinatorMultiSelect } from '@/components/batches/CoordinatorMultiSelect';
 
 import { useAuth } from '@/contexts/AuthContext';
 
@@ -17,10 +18,12 @@ export default function BatchesGrid() {
   const allBatches = store.batches.map(b => store.getBatchWithDetails(b.id)!);
   const filteredBatches = allBatches.filter(b => {
     if (profile?.role === 'college_coordinator') {
-      return b.college_coordinator_id === profile.id || b.college_coordinator?.email === profile.email;
+      const inList = b.college_coordinators?.some(c => c.id === profile.id || c.email?.toLowerCase() === profile.email?.toLowerCase());
+      return inList || b.college_coordinator_id === profile.id || b.college_coordinator?.email?.toLowerCase() === profile.email?.toLowerCase();
     }
     if (profile?.role === 'student_coordinator') {
-      return b.student_coordinator_id === profile.id || b.student_coordinator?.email === profile.email;
+      const inList = b.student_coordinators?.some(c => c.id === profile.id || c.email?.toLowerCase() === profile.email?.toLowerCase());
+      return inList || b.student_coordinator_id === profile.id || b.student_coordinator?.email?.toLowerCase() === profile.email?.toLowerCase();
     }
     return true;
   });
@@ -49,8 +52,10 @@ export default function BatchesGrid() {
   const [programId, setProgramId] = useState(store.programs[0]?.id || '');
   const [academicYear, setAcademicYear] = useState('2026-29');
   const [currentSemester, setCurrentSemester] = useState(1);
-  const [collegeCoordId, setCollegeCoordId] = useState(store.profiles.find(p => p.role === 'college_coordinator')?.id || '');
-  const [studentCoordId, setStudentCoordId] = useState(store.profiles.find(p => p.role === 'student_coordinator')?.id || '');
+  const firstCollegeCoord = store.profiles.find(p => p.role === 'college_coordinator')?.id;
+  const firstStudentCoord = store.profiles.find(p => p.role === 'student_coordinator')?.id;
+  const [collegeCoordIds, setCollegeCoordIds] = useState<string[]>(firstCollegeCoord ? [firstCollegeCoord] : []);
+  const [studentCoordIds, setStudentCoordIds] = useState<string[]>(firstStudentCoord ? [firstStudentCoord] : []);
   const [startDate, setStartDate] = useState('2026-01-10');
   const [endDate, setEndDate] = useState('2026-06-30');
 
@@ -61,8 +66,8 @@ export default function BatchesGrid() {
     code: '',
     current_semester: 1,
     status: 'Active' as 'Active' | 'Completed',
-    college_coordinator_id: '',
-    student_coordinator_id: '',
+    college_coordinator_ids: [] as string[],
+    student_coordinator_ids: [] as string[],
     start_date: '',
     end_date: '',
     academic_year: '',
@@ -94,8 +99,8 @@ export default function BatchesGrid() {
         academic_year: editForm.academic_year.trim(),
         current_semester: editForm.current_semester,
         status: editForm.status,
-        college_coordinator_id: editForm.college_coordinator_id || undefined,
-        student_coordinator_id: editForm.student_coordinator_id || undefined,
+        college_coordinator_ids: editForm.college_coordinator_ids,
+        student_coordinator_ids: editForm.student_coordinator_ids,
         start_date: editForm.start_date,
         end_date: editForm.end_date,
       });
@@ -122,8 +127,8 @@ export default function BatchesGrid() {
       program_id: programId,
       academic_year: academicYear,
       current_semester: currentSemester,
-      college_coordinator_id: collegeCoordId,
-      student_coordinator_id: studentCoordId,
+      college_coordinator_ids: collegeCoordIds,
+      student_coordinator_ids: studentCoordIds,
       status: 'Active',
       start_date: startDate,
       end_date: endDate,
@@ -259,15 +264,41 @@ export default function BatchesGrid() {
                     </span>
                   </div>
                   <div className="flex justify-between items-center">
-                    <span>College Coord:</span>
-                    <span className="font-medium text-foreground truncate max-w-[150px]">
-                      {batch.college_coordinator?.full_name || 'Unassigned'}
+                    <span>
+                      {batch.college_coordinators && batch.college_coordinators.length > 1
+                        ? `College Coords (${batch.college_coordinators.length}):`
+                        : 'College Coord:'}
+                    </span>
+                    <span 
+                      className="font-medium text-foreground truncate max-w-[155px] text-right"
+                      title={
+                        batch.college_coordinators && batch.college_coordinators.length > 0
+                          ? batch.college_coordinators.map(c => `${c.full_name} (${c.email})`).join(', ')
+                          : 'Unassigned'
+                      }
+                    >
+                      {batch.college_coordinators && batch.college_coordinators.length > 0
+                        ? batch.college_coordinators.map(c => c.full_name).join(', ')
+                        : (batch.college_coordinator?.full_name || 'Unassigned')}
                     </span>
                   </div>
                   <div className="flex justify-between items-center">
-                    <span>Student Coord:</span>
-                    <span className="font-medium text-foreground truncate max-w-[150px]">
-                      {batch.student_coordinator?.full_name || 'Unassigned'}
+                    <span>
+                      {batch.student_coordinators && batch.student_coordinators.length > 1
+                        ? `Student Coords (${batch.student_coordinators.length}):`
+                        : 'Student Coord:'}
+                    </span>
+                    <span 
+                      className="font-medium text-foreground truncate max-w-[155px] text-right"
+                      title={
+                        batch.student_coordinators && batch.student_coordinators.length > 0
+                          ? batch.student_coordinators.map(c => `${c.full_name} (${c.email})`).join(', ')
+                          : 'Unassigned'
+                      }
+                    >
+                      {batch.student_coordinators && batch.student_coordinators.length > 0
+                        ? batch.student_coordinators.map(c => c.full_name).join(', ')
+                        : (batch.student_coordinator?.full_name || 'Unassigned')}
                     </span>
                   </div>
                 </div>
@@ -281,12 +312,14 @@ export default function BatchesGrid() {
                       onClick={(e) => {
                         e.stopPropagation();
                         setEditingBatchId(batch.id);
+                        const ccIds = batch.college_coordinator_ids || (batch.college_coordinator_id ? [batch.college_coordinator_id] : []);
+                        const scIds = batch.student_coordinator_ids || (batch.student_coordinator_id ? [batch.student_coordinator_id] : []);
                         setEditForm({
                           code: batch.code,
                           current_semester: batch.current_semester,
                           status: batch.status,
-                          college_coordinator_id: batch.college_coordinator_id || '',
-                          student_coordinator_id: batch.student_coordinator_id || '',
+                          college_coordinator_ids: ccIds,
+                          student_coordinator_ids: scIds,
                           start_date: batch.start_date || '',
                           end_date: batch.end_date || '',
                           academic_year: batch.academic_year || '',
@@ -380,30 +413,23 @@ export default function BatchesGrid() {
                 />
               </div>
 
-              <div>
-                <label className="text-xs font-mono font-medium text-muted-foreground">College Coordinator</label>
-                <select
-                  value={collegeCoordId}
-                  onChange={(e) => setCollegeCoordId(e.target.value)}
-                  className="w-full mt-1 bg-background border border-border rounded-xl px-3 py-2 text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-primary"
-                >
-                  {store.profiles.map((p) => (
-                    <option key={p.id} value={p.id}>{p.full_name} ({p.role})</option>
-                  ))}
-                </select>
-              </div>
-
-              <div>
-                <label className="text-xs font-mono font-medium text-muted-foreground">Student Coordinator</label>
-                <select
-                  value={studentCoordId}
-                  onChange={(e) => setStudentCoordId(e.target.value)}
-                  className="w-full mt-1 bg-background border border-border rounded-xl px-3 py-2 text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-primary"
-                >
-                  {store.profiles.map((p) => (
-                    <option key={p.id} value={p.id}>{p.full_name} ({p.role})</option>
-                  ))}
-                </select>
+              <div className="sm:col-span-2 space-y-3 pt-2 border-t border-border">
+                <CoordinatorMultiSelect
+                  label="College Coordinators"
+                  role="college_coordinator"
+                  selectedIds={collegeCoordIds}
+                  onChange={setCollegeCoordIds}
+                  profiles={store.profiles}
+                  helperText="Assign one or more college coordinators"
+                />
+                <CoordinatorMultiSelect
+                  label="Student Coordinators"
+                  role="student_coordinator"
+                  selectedIds={studentCoordIds}
+                  onChange={setStudentCoordIds}
+                  profiles={store.profiles}
+                  helperText="Assign one or more student coordinators"
+                />
               </div>
 
               <div>
@@ -492,32 +518,21 @@ export default function BatchesGrid() {
                 </select>
               </div>
 
-              <div>
-                <label className="font-medium text-muted-foreground">College Coordinator</label>
-                <select 
-                  value={editForm.college_coordinator_id} 
-                  onChange={(e) => setEditForm({ ...editForm, college_coordinator_id: e.target.value })}
-                  className="w-full mt-1 bg-background border border-border rounded-xl p-2.5 text-sm font-sans text-foreground focus:outline-none"
-                >
-                  <option value="">Unassigned</option>
-                  {store.profiles.filter(p => p.role === 'college_coordinator').map(p => (
-                    <option key={p.id} value={p.id}>{p.full_name} ({p.email})</option>
-                  ))}
-                </select>
-              </div>
-
-              <div>
-                <label className="font-medium text-muted-foreground">Student Coordinator</label>
-                <select 
-                  value={editForm.student_coordinator_id} 
-                  onChange={(e) => setEditForm({ ...editForm, student_coordinator_id: e.target.value })}
-                  className="w-full mt-1 bg-background border border-border rounded-xl p-2.5 text-sm font-sans text-foreground focus:outline-none"
-                >
-                  <option value="">Unassigned</option>
-                  {store.profiles.filter(p => p.role === 'student_coordinator').map(p => (
-                    <option key={p.id} value={p.id}>{p.full_name} ({p.email})</option>
-                  ))}
-                </select>
+              <div className="space-y-3 pt-2 border-t border-border">
+                <CoordinatorMultiSelect
+                  label="College Coordinators"
+                  role="college_coordinator"
+                  selectedIds={editForm.college_coordinator_ids}
+                  onChange={(ids) => setEditForm({ ...editForm, college_coordinator_ids: ids })}
+                  profiles={store.profiles}
+                />
+                <CoordinatorMultiSelect
+                  label="Student Coordinators"
+                  role="student_coordinator"
+                  selectedIds={editForm.student_coordinator_ids}
+                  onChange={(ids) => setEditForm({ ...editForm, student_coordinator_ids: ids })}
+                  profiles={store.profiles}
+                />
               </div>
 
               <div className="grid grid-cols-2 gap-2">

@@ -37,6 +37,7 @@ DROP TABLE IF EXISTS public.uct_attendance CASCADE;
 DROP TABLE IF EXISTS public.uct_sessions CASCADE;
 DROP TABLE IF EXISTS public.uct_batch_course_syllabus CASCADE;
 DROP TABLE IF EXISTS public.uct_batch_courses CASCADE;
+DROP TABLE IF EXISTS public.uct_batch_coordinators CASCADE;
 DROP TABLE IF EXISTS public.uct_students CASCADE;
 DROP TABLE IF EXISTS public.uct_batches CASCADE;
 DROP TABLE IF EXISTS public.uct_assessment_types CASCADE;
@@ -163,6 +164,19 @@ CREATE TABLE public.uct_batches (
     created_at TIMESTAMPTZ DEFAULT NOW(),
     updated_at TIMESTAMPTZ DEFAULT NOW()
 );
+
+-- 4.1. BATCH COORDINATORS (Multiple Coordinators per Batch)
+CREATE TABLE public.uct_batch_coordinators (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    batch_id UUID NOT NULL REFERENCES public.uct_batches(id) ON DELETE CASCADE,
+    profile_id UUID NOT NULL REFERENCES public.uct_profiles(id) ON DELETE CASCADE,
+    role uct_user_role NOT NULL CHECK (role IN ('college_coordinator', 'student_coordinator')),
+    created_at TIMESTAMPTZ DEFAULT NOW(),
+    UNIQUE(batch_id, profile_id)
+);
+
+CREATE INDEX IF NOT EXISTS idx_uct_batch_coordinators_batch ON public.uct_batch_coordinators(batch_id);
+CREATE INDEX IF NOT EXISTS idx_uct_batch_coordinators_profile ON public.uct_batch_coordinators(profile_id);
 
 CREATE TABLE public.uct_students (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),

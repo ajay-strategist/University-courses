@@ -18,6 +18,7 @@ import {
 } from 'lucide-react';
 import * as XLSX from 'xlsx';
 import { CollegeLogo } from '@/components/common/CollegeLogo';
+import { CoordinatorMultiSelect } from '@/components/batches/CoordinatorMultiSelect';
 import { sendEmail, buildAbsenteeReportHtml, formatDateToDDMMYYYY } from '@/lib/emailService';
 
 export default function BatchDetails() {
@@ -256,8 +257,8 @@ export default function BatchDetails() {
     code: '',
     current_semester: batch?.current_semester || 1,
     status: batch?.status || 'Active',
-    college_coordinator_id: batch?.college_coordinator_id || '',
-    student_coordinator_id: batch?.student_coordinator_id || '',
+    college_coordinator_ids: batch?.college_coordinator_ids || (batch?.college_coordinator_id ? [batch.college_coordinator_id] : []),
+    student_coordinator_ids: batch?.student_coordinator_ids || (batch?.student_coordinator_id ? [batch.student_coordinator_id] : []),
     start_date: batch?.start_date || '',
     end_date: batch?.end_date || '',
     academic_year: batch?.academic_year || '',
@@ -429,8 +430,8 @@ export default function BatchDetails() {
         academic_year: editBatchForm.academic_year.trim(),
         current_semester: Number(editBatchForm.current_semester),
         status: editBatchForm.status as 'Active' | 'Completed',
-        college_coordinator_id: editBatchForm.college_coordinator_id || undefined,
-        student_coordinator_id: editBatchForm.student_coordinator_id || undefined,
+        college_coordinator_ids: editBatchForm.college_coordinator_ids,
+        student_coordinator_ids: editBatchForm.student_coordinator_ids,
         start_date: editBatchForm.start_date,
         end_date: editBatchForm.end_date,
       });
@@ -816,8 +817,16 @@ export default function BatchDetails() {
       const senderConfig = store.emailConfigs.find(c => c.user_id === defaultSenderId);
       const senderEmail = senderConfig?.smtp_user || defaultSender?.email || 'teamthestrategist@gmail.com';
       const senderName = senderConfig?.from_name || defaultSender?.full_name || 'Team The Strategist';
-      const recipientName = batch.college_coordinator?.full_name || batch.college?.contact_person || 'College Coordinator';
-      const recipientEmail = batch.college_coordinator?.email || batch.college?.contact_email || '';
+      
+      const collegeCoords = batch.college_coordinators && batch.college_coordinators.length > 0 
+        ? batch.college_coordinators 
+        : (batch.college_coordinator ? [batch.college_coordinator] : []);
+      const recipientName = collegeCoords.length > 0 
+        ? collegeCoords.map(c => c.full_name).join(', ') 
+        : (batch.college?.contact_person || 'College Coordinator');
+      const recipientEmail = collegeCoords.length > 0
+        ? collegeCoords.map(c => c.email).filter(Boolean).join(', ')
+        : (batch.college?.contact_email || '');
 
       setAbsenteePreview({
         recipient_name: recipientName,
@@ -872,8 +881,16 @@ export default function BatchDetails() {
     const senderConfig = store.emailConfigs.find(c => c.user_id === defaultSenderId);
     const senderEmail = senderConfig?.smtp_user || defaultSender?.email || 'teamthestrategist@gmail.com';
     const senderName = senderConfig?.from_name || defaultSender?.full_name || 'Team The Strategist';
-    const recipientName = batch.college_coordinator?.full_name || batch.college?.contact_person || 'College Coordinator';
-    const recipientEmail = batch.college_coordinator?.email || batch.college?.contact_email || '';
+    
+    const collegeCoords = batch.college_coordinators && batch.college_coordinators.length > 0 
+      ? batch.college_coordinators 
+      : (batch.college_coordinator ? [batch.college_coordinator] : []);
+    const recipientName = collegeCoords.length > 0 
+      ? collegeCoords.map(c => c.full_name).join(', ') 
+      : (batch.college?.contact_person || 'College Coordinator');
+    const recipientEmail = collegeCoords.length > 0
+      ? collegeCoords.map(c => c.email).filter(Boolean).join(', ')
+      : (batch.college?.contact_email || '');
 
     setAbsenteePreview({
       recipient_name: recipientName,
@@ -1346,12 +1363,14 @@ export default function BatchDetails() {
                     size="sm"
                     variant="outline"
                     onClick={() => {
+                      const ccIds = batch.college_coordinator_ids || (batch.college_coordinator_id ? [batch.college_coordinator_id] : []);
+                      const scIds = batch.student_coordinator_ids || (batch.student_coordinator_id ? [batch.student_coordinator_id] : []);
                       setEditBatchForm({
                         code: batch.code,
                         current_semester: batch.current_semester,
                         status: batch.status,
-                        college_coordinator_id: batch.college_coordinator_id || '',
-                        student_coordinator_id: batch.student_coordinator_id || '',
+                        college_coordinator_ids: ccIds,
+                        student_coordinator_ids: scIds,
                         start_date: batch.start_date || '',
                         end_date: batch.end_date || '',
                         academic_year: batch.academic_year || '',
@@ -1372,6 +1391,35 @@ export default function BatchDetails() {
                   </Button>
                 </div>
               )}
+
+              {/* Coordinator Badges in Header */}
+              <div className="flex flex-wrap items-center gap-x-3 gap-y-1.5 text-xs pt-1">
+                <div className="flex items-center gap-1.5 flex-wrap">
+                  <span className="font-semibold text-foreground/80 font-mono text-[11px]">College Coords:</span>
+                  {batch.college_coordinators && batch.college_coordinators.length > 0 ? (
+                    batch.college_coordinators.map(c => (
+                      <span key={c.id} className="bg-primary/10 text-primary border border-primary/20 px-2 py-0.5 rounded-md font-medium text-[11px]" title={c.email}>
+                        {c.full_name}
+                      </span>
+                    ))
+                  ) : (
+                    <span className="italic text-muted-foreground">{batch.college_coordinator?.full_name || 'Unassigned'}</span>
+                  )}
+                </div>
+                <span className="text-border hidden sm:inline">•</span>
+                <div className="flex items-center gap-1.5 flex-wrap">
+                  <span className="font-semibold text-foreground/80 font-mono text-[11px]">Student Coords:</span>
+                  {batch.student_coordinators && batch.student_coordinators.length > 0 ? (
+                    batch.student_coordinators.map(c => (
+                      <span key={c.id} className="bg-accent/15 text-accent border border-accent/25 px-2 py-0.5 rounded-md font-medium text-[11px]" title={c.email}>
+                        {c.full_name}
+                      </span>
+                    ))
+                  ) : (
+                    <span className="italic text-muted-foreground">{batch.student_coordinator?.full_name || 'Unassigned'}</span>
+                  )}
+                </div>
+              </div>
             </div>
           </div>
 
@@ -3910,32 +3958,21 @@ export default function BatchDetails() {
                 </select>
               </div>
 
-              <div>
-                <label className="font-medium text-muted-foreground">College Coordinator</label>
-                <select
-                  value={editBatchForm.college_coordinator_id}
-                  onChange={(e) => setEditBatchForm({ ...editBatchForm, college_coordinator_id: e.target.value })}
-                  className="w-full mt-1 bg-background border border-border rounded-xl p-2.5 text-sm font-sans text-foreground focus:outline-none"
-                >
-                  <option value="">Unassigned</option>
-                  {store.profiles.filter(p => p.role === 'college_coordinator').map(p => (
-                    <option key={p.id} value={p.id}>{p.full_name} ({p.email})</option>
-                  ))}
-                </select>
-              </div>
-
-              <div>
-                <label className="font-medium text-muted-foreground">Student Coordinator</label>
-                <select
-                  value={editBatchForm.student_coordinator_id}
-                  onChange={(e) => setEditBatchForm({ ...editBatchForm, student_coordinator_id: e.target.value })}
-                  className="w-full mt-1 bg-background border border-border rounded-xl p-2.5 text-sm font-sans text-foreground focus:outline-none"
-                >
-                  <option value="">Unassigned</option>
-                  {store.profiles.filter(p => p.role === 'student_coordinator').map(p => (
-                    <option key={p.id} value={p.id}>{p.full_name} ({p.email})</option>
-                  ))}
-                </select>
+              <div className="space-y-3 pt-2 border-t border-border">
+                <CoordinatorMultiSelect
+                  label="College Coordinators"
+                  role="college_coordinator"
+                  selectedIds={editBatchForm.college_coordinator_ids}
+                  onChange={(ids) => setEditBatchForm({ ...editBatchForm, college_coordinator_ids: ids })}
+                  profiles={store.profiles}
+                />
+                <CoordinatorMultiSelect
+                  label="Student Coordinators"
+                  role="student_coordinator"
+                  selectedIds={editBatchForm.student_coordinator_ids}
+                  onChange={(ids) => setEditBatchForm({ ...editBatchForm, student_coordinator_ids: ids })}
+                  profiles={store.profiles}
+                />
               </div>
 
               <div className="grid grid-cols-2 gap-2">
