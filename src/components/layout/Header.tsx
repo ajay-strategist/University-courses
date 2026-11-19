@@ -1,7 +1,7 @@
 import { useAuth } from '@/contexts/AuthContext';
 import { Button } from '@/components/ui/button';
 import { store } from '@/lib/store';
-import { Menu, Bell, Search, Sun, Moon, RefreshCw, KeyRound, Loader2, PanelLeftClose, PanelLeftOpen, AlertTriangle, CheckCircle, Clock } from 'lucide-react';
+import { Menu, Bell, Search, Sun, Moon, RefreshCw, KeyRound, Loader2, PanelLeftClose, PanelLeftOpen, AlertTriangle, CheckCircle, Clock, X, Check } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import {
   DropdownMenu,
@@ -31,10 +31,60 @@ export function Header({ isCollapsed = false, onToggleSidebar, onMobileToggle }:
 
   const todayStr = new Date().toISOString().split('T')[0];
 
+  // Dismissed notification IDs persisted in localStorage
+  const [dismissedAlertIds, setDismissedAlertIds] = useState<string[]>(() => {
+    try {
+      const stored = localStorage.getItem('uct_dismissed_operational_alerts');
+      return stored ? JSON.parse(stored) : [];
+    } catch {
+      return [];
+    }
+  });
+
+  const dismissAlert = (alertId: string, e?: React.MouseEvent) => {
+    if (e) e.stopPropagation();
+    setDismissedAlertIds(prev => {
+      const next = Array.from(new Set([...prev, alertId]));
+      try {
+        localStorage.setItem('uct_dismissed_operational_alerts', JSON.stringify(next));
+      } catch (err) {
+        console.warn('Could not persist dismissed alerts:', err);
+      }
+      return next;
+    });
+  };
+
+  const clearAllAlerts = (e?: React.MouseEvent) => {
+    if (e) e.stopPropagation();
+    const allIds = [
+      ...pendingAttendanceSessions.map(item => `att-${item.id}`),
+      ...missingTrainerLogs.map(item => `log-${item.batchId}_${item.date}`),
+    ];
+    setDismissedAlertIds(prev => {
+      const next = Array.from(new Set([...prev, ...allIds]));
+      try {
+        localStorage.setItem('uct_dismissed_operational_alerts', JSON.stringify(next));
+      } catch (err) {
+        console.warn('Could not persist dismissed alerts:', err);
+      }
+      return next;
+    });
+    toast.success('All operational notifications cleared');
+  };
+
+  const resetDismissedAlerts = () => {
+    setDismissedAlertIds([]);
+    try {
+      localStorage.removeItem('uct_dismissed_operational_alerts');
+    } catch {}
+    toast.info('Cleared alerts restored');
+  };
+
   // REQ-AC-01: Operational Notifications (Pending Attendance & Missing Trainer Logs)
   const pendingAttendanceSessions = useMemo(() => {
     return store.sessions
       .filter(sess => {
+        if (dismissedAlertIds.includes(`att-${sess.id}`)) return false;
         if (sess.session_date > todayStr) return false;
         const count = store.attendance.filter(a => a.session_id === sess.id).length;
         return count === 0;
@@ -53,7 +103,7 @@ export function Header({ isCollapsed = false, onToggleSidebar, onMobileToggle }:
         };
       })
       .slice(0, 5);
-  }, [store.sessions, store.attendance, store.batchCourses, store.batches, store.courses, todayStr]);
+  }, [store.sessions, store.attendance, store.batchCourses, store.batches, store.courses, todayStr, dismissedAlertIds]);
 
   const missingTrainerLogs = useMemo(() => {
     const alerts: { batchId: string; batchCode: string; date: string }[] = [];
@@ -65,6 +115,9 @@ export function Header({ isCollapsed = false, onToggleSidebar, onMobileToggle }:
       const key = `${bc.batch_id}_${sess.session_date}`;
       if (seen.has(key)) return;
       seen.add(key);
+
+      const alertId = `log-${bc.batch_id}_${sess.session_date}`;
+      if (dismissedAlertIds.includes(alertId)) return;
 
       const hasLog = store.trainerLogs.some(
         l => l.batch_course_id === sess.batch_course_id && l.log_date === sess.session_date
@@ -79,7 +132,7 @@ export function Header({ isCollapsed = false, onToggleSidebar, onMobileToggle }:
       }
     });
     return alerts.slice(0, 5);
-  }, [store.sessions, store.batchCourses, store.trainerLogs, store.batches, todayStr]);
+  }, [store.sessions, store.batchCourses, store.trainerLogs, store.batches, todayStr, dismissedAlertIds]);
 
   const totalAlertsCount = pendingAttendanceSessions.length + missingTrainerLogs.length;
 
@@ -187,54 +240,109 @@ export function Header({ isCollapsed = false, onToggleSidebar, onMobileToggle }:
               <span className="font-heading font-bold text-xs uppercase tracking-wider text-foreground flex items-center gap-1.5">
                 <Bell className="h-3.5 w-3.5 text-primary" /> Operational Alerts
               </span>
-              <span className="text-[11px] font-mono text-muted-foreground">
-                {totalAlertsCount} pending
-              </span>
+              <div className="flex items-center gap-2">
+                <span className="text-[11px] font-mono text-muted-foreground">
+                  {totalAlertsCount} pending
+                </span>
+                {totalAlertsCount > 0 && (
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={clearAllAlerts}
+                    className="h-6 px-1.5 text-[10px] font-mono font-semibold text-primary hover:text-primary hover:bg-primary/10 rounded"
+                    title="Clear all operational notifications"
+                  >
+                    Clear All
+                  </Button>
+                )}
+              </div>
             </div>
 
             {totalAlertsCount === 0 ? (
               <div className="p-4 text-center space-y-1.5">
                 <CheckCircle className="h-8 w-8 text-success mx-auto opacity-80" />
                 <p className="text-xs font-semibold text-foreground">All Caught Up!</p>
-                <p className="text-[11px] text-muted-foreground">No pending attendance or missing trainer logs.</p>
+                <p className="text-[11px] text-muted-foreground">
+                  {dismissedAlertIds.length > 0
+                    ? 'All operational notifications have been cleared.'
+                    : 'No pending attendance or missing trainer logs.'}
+                </p>
+                {dismissedAlertIds.length > 0 && (
+                  <button
+                    type="button"
+                    onClick={resetDismissedAlerts}
+                    className="text-[10px] text-primary hover:underline font-mono inline-block pt-1 cursor-pointer"
+                  >
+                    Reset Cleared Alerts ({dismissedAlertIds.length})
+                  </button>
+                )}
               </div>
             ) : (
               <div className="max-h-72 overflow-y-auto space-y-1 divide-y divide-border/50">
                 {pendingAttendanceSessions.map((item) => (
                   <div
                     key={`att-${item.id}`}
-                    onClick={() => item.batchId && navigate(`/batches/${item.batchId}`)}
-                    className="p-2 rounded-lg hover:bg-muted/50 cursor-pointer transition-colors space-y-0.5"
+                    onClick={() => {
+                      dismissAlert(`att-${item.id}`);
+                      if (item.batchId) navigate(`/batches/${item.batchId}`);
+                    }}
+                    className="p-2 rounded-lg hover:bg-muted/50 cursor-pointer transition-colors space-y-0.5 group relative"
                   >
                     <div className="flex items-center justify-between text-xs font-semibold text-destructive">
                       <span className="flex items-center gap-1">
                         <AlertTriangle className="h-3 w-3" /> Attendance Pending
                       </span>
-                      <span className="font-mono text-[10px] text-muted-foreground">{item.date}</span>
+                      <div className="flex items-center gap-1.5">
+                        <span className="font-mono text-[10px] text-muted-foreground">{item.date}</span>
+                        <button
+                          type="button"
+                          onClick={(e) => dismissAlert(`att-${item.id}`, e)}
+                          title="Dismiss notification"
+                          className="opacity-60 group-hover:opacity-100 hover:bg-destructive/10 hover:text-destructive rounded p-0.5 transition-opacity"
+                        >
+                          <X className="h-3 w-3" />
+                        </button>
+                      </div>
                     </div>
-                    <p className="text-xs text-foreground font-medium truncate">
+                    <p className="text-xs text-foreground font-medium truncate pr-4">
                       {item.batchCode} · Hour {item.hour} ({item.courseCode})
                     </p>
                   </div>
                 ))}
 
-                {missingTrainerLogs.map((item, idx) => (
-                  <div
-                    key={`log-${idx}`}
-                    onClick={() => item.batchId && navigate(`/batches/${item.batchId}`)}
-                    className="p-2 rounded-lg hover:bg-muted/50 cursor-pointer transition-colors space-y-0.5"
-                  >
-                    <div className="flex items-center justify-between text-xs font-semibold text-amber-500">
-                      <span className="flex items-center gap-1">
-                        <Clock className="h-3 w-3" /> Missing Trainer Log
-                      </span>
-                      <span className="font-mono text-[10px] text-muted-foreground">{item.date}</span>
+                {missingTrainerLogs.map((item, idx) => {
+                  const alertId = `log-${item.batchId}_${item.date}`;
+                  return (
+                    <div
+                      key={`log-${idx}`}
+                      onClick={() => {
+                        dismissAlert(alertId);
+                        if (item.batchId) navigate(`/batches/${item.batchId}`);
+                      }}
+                      className="p-2 rounded-lg hover:bg-muted/50 cursor-pointer transition-colors space-y-0.5 group relative"
+                    >
+                      <div className="flex items-center justify-between text-xs font-semibold text-amber-500">
+                        <span className="flex items-center gap-1">
+                          <Clock className="h-3 w-3" /> Missing Trainer Log
+                        </span>
+                        <div className="flex items-center gap-1.5">
+                          <span className="font-mono text-[10px] text-muted-foreground">{item.date}</span>
+                          <button
+                            type="button"
+                            onClick={(e) => dismissAlert(alertId, e)}
+                            title="Dismiss notification"
+                            className="opacity-60 group-hover:opacity-100 hover:bg-amber-500/10 hover:text-amber-600 rounded p-0.5 transition-opacity"
+                          >
+                            <X className="h-3 w-3" />
+                          </button>
+                        </div>
+                      </div>
+                      <p className="text-xs text-foreground font-medium truncate pr-4">
+                        {item.batchCode} · No log submitted
+                      </p>
                     </div>
-                    <p className="text-xs text-foreground font-medium truncate">
-                      {item.batchCode} · No log submitted
-                    </p>
-                  </div>
-                ))}
+                  );
+                })}
               </div>
             )}
           </DropdownMenuContent>

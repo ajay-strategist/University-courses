@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { store, generateUUID } from '@/lib/store';
 import { useAuth } from '@/contexts/AuthContext';
@@ -14,7 +14,7 @@ import {
   ArrowLeft, Users, BookOpen, CalendarCheck, Award,
   CheckSquare, Plus, Download, Upload, Mail, CheckCircle2, Clock,
   AlertTriangle, Check, X, FileSpreadsheet, Send, Edit2, Trash2,
-  ListTodo, Calendar, Loader2, ShieldCheck, UserCheck
+  ListTodo, Calendar, Loader2, ShieldCheck, UserCheck, Search
 } from 'lucide-react';
 import * as XLSX from 'xlsx';
 import { CollegeLogo } from '@/components/common/CollegeLogo';
@@ -176,6 +176,38 @@ export default function BatchDetails() {
   const [attendanceReportMode, setAttendanceReportMode] = useState<'single' | 'range'>('single');
   const [attendanceStartDate, setAttendanceStartDate] = useState(new Date().toISOString().split('T')[0]);
   const [attendanceEndDate, setAttendanceEndDate] = useState(new Date().toISOString().split('T')[0]);
+  const [attendanceSearchQuery, setAttendanceSearchQuery] = useState('');
+
+  // Filtered students for fast search & absent marking in large cohorts
+  const filteredRegisterStudents = useMemo(() => {
+    if (!attendanceSearchQuery.trim()) return students;
+    const q = attendanceSearchQuery.toLowerCase().trim();
+    return students.filter(s =>
+      s.name.toLowerCase().includes(q) ||
+      s.register_no.toLowerCase().includes(q) ||
+      (s.class && s.class.toLowerCase().includes(q))
+    );
+  }, [students, attendanceSearchQuery]);
+
+  // Live session status summary KPIs (Present / Absent / Late)
+  const attendanceCurrentStats = useMemo(() => {
+    const currentSession = store.sessions.find(
+      s => s.batch_course_id === selectedBatchCourseId && s.session_date === attendanceDate && Number(s.hour_no) === Number(attendanceHour)
+    );
+    let present = 0;
+    let absent = 0;
+    let late = 0;
+    students.forEach(stu => {
+      const savedRecord = currentSession
+        ? store.attendance.find(a => a.session_id === currentSession.id && a.student_id === stu.id)
+        : undefined;
+      const status = registerStatusMap[stu.id] ?? savedRecord?.status ?? 'present';
+      if (status === 'absent') absent++;
+      else if (status === 'late') late++;
+      else present++;
+    });
+    return { present, absent, late, total: students.length };
+  }, [students, selectedBatchCourseId, attendanceDate, attendanceHour, registerStatusMap, store.sessions, store.attendance]);
 
   // Reset manual overrides when session parameters change so saved records take effect
   useEffect(() => {
@@ -1799,10 +1831,67 @@ export default function BatchDetails() {
           {/* REGISTER VIEW */}
           {attendanceViewMode === 'register' && (
             <div className="bg-card rounded-2xl border border-border overflow-hidden shadow-sm">
-              <div className="p-3 bg-muted/40 text-xs font-mono text-muted-foreground border-b border-border flex justify-between">
-                <span>Default: Every student is Present. Tap status to toggle Absent / Late.</span>
-                <span>Active Tool: {activeCourse?.name}</span>
+              {/* Search & Session KPIs Toolbar */}
+              <div className="p-3 bg-muted/30 border-b border-border flex flex-col md:flex-row md:items-center justify-between gap-3">
+                <div className="flex items-center gap-2 flex-1 max-w-md">
+                  <div className="relative flex-1">
+                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
+                    <Input
+                      type="text"
+                      placeholder="Search students (name, register no, class)..."
+                      value={attendanceSearchQuery}
+                      onChange={(e) => setAttendanceSearchQuery(e.target.value)}
+                      className="pl-8.5 pr-8 h-8 text-xs font-sans rounded-xl bg-background border-border/80 focus-visible:ring-primary/40"
+                    />
+                    {attendanceSearchQuery && (
+                      <button
+                        type="button"
+                        onClick={() => setAttendanceSearchQuery('')}
+                        className="absolute right-2.5 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground p-0.5 rounded transition-colors"
+                        title="Clear search filter"
+                      >
+                        <X className="h-3 w-3" />
+                      </button>
+                    )}
+                  </div>
+                  {attendanceSearchQuery && (
+                    <span className="text-[11px] font-mono text-muted-foreground whitespace-nowrap bg-muted px-2 py-1 rounded-lg">
+                      {filteredRegisterStudents.length} of {students.length}
+                    </span>
+                  )}
+                </div>
+
+                {/* Session Status KPI Chips */}
+                <div className="flex items-center gap-2 flex-wrap text-xs">
+                  <span className="text-[11px] font-mono text-muted-foreground font-medium mr-1 hidden sm:inline">Session Status:</span>
+                  <span className="px-2 py-0.5 rounded-full text-[11px] font-mono font-bold bg-success/15 text-success border border-success/30">
+                    {attendanceCurrentStats.present} Present
+                  </span>
+                  <span className="px-2 py-0.5 rounded-full text-[11px] font-mono font-bold bg-destructive/15 text-destructive border border-destructive/30">
+                    {attendanceCurrentStats.absent} Absent
+                  </span>
+                  {attendanceCurrentStats.late > 0 && (
+                    <span className="px-2 py-0.5 rounded-full text-[11px] font-mono font-bold bg-warning/15 text-warning border border-warning/30">
+                      {attendanceCurrentStats.late} Late
+                    </span>
+                  )}
+                  <span className="text-border mx-1">|</span>
+                  <span className="text-[11px] font-mono text-muted-foreground">
+                    Active Tool: <strong className="text-foreground">{activeCourse?.name || 'Course'}</strong>
+                  </span>
+                </div>
               </div>
+
+              {/* Informative Subheader */}
+              <div className="px-3 py-1.5 bg-muted/10 text-[11px] font-mono text-muted-foreground border-b border-border/60 flex items-center justify-between">
+                <span>Default: Every student is Present. Tap status to toggle Absent / Late.</span>
+                {attendanceSearchQuery && (
+                  <span className="text-primary font-semibold">
+                    Filter Active ({filteredRegisterStudents.length} matched)
+                  </span>
+                )}
+              </div>
+
               <table className="w-full text-left text-sm">
                 <thead className="bg-muted/50 border-b border-border text-muted-foreground font-mono text-xs uppercase">
                   <tr>
@@ -1814,60 +1903,78 @@ export default function BatchDetails() {
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-border">
-                  {students.map((stu) => {
-                    // Find existing saved attendance record for this student in current session
-                    const currentSession = store.sessions.find(
-                      s => s.batch_course_id === selectedBatchCourseId && s.session_date === attendanceDate && Number(s.hour_no) === Number(attendanceHour)
-                    );
-                    const savedRecord = currentSession
-                      ? store.attendance.find(a => a.session_id === currentSession.id && a.student_id === stu.id)
-                      : undefined;
-                    const status = registerStatusMap[stu.id] ?? savedRecord?.status ?? 'present';
-                    return (
-                      <tr key={stu.id} className="hover:bg-muted/30">
-                        <td className="p-3 font-mono font-bold text-accent">{stu.register_no}</td>
-                        <td className="p-3 font-medium text-foreground">{stu.name}</td>
-                        <td className="p-3 text-muted-foreground font-mono text-xs">{stu.class}</td>
-                        <td className="p-3 text-center">
-                          <div className="inline-flex rounded-xl bg-sunken p-1 border border-border gap-1">
-                            <button
-                              onClick={() => setRegisterStatusMap({ ...registerStatusMap, [stu.id]: 'present' })}
-                              className={`px-3 py-1 rounded-lg text-xs font-bold transition-colors ${status === 'present' ? 'bg-success text-white' : 'text-muted-foreground hover:text-foreground'
-                                }`}
-                            >
-                              Present
-                            </button>
-                            <button
-                              onClick={() => setRegisterStatusMap({ ...registerStatusMap, [stu.id]: 'absent' })}
-                              className={`px-3 py-1 rounded-lg text-xs font-bold transition-colors ${status === 'absent' ? 'bg-destructive text-white' : 'text-muted-foreground hover:text-foreground'
-                                }`}
-                            >
-                              Absent
-                            </button>
-                            <button
-                              onClick={() => setRegisterStatusMap({ ...registerStatusMap, [stu.id]: 'late' })}
-                              className={`px-3 py-1 rounded-lg text-xs font-bold transition-colors ${status === 'late' ? 'bg-warning text-white' : 'text-muted-foreground hover:text-foreground'
-                                }`}
-                            >
-                              Late
-                            </button>
-                          </div>
-                        </td>
-                        <td className="p-3 text-center">
-                          {savedRecord ? (
-                            <button
-                              onClick={() => handleDeleteAttendanceRecord(savedRecord.id, stu.name)}
-                              title="Delete this student's attendance record for this session"
-                              className="text-destructive hover:text-destructive/70 p-1 rounded transition-colors">
-                              <Trash2 className="h-4 w-4" />
-                            </button>
-                          ) : (
-                            <span className="text-muted-foreground/40 text-xs font-mono">not saved</span>
-                          )}
-                        </td>
-                      </tr>
-                    );
-                  })}
+                  {filteredRegisterStudents.length === 0 ? (
+                    <tr>
+                      <td colSpan={5} className="p-8 text-center space-y-2">
+                        <Users className="h-8 w-8 text-muted-foreground mx-auto opacity-50" />
+                        <p className="text-xs font-semibold text-foreground">No students match "{attendanceSearchQuery}"</p>
+                        <p className="text-[11px] text-muted-foreground">Try searching by first name, last name, class division, or register number.</p>
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={() => setAttendanceSearchQuery('')}
+                          className="h-7 text-xs rounded-xl mt-1"
+                        >
+                          Clear Search Filter
+                        </Button>
+                      </td>
+                    </tr>
+                  ) : (
+                    filteredRegisterStudents.map((stu: Student) => {
+                      // Find existing saved attendance record for this student in current session
+                      const currentSession = store.sessions.find(
+                        s => s.batch_course_id === selectedBatchCourseId && s.session_date === attendanceDate && Number(s.hour_no) === Number(attendanceHour)
+                      );
+                      const savedRecord = currentSession
+                        ? store.attendance.find(a => a.session_id === currentSession.id && a.student_id === stu.id)
+                        : undefined;
+                      const status = registerStatusMap[stu.id] ?? savedRecord?.status ?? 'present';
+                      return (
+                        <tr key={stu.id} className="hover:bg-muted/30">
+                          <td className="p-3 font-mono font-bold text-accent">{stu.register_no}</td>
+                          <td className="p-3 font-medium text-foreground">{stu.name}</td>
+                          <td className="p-3 text-muted-foreground font-mono text-xs">{stu.class}</td>
+                          <td className="p-3 text-center">
+                            <div className="inline-flex rounded-xl bg-sunken p-1 border border-border gap-1">
+                              <button
+                                onClick={() => setRegisterStatusMap({ ...registerStatusMap, [stu.id]: 'present' })}
+                                className={`px-3 py-1 rounded-lg text-xs font-bold transition-colors ${status === 'present' ? 'bg-success text-white' : 'text-muted-foreground hover:text-foreground'
+                                  }`}
+                              >
+                                Present
+                              </button>
+                              <button
+                                onClick={() => setRegisterStatusMap({ ...registerStatusMap, [stu.id]: 'absent' })}
+                                className={`px-3 py-1 rounded-lg text-xs font-bold transition-colors ${status === 'absent' ? 'bg-destructive text-white' : 'text-muted-foreground hover:text-foreground'
+                                  }`}
+                              >
+                                Absent
+                              </button>
+                              <button
+                                onClick={() => setRegisterStatusMap({ ...registerStatusMap, [stu.id]: 'late' })}
+                                className={`px-3 py-1 rounded-lg text-xs font-bold transition-colors ${status === 'late' ? 'bg-warning text-white' : 'text-muted-foreground hover:text-foreground'
+                                  }`}
+                              >
+                                Late
+                              </button>
+                            </div>
+                          </td>
+                          <td className="p-3 text-center">
+                            {savedRecord ? (
+                              <button
+                                onClick={() => handleDeleteAttendanceRecord(savedRecord.id, stu.name)}
+                                title="Delete this student's attendance record for this session"
+                                className="text-destructive hover:text-destructive/70 p-1 rounded transition-colors">
+                                <Trash2 className="h-4 w-4" />
+                              </button>
+                            ) : (
+                              <span className="text-muted-foreground/40 text-xs font-mono">not saved</span>
+                            )}
+                          </td>
+                        </tr>
+                      );
+                    })
+                  )}
                 </tbody>
               </table>
             </div>
