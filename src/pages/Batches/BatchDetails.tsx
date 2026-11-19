@@ -3616,14 +3616,24 @@ export default function BatchDetails() {
       {/* ABSENTEE EMAIL PREVIEW MODAL */}
 
       {showAbsenteeModal && absenteePreview && (
-        <div className="fixed inset-0 z-50 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4">
-          <div className="bg-card border border-border rounded-2xl p-6 max-w-2xl w-full shadow-2xl space-y-4">
-            <div className="flex items-center justify-between border-b border-border pb-3">
-              <h3 className="text-lg font-bold font-heading text-foreground">Absentees Report Preview</h3>
-              <span className="text-xs font-mono font-bold text-accent">Explicit Confirm</span>
+        <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center p-3 sm:p-4 overflow-y-auto">
+          <div className="bg-card border border-border rounded-2xl shadow-2xl max-w-3xl w-full max-h-[92vh] flex flex-col my-auto overflow-hidden animate-in fade-in zoom-in-95 duration-200">
+            {/* Modal Header — Fixed */}
+            <div className="flex items-center justify-between p-4 sm:p-5 border-b border-border bg-card shrink-0">
+              <div className="flex items-center gap-2">
+                <Mail className="h-5 w-5 text-primary" />
+                <h3 className="text-base sm:text-lg font-bold font-heading text-foreground">Absentees Report Preview</h3>
+              </div>
+              <div className="flex items-center gap-2">
+                <span className="text-xs font-mono font-bold px-2.5 py-0.5 rounded bg-accent/15 text-accent">Explicit Confirm</span>
+                <Button variant="ghost" size="icon" onClick={() => setShowAbsenteeModal(false)} className="h-8 w-8 rounded-full" title="Close">
+                  <X className="h-4 w-4" />
+                </Button>
+              </div>
             </div>
 
-            <div className="space-y-3 text-xs font-mono">
+            {/* Modal Content — Smooth Vertical Scroll */}
+            <div className="p-4 sm:p-5 overflow-y-auto flex-1 space-y-3.5 text-xs font-mono">
               <div className="bg-sunken p-3.5 rounded-xl space-y-2.5 border border-border">
                 <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-1 text-xs">
                   <span className="text-muted-foreground font-medium">Recipient Coordinator:</span>
@@ -3725,17 +3735,17 @@ export default function BatchDetails() {
                 </div>
               </div>
 
-              <div className="border border-border rounded-xl p-4 space-y-3 bg-card overflow-hidden">
+              <div className="border border-border rounded-xl p-3 sm:p-4 space-y-3 bg-card">
                 <div className="font-sans font-bold text-foreground text-sm flex items-center justify-between">
                   <span>Absentee Matrix Table ({absenteePreview.absentees.length} Students)</span>
-                  <span className="text-[10px] text-muted-foreground bg-muted px-2 py-0.5 rounded">Sorted by Class</span>
+                  <span className="text-[10px] text-muted-foreground bg-muted px-2 py-0.5 rounded font-mono">Sorted by Class</span>
                 </div>
                 {absenteePreview.absentees.length === 0 ? (
-                  <div className="text-success py-2 text-center font-sans text-xs">No absentees reported for this date!</div>
+                  <div className="text-success py-4 text-center font-sans text-xs">No absentees reported for this date!</div>
                 ) : (
-                  <div className="overflow-x-auto border border-border/85 rounded-xl">
+                  <div className="overflow-x-auto overflow-y-auto max-h-[42vh] border border-border/85 rounded-xl">
                     <table className="w-full text-left text-xs border-collapse">
-                      <thead className="bg-muted/60 border-b border-border text-muted-foreground font-mono text-[10px] uppercase">
+                      <thead className="bg-muted/80 border-b border-border text-muted-foreground font-mono text-[10px] uppercase sticky top-0 z-10 backdrop-blur-xs">
                         <tr>
                           <th className="p-2.5">Register No</th>
                           <th className="p-2.5">Name</th>
@@ -3774,21 +3784,27 @@ export default function BatchDetails() {
               </div>
             </div>
 
-            <div className="flex justify-end gap-2 pt-2 border-t border-border">
-              <Button variant="outline" onClick={() => setShowAbsenteeModal(false)} disabled={isSendingAbsenteeEmail}>
-                Cancel
-              </Button>
-              <Button onClick={handleConfirmSendAbsenteeEmail} disabled={isSendingAbsenteeEmail} className="bg-primary text-primary-foreground">
-                {isSendingAbsenteeEmail ? (
-                  <>
-                    <Loader2 className="h-3.5 w-3.5 mr-1 animate-spin" /> Sending via SMTP...
-                  </>
-                ) : (
-                  <>
-                    <Send className="h-3.5 w-3.5 mr-1" /> Send Absentee Email Now
-                  </>
-                )}
-              </Button>
+            {/* Modal Footer — Pinned & Always Visible */}
+            <div className="p-4 border-t border-border bg-card/95 backdrop-blur-sm flex items-center justify-between shrink-0 gap-2">
+              <span className="text-[11px] font-mono text-muted-foreground hidden sm:inline">
+                {absenteePreview.absentees.length} {absenteePreview.absentees.length === 1 ? 'student' : 'students'} absent
+              </span>
+              <div className="flex items-center gap-2 ml-auto">
+                <Button variant="outline" onClick={() => setShowAbsenteeModal(false)} disabled={isSendingAbsenteeEmail}>
+                  Cancel
+                </Button>
+                <Button onClick={handleConfirmSendAbsenteeEmail} disabled={isSendingAbsenteeEmail} className="bg-primary text-primary-foreground shadow-sm font-semibold">
+                  {isSendingAbsenteeEmail ? (
+                    <>
+                      <Loader2 className="h-3.5 w-3.5 mr-1.5 animate-spin" /> Sending via SMTP...
+                    </>
+                  ) : (
+                    <>
+                      <Send className="h-3.5 w-3.5 mr-1.5" /> Send Absentee Email Now
+                    </>
+                  )}
+                </Button>
+              </div>
             </div>
           </div>
         </div>
