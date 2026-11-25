@@ -449,6 +449,7 @@ class DataStore {
       course_id: task.course_id!,
       semester: task.semester !== undefined ? task.semester : null,
       title: task.title!.trim(),
+      description: task.description?.trim() || null,
       due_date: task.due_date || null,
       is_completed: task.is_completed ?? false,
       completed_at: task.completed_at || null,
@@ -464,22 +465,30 @@ class DataStore {
     }
     this.saveLocalCache();
 
-    // Persist to Supabase uct_batch_tasks
+    // Persist to Supabase uct_batch_tasks (with fallback if description column is not yet migrated)
     try {
-      const { error } = await supabase.from('uct_batch_tasks').upsert({
+      const payload = {
         id: item.id,
         batch_id: item.batch_id,
         course_id: item.course_id,
         semester: item.semester,
         title: item.title,
+        description: item.description,
         due_date: item.due_date,
         is_completed: item.is_completed,
         completed_at: item.completed_at,
         created_at: item.created_at,
         updated_at: item.updated_at
-      });
+      };
+      const { error } = await supabase.from('uct_batch_tasks').upsert(payload);
       if (error) {
-        console.warn('Supabase task save note:', error.message);
+        if (error.message?.toLowerCase().includes('description')) {
+          const { description: _omit, ...legacyPayload } = payload;
+          const { error: retryErr } = await supabase.from('uct_batch_tasks').upsert(legacyPayload);
+          if (retryErr) console.warn('Supabase task save note:', retryErr.message);
+        } else {
+          console.warn('Supabase task save note:', error.message);
+        }
       }
     } catch (e) {
       console.warn('Task save error:', e);

@@ -252,6 +252,7 @@ export interface BatchTask {
   course_id: string;
   semester?: number | null; // null = Common to Course across all semesters; 1, 2, 3... = Specific Semester
   title: string;
+  description?: string | null;
   due_date?: string | null;
   is_completed: boolean;
   completed_at?: string | null;

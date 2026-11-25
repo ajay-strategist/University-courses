@@ -14,7 +14,7 @@ import {
   ArrowLeft, Users, BookOpen, CalendarCheck, Award,
   CheckSquare, Plus, Download, Upload, Mail, CheckCircle2, Clock,
   AlertTriangle, Check, X, FileSpreadsheet, Send, Edit2, Trash2,
-  ListTodo, Calendar, Loader2, ShieldCheck, UserCheck, Search
+  ListTodo, Calendar, Loader2, ShieldCheck, UserCheck, Search, Globe, AlignLeft
 } from 'lucide-react';
 import * as XLSX from 'xlsx';
 import { CollegeLogo } from '@/components/common/CollegeLogo';
@@ -67,13 +67,22 @@ export default function BatchDetails() {
 
   // Task List state
   const [newTaskText, setNewTaskText] = useState('');
+  const [newTaskDescription, setNewTaskDescription] = useState('');
   const [newTaskDueDate, setNewTaskDueDate] = useState('');
   const [newTaskScope, setNewTaskScope] = useState<'semester' | 'common'>('semester');
+  const [taskStatusFilter, setTaskStatusFilter] = useState<'all' | 'pending' | 'completed'>('all');
+  const [editingTaskId, setEditingTaskId] = useState<string | null>(null);
+  const [editingTaskForm, setEditingTaskForm] = useState<{
+    title: string;
+    description: string;
+    due_date: string;
+    scope: 'semester' | 'common';
+  }>({ title: '', description: '', due_date: '', scope: 'semester' });
   const [, setTasksVersion] = useState(0);
 
   const handleAddCustomTask = async (courseId: string, currentSemester: number) => {
     if (!newTaskText.trim()) {
-      toast.error('Please enter a task description');
+      toast.error('Please enter a task title');
       return;
     }
     if (!courseId) {
@@ -87,15 +96,48 @@ export default function BatchDetails() {
         course_id: courseId,
         semester: newTaskScope === 'semester' ? currentSemester : null,
         title: newTaskText.trim(),
+        description: newTaskDescription.trim() || null,
         due_date: newTaskDueDate ? newTaskDueDate : null,
         is_completed: false,
       });
       setTasksVersion(v => v + 1);
       setNewTaskText('');
+      setNewTaskDescription('');
       setNewTaskDueDate('');
       toast.success(newTaskScope === 'semester' ? `Task added to Semester ${currentSemester}!` : 'Common course task added!');
     } catch (err: any) {
       toast.error('Failed to add task', { description: err.message });
+    }
+  };
+
+  const handleStartEditTask = (task: BatchTask) => {
+    setEditingTaskId(task.id);
+    setEditingTaskForm({
+      title: task.title,
+      description: task.description || '',
+      due_date: task.due_date || '',
+      scope: task.semester !== null && task.semester !== undefined ? 'semester' : 'common',
+    });
+  };
+
+  const handleSaveEditTask = async (task: BatchTask, currentSemester: number) => {
+    if (!editingTaskForm.title.trim()) {
+      toast.error('Task title cannot be empty');
+      return;
+    }
+    try {
+      await store.saveBatchTask({
+        ...task,
+        title: editingTaskForm.title.trim(),
+        description: editingTaskForm.description.trim() || null,
+        due_date: editingTaskForm.due_date || null,
+        semester: editingTaskForm.scope === 'semester' ? (task.semester ?? currentSemester) : null,
+      });
+      setEditingTaskId(null);
+      setTasksVersion(v => v + 1);
+      toast.success('Task updated!');
+    } catch (err: any) {
+      toast.error('Failed to update task', { description: err.message });
     }
   };
 
@@ -3359,14 +3401,28 @@ export default function BatchDetails() {
         const allToolTasks = store.batchTasks.filter(
           t => t.batch_id === id && t.course_id === currentCourseId
         );
-        const semesterTasks = allToolTasks.filter(t => t.semester === activeSemesterNum);
-        const commonTasks = allToolTasks.filter(t => t.semester === null || t.semester === undefined);
+
+        const filterByStatus = (list: BatchTask[]) => {
+          if (taskStatusFilter === 'pending') return list.filter(t => !t.is_completed);
+          if (taskStatusFilter === 'completed') return list.filter(t => t.is_completed);
+          return list;
+        };
+
+        const semesterTasks = filterByStatus(allToolTasks.filter(t => t.semester === activeSemesterNum));
+        const commonTasks = filterByStatus(allToolTasks.filter(t => t.semester === null || t.semester === undefined));
+
+        const totalTasksCount = allToolTasks.length;
+        const completedTasksCount = allToolTasks.filter(t => t.is_completed).length;
+        const pendingTasksCount = totalTasksCount - completedTasksCount;
+        const completionPct = totalTasksCount > 0 ? Math.round((completedTasksCount / totalTasksCount) * 100) : 0;
 
         const isOverdue = (dateStr?: string | null) => {
           if (!dateStr) return false;
-          const today = new Date().toISOString().split('T')[0];
-          return dateStr < today;
+          const todayStr = new Date().toISOString().split('T')[0];
+          return dateStr < todayStr;
         };
+
+        const overdueTasksCount = allToolTasks.filter(t => !t.is_completed && isOverdue(t.due_date)).length;
 
         const formatDueDate = (dateStr?: string | null) => {
           if (!dateStr) return null;
@@ -3379,41 +3435,265 @@ export default function BatchDetails() {
           }
         };
 
+        const renderTaskCard = (task: BatchTask, variant: 'semester' | 'common') => {
+          const overdue = !task.is_completed && isOverdue(task.due_date);
+          const isEditing = editingTaskId === task.id;
+
+          if (isEditing) {
+            return (
+              <div
+                key={task.id}
+                className="border-2 border-primary/40 bg-card p-4 rounded-2xl shadow-sm space-y-3 transition-all"
+              >
+                <div className="grid grid-cols-1 sm:grid-cols-12 gap-2.5">
+                  <div className="sm:col-span-8">
+                    <label className="text-[10px] font-mono uppercase tracking-wider text-muted-foreground font-semibold block mb-1">
+                      Task Title
+                    </label>
+                    <Input
+                      value={editingTaskForm.title}
+                      onChange={(e) => setEditingTaskForm({ ...editingTaskForm, title: e.target.value })}
+                      placeholder="Task title..."
+                      className="text-xs rounded-xl bg-background"
+                    />
+                  </div>
+                  <div className="sm:col-span-4">
+                    <label className="text-[10px] font-mono uppercase tracking-wider text-muted-foreground font-semibold block mb-1">
+                      Due Date
+                    </label>
+                    <Input
+                      type="date"
+                      value={editingTaskForm.due_date}
+                      onChange={(e) => setEditingTaskForm({ ...editingTaskForm, due_date: e.target.value })}
+                      className="text-xs rounded-xl bg-background"
+                    />
+                  </div>
+                </div>
+                <div>
+                  <label className="text-[10px] font-mono uppercase tracking-wider text-muted-foreground font-semibold block mb-1">
+                    Description / Notes
+                  </label>
+                  <textarea
+                    rows={2}
+                    value={editingTaskForm.description}
+                    onChange={(e) => setEditingTaskForm({ ...editingTaskForm, description: e.target.value })}
+                    placeholder="Add detailed instructions, criteria, or notes..."
+                    className="w-full bg-background border border-border rounded-xl px-3 py-2 text-xs text-foreground placeholder:text-muted-foreground/70 focus:outline-none focus:ring-2 focus:ring-primary/30 resize-y"
+                  />
+                </div>
+                <div className="flex flex-wrap items-center justify-between gap-2 pt-1">
+                  <div className="flex items-center gap-2">
+                    <button
+                      type="button"
+                      onClick={() => setEditingTaskForm({ ...editingTaskForm, scope: 'semester' })}
+                      className={`px-2.5 py-1 rounded-lg text-[11px] font-medium border transition-colors ${
+                        editingTaskForm.scope === 'semester'
+                          ? 'bg-primary/15 text-primary border-primary/30 font-semibold'
+                          : 'bg-sunken text-muted-foreground border-border hover:text-foreground'
+                      }`}
+                    >
+                      Semester {activeSemesterNum}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setEditingTaskForm({ ...editingTaskForm, scope: 'common' })}
+                      className={`px-2.5 py-1 rounded-lg text-[11px] font-medium border transition-colors ${
+                        editingTaskForm.scope === 'common'
+                          ? 'bg-accent/15 text-accent border-accent/30 font-semibold'
+                          : 'bg-sunken text-muted-foreground border-border hover:text-foreground'
+                      }`}
+                    >
+                      Common to Course
+                    </button>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={() => setEditingTaskId(null)}
+                      className="h-7 text-xs rounded-lg"
+                    >
+                      Cancel
+                    </Button>
+                    <Button
+                      size="sm"
+                      onClick={() => handleSaveEditTask(task, activeSemesterNum)}
+                      className="h-7 text-xs rounded-lg bg-primary text-primary-foreground"
+                    >
+                      <Check className="h-3.5 w-3.5 mr-1" /> Save
+                    </Button>
+                  </div>
+                </div>
+              </div>
+            );
+          }
+
+          const accentStrip = task.is_completed
+            ? 'border-l-success/60'
+            : overdue
+            ? 'border-l-destructive'
+            : variant === 'semester'
+            ? 'border-l-primary'
+            : 'border-l-accent';
+
+          return (
+            <div
+              key={task.id}
+              className={`relative flex items-start gap-3.5 border border-l-4 ${accentStrip} p-3.5 sm:p-4 rounded-2xl transition-all group ${
+                task.is_completed
+                  ? 'bg-sunken/30 border-border/40 opacity-75'
+                  : 'bg-card/80 border-border/80 hover:border-primary/30 hover:shadow-sm'
+              }`}
+            >
+              {/* Custom Check Button */}
+              <button
+                type="button"
+                onClick={() => handleToggleCustomTask(task.id)}
+                className={`mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-md border transition-all cursor-pointer ${
+                  task.is_completed
+                    ? 'bg-success border-success text-white shadow-xs'
+                    : 'border-muted-foreground/40 bg-background hover:border-primary hover:bg-primary/5'
+                }`}
+                title={task.is_completed ? 'Mark as pending' : 'Mark as completed'}
+              >
+                {task.is_completed && <Check className="h-3.5 w-3.5 stroke-[2.5]" />}
+              </button>
+
+              {/* Task Content */}
+              <div className="flex-1 min-w-0 space-y-1.5">
+                <div className="flex flex-wrap items-start justify-between gap-2">
+                  <h5
+                    className={`text-sm leading-snug ${
+                      task.is_completed
+                        ? 'line-through text-muted-foreground font-normal'
+                        : 'text-foreground font-semibold'
+                    }`}
+                  >
+                    {task.title}
+                  </h5>
+
+                  <div className="flex items-center gap-1.5 shrink-0">
+                    {task.due_date && (
+                      <span
+                        className={`text-[10px] font-mono font-semibold px-2.5 py-0.5 rounded-full flex items-center gap-1 ${
+                          overdue
+                            ? 'bg-destructive/15 text-destructive border border-destructive/30'
+                            : task.is_completed
+                            ? 'bg-muted text-muted-foreground'
+                            : variant === 'semester'
+                            ? 'bg-primary/10 text-primary border border-primary/20'
+                            : 'bg-accent/15 text-accent border border-accent/25'
+                        }`}
+                      >
+                        <Calendar className="h-3 w-3" />
+                        {overdue ? 'Overdue: ' : 'Due: '}
+                        {formatDueDate(task.due_date)}
+                      </span>
+                    )}
+                    {task.is_completed && (
+                      <span className="text-[10px] font-mono font-semibold px-2 py-0.5 rounded-full bg-success/15 text-success border border-success/25 flex items-center gap-1">
+                        <CheckCircle2 className="h-3 w-3" /> Done
+                      </span>
+                    )}
+                  </div>
+                </div>
+
+                {task.description && (
+                  <p
+                    className={`text-xs leading-relaxed whitespace-pre-line rounded-xl px-3 py-2 border ${
+                      task.is_completed
+                        ? 'text-muted-foreground/80 bg-sunken/30 border-border/30'
+                        : 'text-muted-foreground bg-sunken/60 border-border/50'
+                    }`}
+                  >
+                    {task.description}
+                  </p>
+                )}
+              </div>
+
+              {/* Action Buttons */}
+              <div className="flex items-center gap-1 shrink-0 opacity-80 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity">
+                <Button
+                  size="icon"
+                  variant="ghost"
+                  className="h-7 w-7 text-muted-foreground hover:text-primary hover:bg-primary/10 rounded-lg"
+                  onClick={() => handleStartEditTask(task)}
+                  title="Edit task"
+                >
+                  <Edit2 className="h-3.5 w-3.5" />
+                </Button>
+                <Button
+                  size="icon"
+                  variant="ghost"
+                  className="h-7 w-7 text-muted-foreground hover:text-destructive hover:bg-destructive/10 rounded-lg"
+                  onClick={() => handleDeleteCustomTask(task.id)}
+                  title="Delete task"
+                >
+                  <Trash2 className="h-3.5 w-3.5" />
+                </Button>
+              </div>
+            </div>
+          );
+        };
+
         return (
           <div className="max-w-4xl mx-auto space-y-6">
-            {/* Header Card with Task Creation Form */}
-            <div className="card-meridian p-6 space-y-4">
-              <div className="flex flex-col sm:flex-row sm:items-center justify-between border-b border-border pb-3 gap-2">
+            {/* Header Card with Progress & Task Creation Form */}
+            <div className="card-meridian p-6 space-y-5">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between border-b border-border pb-4 gap-3">
                 <div>
-                  <h3 className="text-base font-bold font-heading text-foreground flex items-center gap-2">
+                  <h3 className="text-lg font-bold font-heading text-foreground flex items-center gap-2">
                     <ListTodo className="h-5 w-5 text-primary" />
                     Cohort Tasks &amp; Actions
                   </h3>
                   <p className="text-xs text-muted-foreground mt-0.5">
-                    Managing tasks for <span className="font-semibold text-primary">{currentCourse?.name || 'Selected Course'}</span> ({currentCourse?.code || 'N/A'})
+                    Managing milestones &amp; action items for{' '}
+                    <span className="font-semibold text-primary">{currentCourse?.name || 'Selected Course'}</span>{' '}
+                    <span className="font-mono text-[11px]">({currentCourse?.code || 'N/A'})</span>
                   </p>
                 </div>
-                <div className="flex items-center gap-2">
-                  <span className="text-[11px] font-mono bg-primary/10 text-primary px-2.5 py-1 rounded-full font-bold">
+                <div className="flex flex-wrap items-center gap-2">
+                  <span className="text-[11px] font-mono bg-primary/10 text-primary border border-primary/20 px-2.5 py-1 rounded-full font-bold">
                     Sem {activeSemesterNum} Active
                   </span>
-                  <span className="text-[11px] font-mono bg-accent/10 text-accent px-2.5 py-1 rounded-full font-bold">
-                    {allToolTasks.filter(t => t.is_completed).length}/{allToolTasks.length} Done
+                  {overdueTasksCount > 0 && (
+                    <span className="text-[11px] font-mono bg-destructive/15 text-destructive border border-destructive/25 px-2.5 py-1 rounded-full font-bold">
+                      {overdueTasksCount} Overdue
+                    </span>
+                  )}
+                  <span className="text-[11px] font-mono bg-accent/15 text-accent border border-accent/25 px-2.5 py-1 rounded-full font-bold">
+                    {completedTasksCount}/{totalTasksCount} Done ({completionPct}%)
                   </span>
                 </div>
               </div>
 
+              {/* Overall Completion Progress Bar */}
+              {totalTasksCount > 0 && (
+                <div className="space-y-1.5">
+                  <div className="flex items-center justify-between text-[11px] font-mono text-muted-foreground">
+                    <span>Overall Task Completion</span>
+                    <span className="font-semibold text-foreground">{completionPct}%</span>
+                  </div>
+                  <div className="h-2 w-full rounded-full bg-sunken overflow-hidden border border-border/60">
+                    <div
+                      className="h-full bg-gradient-to-r from-primary to-success rounded-full transition-all duration-500"
+                      style={{ width: `${completionPct}%` }}
+                    />
+                  </div>
+                </div>
+              )}
+
               {/* Add Task Form */}
-              <div className="space-y-3 pt-1">
+              <div className="bg-sunken/40 border border-border/70 rounded-2xl p-4 space-y-3">
                 <div className="grid grid-cols-1 sm:grid-cols-12 gap-2.5">
                   <div className="sm:col-span-7">
                     <Input
                       value={newTaskText}
                       onChange={(e) => setNewTaskText(e.target.value)}
-                      placeholder="Task description (e.g. Mock Test 1, ISA Evaluation, Project Clearance)..."
-                      className="text-xs rounded-xl"
+                      placeholder="Task title (e.g. Mock Test 1, ISA Evaluation, Project Clearance)..."
+                      className="text-xs rounded-xl bg-background"
                       onKeyDown={(e) => {
-                        if (e.key === 'Enter') handleAddCustomTask(currentCourseId, activeSemesterNum);
+                        if (e.key === 'Enter' && !e.shiftKey) handleAddCustomTask(currentCourseId, activeSemesterNum);
                       }}
                     />
                   </div>
@@ -3422,190 +3702,163 @@ export default function BatchDetails() {
                       type="date"
                       value={newTaskDueDate}
                       onChange={(e) => setNewTaskDueDate(e.target.value)}
-                      className="text-xs rounded-xl cursor-pointer"
+                      className="text-xs rounded-xl cursor-pointer bg-background"
                       title="Optional Due Date / Deadline"
                     />
                   </div>
                   <div className="sm:col-span-2">
                     <Button
                       onClick={() => handleAddCustomTask(currentCourseId, activeSemesterNum)}
-                      className="w-full bg-primary text-primary-foreground rounded-xl text-xs font-semibold"
+                      className="w-full bg-primary text-primary-foreground rounded-xl text-xs font-semibold shadow-xs"
                     >
                       <Plus className="h-4 w-4 mr-1" /> Add Task
                     </Button>
                   </div>
                 </div>
 
-                {/* Scope selector */}
-                <div className="flex items-center gap-4 text-xs font-medium text-muted-foreground pt-1">
-                  <span className="text-[11px] uppercase tracking-wider font-mono font-semibold text-foreground/70">Scope:</span>
-                  <label className="flex items-center gap-1.5 cursor-pointer hover:text-foreground transition-colors">
-                    <input
-                      type="radio"
-                      name="taskScope"
-                      checked={newTaskScope === 'semester'}
-                      onChange={() => setNewTaskScope('semester')}
-                      className="text-primary focus:ring-primary h-3.5 w-3.5 cursor-pointer"
-                    />
-                    <span>Semester {activeSemesterNum} Task</span>
-                  </label>
-                  <label className="flex items-center gap-1.5 cursor-pointer hover:text-foreground transition-colors">
-                    <input
-                      type="radio"
-                      name="taskScope"
-                      checked={newTaskScope === 'common'}
-                      onChange={() => setNewTaskScope('common')}
-                      className="text-primary focus:ring-primary h-3.5 w-3.5 cursor-pointer"
-                    />
-                    <span>Common to Entire Course</span>
-                  </label>
+                {/* Task Description Textarea */}
+                <div className="relative">
+                  <AlignLeft className="absolute left-3 top-2.5 h-3.5 w-3.5 text-muted-foreground/70 pointer-events-none" />
+                  <textarea
+                    rows={2}
+                    value={newTaskDescription}
+                    onChange={(e) => setNewTaskDescription(e.target.value)}
+                    placeholder="Add detailed description, evaluation notes, or instructions (optional)..."
+                    className="w-full bg-background border border-border rounded-xl pl-8 pr-3 py-2 text-xs text-foreground placeholder:text-muted-foreground/70 focus:outline-none focus:ring-2 focus:ring-primary/30 resize-y"
+                  />
+                </div>
+
+                {/* Scope selector + Status Filter */}
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pt-1">
+                  <div className="flex flex-wrap items-center gap-2 text-xs">
+                    <span className="text-[11px] uppercase tracking-wider font-mono font-semibold text-muted-foreground mr-1">
+                      Scope:
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => setNewTaskScope('semester')}
+                      className={`px-3 py-1 rounded-full text-xs font-medium border transition-all cursor-pointer ${
+                        newTaskScope === 'semester'
+                          ? 'bg-primary text-primary-foreground border-primary shadow-xs'
+                          : 'bg-background text-muted-foreground border-border hover:text-foreground'
+                      }`}
+                    >
+                      Semester {activeSemesterNum} Task
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setNewTaskScope('common')}
+                      className={`px-3 py-1 rounded-full text-xs font-medium border transition-all cursor-pointer flex items-center gap-1 ${
+                        newTaskScope === 'common'
+                          ? 'bg-accent text-accent-foreground border-accent shadow-xs'
+                          : 'bg-background text-muted-foreground border-border hover:text-foreground'
+                      }`}
+                    >
+                      <Globe className="h-3 w-3" /> Common to Entire Course
+                    </button>
+                  </div>
+
+                  {/* Status Filter */}
+                  <div className="flex items-center gap-1 bg-background border border-border rounded-xl p-0.5 self-start sm:self-auto">
+                    {([
+                      { id: 'all', label: `All (${totalTasksCount})` },
+                      { id: 'pending', label: `Pending (${pendingTasksCount})` },
+                      { id: 'completed', label: `Done (${completedTasksCount})` },
+                    ] as const).map((tab) => (
+                      <button
+                        key={tab.id}
+                        type="button"
+                        onClick={() => setTaskStatusFilter(tab.id)}
+                        className={`px-2.5 py-1 rounded-lg text-[11px] font-mono font-medium transition-colors cursor-pointer ${
+                          taskStatusFilter === tab.id
+                            ? 'bg-primary/15 text-primary font-bold'
+                            : 'text-muted-foreground hover:text-foreground'
+                        }`}
+                      >
+                        {tab.label}
+                      </button>
+                    ))}
+                  </div>
                 </div>
               </div>
             </div>
 
             {/* SECTION 1: SEMESTER SPECIFIC TASKS */}
-            <div className="card-meridian p-6 space-y-3">
-              <div className="flex items-center justify-between border-b border-border pb-2.5">
-                <div className="flex items-center gap-2">
-                  <span className="flex h-6 w-6 items-center justify-center rounded-lg bg-primary/10 text-primary text-xs font-bold font-mono">
+            <div className="card-meridian p-6 space-y-4">
+              <div className="flex items-center justify-between border-b border-border pb-3">
+                <div className="flex items-center gap-2.5">
+                  <span className="flex h-7 w-7 items-center justify-center rounded-xl bg-primary/15 text-primary text-xs font-bold font-mono border border-primary/20">
                     S{activeSemesterNum}
                   </span>
-                  <h4 className="font-heading font-bold text-sm text-foreground">
-                    Semester {activeSemesterNum} Tasks
-                  </h4>
+                  <div>
+                    <h4 className="font-heading font-bold text-sm text-foreground">
+                      Semester {activeSemesterNum} Tasks
+                    </h4>
+                    <p className="text-[11px] text-muted-foreground">
+                      Action items scoped specifically to Semester {activeSemesterNum}.
+                    </p>
+                  </div>
                 </div>
-                <span className="text-[11px] font-mono text-muted-foreground">
+                <span className="text-[11px] font-mono bg-sunken px-2.5 py-1 rounded-full border border-border text-muted-foreground">
                   {semesterTasks.filter(t => t.is_completed).length} of {semesterTasks.length} done
                 </span>
               </div>
 
               {semesterTasks.length === 0 ? (
-                <div className="flex flex-col items-center justify-center p-6 text-center text-muted-foreground italic border border-dashed border-border/80 rounded-xl bg-sunken/10">
-                  <ListTodo className="h-6 w-6 text-muted-foreground/40 mb-1.5" />
-                  <p className="text-xs">No tasks specifically assigned to Semester {activeSemesterNum}.</p>
+                <div className="flex flex-col items-center justify-center p-8 text-center text-muted-foreground border border-dashed border-border/80 rounded-2xl bg-sunken/15">
+                  <ListTodo className="h-7 w-7 text-muted-foreground/40 mb-2" />
+                  <p className="text-xs font-medium text-foreground/80">
+                    {taskStatusFilter === 'all'
+                      ? `No tasks specifically assigned to Semester ${activeSemesterNum}.`
+                      : `No ${taskStatusFilter} tasks in Semester ${activeSemesterNum}.`}
+                  </p>
+                  <p className="text-[11px] text-muted-foreground mt-0.5">
+                    Use the form above to add a task with an optional description and due date.
+                  </p>
                 </div>
               ) : (
-                <div className="space-y-2">
-                  {semesterTasks.map(task => {
-                    const overdue = !task.is_completed && isOverdue(task.due_date);
-                    return (
-                      <div
-                        key={task.id}
-                        className={`flex gap-3 items-center border p-3 rounded-xl transition-all group ${
-                          task.is_completed ? 'bg-sunken/30 border-border/40 opacity-75' : 'bg-sunken/60 border-border/70 hover:bg-sunken'
-                        }`}
-                      >
-                        <input
-                          type="checkbox"
-                          checked={task.is_completed}
-                          onChange={() => handleToggleCustomTask(task.id)}
-                          className="w-4 h-4 rounded border-border text-primary focus:ring-primary cursor-pointer"
-                        />
-                        <div className="flex-1 min-w-0 flex items-center justify-between gap-2">
-                          <span className={`text-xs truncate ${task.is_completed ? 'line-through text-muted-foreground font-normal' : 'text-foreground font-medium'}`}>
-                            {task.title}
-                          </span>
-                          {task.due_date && (
-                            <span className={`text-[10px] font-mono font-semibold px-2 py-0.5 rounded-full shrink-0 flex items-center gap-1 ${
-                              overdue
-                                ? 'bg-destructive/15 text-destructive border border-destructive/30'
-                                : task.is_completed
-                                ? 'bg-muted text-muted-foreground'
-                                : 'bg-primary/10 text-primary border border-primary/20'
-                            }`}>
-                              <Calendar className="h-3 w-3" />
-                              {overdue ? 'Overdue: ' : 'Due: '}
-                              {formatDueDate(task.due_date)}
-                            </span>
-                          )}
-                        </div>
-                        <Button
-                          size="icon"
-                          variant="ghost"
-                          className="h-7 w-7 opacity-0 group-hover:opacity-100 text-muted-foreground hover:text-destructive transition-all rounded-lg"
-                          onClick={() => handleDeleteCustomTask(task.id)}
-                          title="Delete task"
-                        >
-                          <Trash2 className="h-3.5 w-3.5" />
-                        </Button>
-                      </div>
-                    );
-                  })}
+                <div className="space-y-2.5">
+                  {semesterTasks.map(task => renderTaskCard(task, 'semester'))}
                 </div>
               )}
             </div>
 
             {/* SECTION 2: COMMON COURSE TASKS */}
-            <div className="card-meridian p-6 space-y-3">
-              <div className="flex items-center justify-between border-b border-border pb-2.5">
-                <div className="flex items-center gap-2">
-                  <span className="flex h-6 w-6 items-center justify-center rounded-lg bg-accent/15 text-accent text-xs font-bold font-mono">
-                    🌐
+            <div className="card-meridian p-6 space-y-4">
+              <div className="flex items-center justify-between border-b border-border pb-3">
+                <div className="flex items-center gap-2.5">
+                  <span className="flex h-7 w-7 items-center justify-center rounded-xl bg-accent/15 text-accent border border-accent/25">
+                    <Globe className="h-4 w-4" />
                   </span>
                   <div>
                     <h4 className="font-heading font-bold text-sm text-foreground">
                       Common Course Tasks
                     </h4>
-                    <p className="text-[11px] text-muted-foreground">General milestones valid across all semesters for {currentCourse?.name || 'this course'}.</p>
+                    <p className="text-[11px] text-muted-foreground">
+                      General milestones valid across all semesters for {currentCourse?.name || 'this course'}.
+                    </p>
                   </div>
                 </div>
-                <span className="text-[11px] font-mono text-muted-foreground">
+                <span className="text-[11px] font-mono bg-sunken px-2.5 py-1 rounded-full border border-border text-muted-foreground">
                   {commonTasks.filter(t => t.is_completed).length} of {commonTasks.length} done
                 </span>
               </div>
 
               {commonTasks.length === 0 ? (
-                <div className="flex flex-col items-center justify-center p-6 text-center text-muted-foreground italic border border-dashed border-border/80 rounded-xl bg-sunken/10">
-                  <ListTodo className="h-6 w-6 text-muted-foreground/40 mb-1.5" />
-                  <p className="text-xs">No common tasks for this tool course. Select &quot;Common to Entire Course&quot; to add one.</p>
+                <div className="flex flex-col items-center justify-center p-8 text-center text-muted-foreground border border-dashed border-border/80 rounded-2xl bg-sunken/15">
+                  <Globe className="h-7 w-7 text-muted-foreground/40 mb-2" />
+                  <p className="text-xs font-medium text-foreground/80">
+                    {taskStatusFilter === 'all'
+                      ? 'No common tasks for this tool course.'
+                      : `No ${taskStatusFilter} common tasks.`}
+                  </p>
+                  <p className="text-[11px] text-muted-foreground mt-0.5">
+                    Select &quot;Common to Entire Course&quot; above to add a cross-semester milestone.
+                  </p>
                 </div>
               ) : (
-                <div className="space-y-2">
-                  {commonTasks.map(task => {
-                    const overdue = !task.is_completed && isOverdue(task.due_date);
-                    return (
-                      <div
-                        key={task.id}
-                        className={`flex gap-3 items-center border p-3 rounded-xl transition-all group ${
-                          task.is_completed ? 'bg-sunken/30 border-border/40 opacity-75' : 'bg-sunken/60 border-border/70 hover:bg-sunken'
-                        }`}
-                      >
-                        <input
-                          type="checkbox"
-                          checked={task.is_completed}
-                          onChange={() => handleToggleCustomTask(task.id)}
-                          className="w-4 h-4 rounded border-border text-primary focus:ring-primary cursor-pointer"
-                        />
-                        <div className="flex-1 min-w-0 flex items-center justify-between gap-2">
-                          <span className={`text-xs truncate ${task.is_completed ? 'line-through text-muted-foreground font-normal' : 'text-foreground font-medium'}`}>
-                            {task.title}
-                          </span>
-                          {task.due_date && (
-                            <span className={`text-[10px] font-mono font-semibold px-2 py-0.5 rounded-full shrink-0 flex items-center gap-1 ${
-                              overdue
-                                ? 'bg-destructive/15 text-destructive border border-destructive/30'
-                                : task.is_completed
-                                ? 'bg-muted text-muted-foreground'
-                                : 'bg-accent/15 text-accent border border-accent/25'
-                            }`}>
-                              <Calendar className="h-3 w-3" />
-                              {overdue ? 'Overdue: ' : 'Due: '}
-                              {formatDueDate(task.due_date)}
-                            </span>
-                          )}
-                        </div>
-                        <Button
-                          size="icon"
-                          variant="ghost"
-                          className="h-7 w-7 opacity-0 group-hover:opacity-100 text-muted-foreground hover:text-destructive transition-all rounded-lg"
-                          onClick={() => handleDeleteCustomTask(task.id)}
-                          title="Delete task"
-                        >
-                          <Trash2 className="h-3.5 w-3.5" />
-                        </Button>
-                      </div>
-                    );
-                  })}
+                <div className="space-y-2.5">
+                  {commonTasks.map(task => renderTaskCard(task, 'common'))}
                 </div>
               )}
             </div>

@@ -310,6 +310,7 @@ CREATE TABLE public.uct_batch_tasks (
     course_id UUID NOT NULL REFERENCES public.uct_courses(id) ON DELETE CASCADE,
     semester INT, -- NULL = Common to entire course; 1, 2, 3... = Specific Semester
     title TEXT NOT NULL,
+    description TEXT,
     due_date DATE,
     is_completed BOOLEAN NOT NULL DEFAULT false,
     completed_at TIMESTAMPTZ,
