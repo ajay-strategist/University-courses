@@ -5,7 +5,7 @@ import type { UserEmailConfig, NotificationLog } from '@/types';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { toast } from 'sonner';
-import { ShieldCheck, History, Send, Settings, Code, Loader2, AlertCircle, Info, RefreshCw, UserCheck } from 'lucide-react';
+import { ShieldCheck, History, Send, Settings, Code, Loader2, AlertCircle, Info, RefreshCw, UserCheck, Sparkles } from 'lucide-react';
 import { sendEmail, verifySmtpConfig, DEFAULT_ABSENTEE_TEMPLATE } from '@/lib/emailService';
 import { WeeklySummaryPanel } from '@/components/notifications/WeeklySummaryPanel';
 
@@ -53,6 +53,7 @@ export default function EmailNotifications() {
     return saved;
   });
 
+  const [activeSubtab, setActiveSubtab] = useState<'settings' | 'weekly_summary' | 'audit_log'>('settings');
   const [logs, setLogs] = useState<NotificationLog[]>([...store.notificationLogs]);
   const [isVerifying, setIsVerifying] = useState(false);
   const [isSendingTest, setIsSendingTest] = useState(false);
@@ -166,16 +167,71 @@ export default function EmailNotifications() {
     toast.success('Template reset to default.');
   };
 
+  const sortedAuditLogs = [...logs]
+    .filter(
+      (l: any) =>
+        ![
+          'weekly_summary_active',
+          'weekly_summary_mode',
+          'weekly_summary_tool_config',
+          'ceo_email_setting',
+        ].includes(l.notification_type)
+    )
+    .sort((a: any, b: any) => {
+      const tA = new Date(a.sent_at || a.created_at || 0).getTime();
+      const tB = new Date(b.sent_at || b.created_at || 0).getTime();
+      return tB - tA;
+    });
+
   return (
     <div className="space-y-6">
-      {/* Header */}
-      <div>
-        <h1 className="text-2xl font-bold font-heading text-foreground">Email & Notifications Hub</h1>
-        <p className="text-sm text-muted-foreground">
-          Configure individual email accounts for Admins & Trainers, customize absentee email templates, and view live delivery audit logs.
-        </p>
+      {/* Header & Subtabs */}
+      <div className="flex flex-col md:flex-row md:items-end justify-between gap-4 border-b border-border pb-4">
+        <div>
+          <h1 className="text-2xl font-bold font-heading text-foreground">Email & Notifications Hub</h1>
+          <p className="text-sm text-muted-foreground">
+            Configure individual email accounts for Admins & Trainers, manage Weekly Summary mails, and view live delivery audit logs.
+          </p>
+        </div>
+
+        <div className="flex flex-wrap items-center gap-1.5 bg-sunken p-1.5 rounded-2xl border border-border self-start md:self-auto">
+          <button
+            type="button"
+            onClick={() => setActiveSubtab('settings')}
+            className={`px-3.5 py-2 rounded-xl text-xs font-semibold transition-all cursor-pointer flex items-center gap-1.5 ${
+              activeSubtab === 'settings'
+                ? 'bg-primary text-primary-foreground shadow-xs'
+                : 'text-muted-foreground hover:text-foreground'
+            }`}
+          >
+            <Settings className="h-3.5 w-3.5" /> Settings
+          </button>
+          <button
+            type="button"
+            onClick={() => setActiveSubtab('weekly_summary')}
+            className={`px-3.5 py-2 rounded-xl text-xs font-semibold transition-all cursor-pointer flex items-center gap-1.5 ${
+              activeSubtab === 'weekly_summary'
+                ? 'bg-primary text-primary-foreground shadow-xs'
+                : 'text-muted-foreground hover:text-foreground'
+            }`}
+          >
+            <Sparkles className="h-3.5 w-3.5" /> Weekly Summary
+          </button>
+          <button
+            type="button"
+            onClick={() => setActiveSubtab('audit_log')}
+            className={`px-3.5 py-2 rounded-xl text-xs font-semibold transition-all cursor-pointer flex items-center gap-1.5 ${
+              activeSubtab === 'audit_log'
+                ? 'bg-primary text-primary-foreground shadow-xs'
+                : 'text-muted-foreground hover:text-foreground'
+            }`}
+          >
+            <History className="h-3.5 w-3.5" /> Delivery Audit Log ({sortedAuditLogs.length})
+          </button>
+        </div>
       </div>
 
+      {activeSubtab === 'settings' && (
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* Left Column: Trainer & Admin SMTP Configuration */}
         <div className="card-meridian p-6 space-y-4">
@@ -345,59 +401,75 @@ export default function EmailNotifications() {
           </Button>
         </div>
       </div>
+      )}
 
       {/* Weekly Summary Mail (Saturday 6 PM IST — With Approval / Without Approval) */}
-      <WeeklySummaryPanel onLogCreated={() => setLogs([...store.notificationLogs])} />
+      {activeSubtab === 'weekly_summary' && (
+        <WeeklySummaryPanel onLogCreated={() => setLogs([...store.notificationLogs])} />
+      )}
 
-      {/* Notification Log Table */}
+      {/* Notification Log Table (Latest to Oldest) */}
+      {activeSubtab === 'audit_log' && (
       <div className="space-y-4">
-        <h2 className="text-lg font-semibold font-heading flex items-center gap-2">
-          <History className="h-5 w-5 text-primary" /> Delivery Audit Log (`notification_log`)
-        </h2>
+        <div className="flex items-center justify-between">
+          <h2 className="text-lg font-semibold font-heading flex items-center gap-2">
+            <History className="h-5 w-5 text-primary" /> Delivery Audit Log
+          </h2>
+          <span className="text-xs font-mono text-muted-foreground">Sorted: Latest to Oldest</span>
+        </div>
 
-        <div className="bg-card rounded-2xl border border-border overflow-hidden shadow-sm">
+        <div className="bg-card rounded-2xl border border-border overflow-x-auto shadow-sm">
           <table className="w-full text-left text-sm">
             <thead className="bg-muted/50 border-b border-border text-muted-foreground font-mono text-xs uppercase">
               <tr>
                 <th className="p-4">Sent Timestamp</th>
                 <th className="p-4">Sender (From)</th>
-                <th className="p-4">Session Date</th>
+                <th className="p-4">Session / Week</th>
                 <th className="p-4">Recipient Email</th>
-                <th className="p-4 text-center">Absentee Count</th>
+                <th className="p-4 text-center">Count</th>
                 <th className="p-4 text-center">Status</th>
                 <th className="p-4">Details / Error</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-border font-mono text-xs">
-              {logs.length === 0 ? (
+              {sortedAuditLogs.length === 0 ? (
                 <tr>
                   <td colSpan={7} className="p-6 text-center text-muted-foreground">
                     No emails dispatched yet.
                   </td>
                 </tr>
               ) : (
-                logs.map((log) => {
+                sortedAuditLogs.map((log: any) => {
                   const sender = store.profiles.find(p => p.id === log.sender_id);
+                  const ts = log.sent_at || log.created_at;
                   return (
                     <tr key={log.id} className="hover:bg-muted/30">
-                      <td className="p-4 text-muted-foreground">{new Date(log.sent_at).toLocaleString()}</td>
+                      <td className="p-4 text-muted-foreground whitespace-nowrap">
+                        {ts ? new Date(ts).toLocaleString() : '—'}
+                      </td>
                       <td className="p-4">
                         <div className="font-bold text-foreground">{sender?.full_name || 'Admin / System'}</div>
                         <div className="text-[10px] text-muted-foreground">{sender?.email || ''} ({sender?.role || 'relay'})</div>
                       </td>
-                      <td className="p-4 font-bold text-foreground">{log.session_date}</td>
+                      <td className="p-4 font-bold text-foreground">{log.session_date || log.subject || '—'}</td>
                       <td className="p-4 font-bold text-accent">{log.recipient_email}</td>
-                      <td className="p-4 text-center font-bold">{log.absentee_count}</td>
+                      <td className="p-4 text-center font-bold">{log.absentee_count ?? 0}</td>
                       <td className="p-4 text-center">
                         <span className={`px-2.5 py-1 rounded-full font-bold uppercase ${
-                          log.status === 'sent' ? 'bg-success/15 text-success' : 'bg-destructive/15 text-destructive'
+                          log.status === 'sent'
+                            ? 'bg-success/15 text-success'
+                            : log.status === 'pending_approval'
+                            ? 'bg-warning/15 text-warning'
+                            : 'bg-destructive/15 text-destructive'
                         }`}>
                           {log.status}
                         </span>
                       </td>
-                      <td className="p-4 text-muted-foreground text-[11px] max-w-xs truncate" title={log.error || ''}>
+                      <td className="p-4 text-muted-foreground text-[11px] max-w-xs truncate" title={log.error || log.subject || ''}>
                         {log.error ? (
                           <span className="text-destructive">{log.error}</span>
+                        ) : log.subject ? (
+                          <span className="text-foreground">{log.subject}</span>
                         ) : (
                           <span className="text-success">Delivered successfully via SMTP</span>
                         )}
@@ -410,6 +482,7 @@ export default function EmailNotifications() {
           </table>
         </div>
       </div>
+      )}
     </div>
   );
 }
