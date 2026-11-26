@@ -34,6 +34,18 @@ export function WeeklySummaryPanel({ onLogCreated }: WeeklySummaryPanelProps) {
   const { profile } = useAuth();
   const isAdmin = profile?.role === 'admin';
 
+  // Active / Deactivated toggle persisted locally + synced to Supabase for Saturday 6 PM Cron
+  const [isWeeklyActive, setIsWeeklyActive] = useState<boolean>(() => {
+    const remoteActive = store.notificationLogs.find(
+      (l: any) => (l as any).notification_type === 'weekly_summary_active'
+    ) as any;
+    if (remoteActive?.subject === 'inactive') return false;
+    if (remoteActive?.subject === 'active') return true;
+    const saved = localStorage.getItem('uct_weekly_summary_active');
+    return saved === 'inactive' ? false : true;
+  });
+  const [isSavingActive, setIsSavingActive] = useState(false);
+
   // Approval mode persisted locally + synced to Supabase uct_notification_log for Saturday 6 PM Cron
   const [approvalMode, setApprovalMode] = useState<WeeklyApprovalMode>(() => {
     const remoteSetting = store.notificationLogs.find(
@@ -96,6 +108,32 @@ export function WeeklySummaryPanel({ onLogCreated }: WeeklySummaryPanelProps) {
   const [previewReport, setPreviewReport] = useState<WeeklyToolReport | null>(null);
   const [editTo, setEditTo] = useState('');
   const [editCc, setEditCc] = useState('');
+
+  const handleToggleActive = async (nextActive: boolean) => {
+    setIsWeeklyActive(nextActive);
+    localStorage.setItem('uct_weekly_summary_active', nextActive ? 'active' : 'inactive');
+    setIsSavingActive(true);
+    try {
+      await supabase.from('uct_notification_log').insert({
+        id: generateUUID(),
+        sender_id: profile?.id || null,
+        recipient_email: 'system@educore',
+        subject: nextActive ? 'active' : 'inactive',
+        notification_type: 'weekly_summary_active',
+        status: 'sent',
+        sent_at: new Date().toISOString(),
+      });
+      toast.success(
+        nextActive
+          ? 'Weekly Summary Mail Activated'
+          : 'Weekly Summary Mail Deactivated (Saturday 6 PM Cron paused)'
+      );
+    } catch (err) {
+      console.warn('Could not sync weekly active state to DB:', err);
+    } finally {
+      setIsSavingActive(false);
+    }
+  };
 
   const handleModeChange = async (mode: WeeklyApprovalMode) => {
     setApprovalMode(mode);
@@ -253,46 +291,85 @@ export function WeeklySummaryPanel({ onLogCreated }: WeeklySummaryPanelProps) {
           </p>
         </div>
 
-        {/* 2-Type Approval Mode Selector */}
+        {/* Active/Deactivate + 2-Type Approval Mode Controls */}
         {isAdmin && (
-          <div className="flex flex-col sm:flex-row sm:items-center gap-2 bg-sunken p-2 rounded-2xl border border-border">
-            <span className="text-[11px] font-mono font-semibold text-muted-foreground px-2 uppercase">
-              Sat 6 PM Mode:
-            </span>
-            <div className="flex items-center gap-1">
+          <div className="flex flex-wrap items-center gap-2.5">
+            {/* Activate / Deactivate Toggle */}
+            <div className="flex items-center gap-1 bg-sunken p-1.5 rounded-2xl border border-border">
               <button
                 type="button"
-                disabled={isSavingMode}
-                onClick={() => handleModeChange('with_approval')}
-                className={`px-3 py-1.5 rounded-xl text-xs font-semibold transition-all cursor-pointer flex items-center gap-1.5 ${
-                  approvalMode === 'with_approval'
-                    ? 'bg-primary text-primary-foreground shadow-xs'
+                disabled={isSavingActive}
+                onClick={() => handleToggleActive(true)}
+                className={`px-3 py-1.5 rounded-xl text-xs font-semibold transition-all cursor-pointer ${
+                  isWeeklyActive
+                    ? 'bg-success text-white shadow-xs'
                     : 'text-muted-foreground hover:text-foreground'
                 }`}
               >
-                <ShieldCheck className="h-3.5 w-3.5" /> With Approval
+                Active
               </button>
               <button
                 type="button"
-                disabled={isSavingMode}
-                onClick={() => handleModeChange('without_approval')}
-                className={`px-3 py-1.5 rounded-xl text-xs font-semibold transition-all cursor-pointer flex items-center gap-1.5 ${
-                  approvalMode === 'without_approval'
-                    ? 'bg-accent text-accent-foreground shadow-xs'
+                disabled={isSavingActive}
+                onClick={() => handleToggleActive(false)}
+                className={`px-3 py-1.5 rounded-xl text-xs font-semibold transition-all cursor-pointer ${
+                  !isWeeklyActive
+                    ? 'bg-destructive text-white shadow-xs'
                     : 'text-muted-foreground hover:text-foreground'
                 }`}
               >
-                <Send className="h-3.5 w-3.5" /> Without Approval (Auto)
+                Deactivated
               </button>
+            </div>
+
+            {/* 2-Type Approval Mode Selector */}
+            <div className="flex flex-col sm:flex-row sm:items-center gap-2 bg-sunken p-1.5 rounded-2xl border border-border">
+              <span className="text-[11px] font-mono font-semibold text-muted-foreground px-2 uppercase">
+                Sat 6 PM Mode:
+              </span>
+              <div className="flex items-center gap-1">
+                <button
+                  type="button"
+                  disabled={isSavingMode || !isWeeklyActive}
+                  onClick={() => handleModeChange('with_approval')}
+                  className={`px-3 py-1.5 rounded-xl text-xs font-semibold transition-all cursor-pointer flex items-center gap-1.5 disabled:opacity-50 ${
+                    approvalMode === 'with_approval'
+                      ? 'bg-primary text-primary-foreground shadow-xs'
+                      : 'text-muted-foreground hover:text-foreground'
+                  }`}
+                >
+                  <ShieldCheck className="h-3.5 w-3.5" /> With Approval
+                </button>
+                <button
+                  type="button"
+                  disabled={isSavingMode || !isWeeklyActive}
+                  onClick={() => handleModeChange('without_approval')}
+                  className={`px-3 py-1.5 rounded-xl text-xs font-semibold transition-all cursor-pointer flex items-center gap-1.5 disabled:opacity-50 ${
+                    approvalMode === 'without_approval'
+                      ? 'bg-accent text-accent-foreground shadow-xs'
+                      : 'text-muted-foreground hover:text-foreground'
+                  }`}
+                >
+                  <Send className="h-3.5 w-3.5" /> Without Approval (Auto)
+                </button>
+              </div>
             </div>
           </div>
         )}
       </div>
 
       {/* Mode Explanation Banner */}
-      <div className="text-xs bg-muted/40 border border-border/80 rounded-xl px-4 py-2.5 flex flex-col sm:flex-row sm:items-center justify-between gap-2">
-        <span className="text-muted-foreground">
-          {approvalMode === 'with_approval' ? (
+      <div className={`text-xs rounded-xl px-4 py-2.5 flex flex-col sm:flex-row sm:items-center justify-between gap-2 border ${
+        !isWeeklyActive
+          ? 'bg-destructive/10 border-destructive/30 text-destructive'
+          : 'bg-muted/40 border-border/80 text-muted-foreground'
+      }`}>
+        <span>
+          {!isWeeklyActive ? (
+            <>
+              <strong>Weekly Summary Mail is Deactivated:</strong> Automated Saturday 6:00 PM IST scheduling and sending are paused. Click <strong>Active</strong> above to re-enable.
+            </>
+          ) : approvalMode === 'with_approval' ? (
             <>
               <strong className="text-foreground">With Approval:</strong> Every Saturday at 6:00 PM IST, active reports are queued for Admin review and you receive an approval alert before they are sent.
             </>
@@ -342,7 +419,7 @@ export function WeeklySummaryPanel({ onLogCreated }: WeeklySummaryPanelProps) {
           <Button
             size="sm"
             onClick={handleApproveAndSendAll}
-            disabled={isSendingAll}
+            disabled={isSendingAll || !isWeeklyActive}
             className="bg-primary text-primary-foreground text-xs font-semibold shadow-xs"
           >
             {isSendingAll ? (
@@ -427,7 +504,7 @@ export function WeeklySummaryPanel({ onLogCreated }: WeeklySummaryPanelProps) {
                   <Button
                     size="sm"
                     onClick={() => handleSendSingle(r)}
-                    disabled={sendingKey === r.key || isSendingAll}
+                    disabled={sendingKey === r.key || isSendingAll || !isWeeklyActive}
                     className="h-8 text-xs rounded-xl bg-primary text-primary-foreground"
                   >
                     {sendingKey === r.key ? (

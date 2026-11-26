@@ -65,6 +65,19 @@ export default async function handler(req: any, res: any) {
         .limit(200),
     ]);
 
+    // Check if Weekly Summary Mail is Active or Deactivated
+    const activeLog = (notificationLogs || []).find(
+      (l: any) => l.notification_type === 'weekly_summary_active'
+    );
+    if (activeLog?.subject === 'inactive') {
+      res.status(200).json({
+        success: true,
+        active: false,
+        message: 'Weekly Summary Mail is deactivated. Skipping Saturday 6 PM dispatch.',
+      });
+      return;
+    }
+
     // Determine approval mode from latest weekly_summary_mode log (default: with_approval)
     const modeLog = (notificationLogs || []).find(
       (l: any) => l.notification_type === 'weekly_summary_mode'
