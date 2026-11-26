@@ -116,6 +116,9 @@ export type RiskLevel = 'Critical' | 'At Risk' | null;
 export interface StudentRiskProfile {
   student: Student;
   batch: Batch;
+  totalSessions: number;
+  presentSessions: number;
+  absentSessions: number;
   attendancePct: number;
   consecutiveAbsences: number;
   attendanceRisk: RiskLevel;
@@ -129,6 +132,8 @@ export interface StudentRiskProfile {
   assessmentDetails: {
     name: string;
     category: string;
+    courseName?: string;
+    courseCode?: string;
     mark: number;
     maxMark: number;
     pct: number;
@@ -184,6 +189,7 @@ export function calculateStudentRisks(
       // 1. Attendance Analysis
       let totalSessions = 0;
       let presentSessions = 0;
+      let absentSessions = 0;
       let consecutiveAbsences = 0;
       let currentStreak = 0;
       const recentAbsenceDates: string[] = [];
@@ -201,6 +207,7 @@ export function calculateStudentRisks(
               presentSessions++;
               dayPresents++;
             } else if (att.status === 'absent') {
+              absentSessions++;
               dayHasAbsent = true;
             }
           }
@@ -247,9 +254,13 @@ export function calculateStudentRisks(
           const pct = (m.mark / maxM) * 100;
           totalScorePct += pct;
           assessedCount++;
+          const bc = batchCourses.find(c => c.id === asm.batch_course_id);
+          const course = store.courses.find(c => c.id === bc?.course_id);
           assessmentDetails.push({
             name: asm.name,
             category: asm.assignment_category || 'Assessment',
+            courseName: course?.name || 'Course',
+            courseCode: course?.code || '',
             mark: m.mark,
             maxMark: maxM,
             pct: Math.round(pct * 10) / 10,
@@ -300,6 +311,9 @@ export function calculateStudentRisks(
       results.push({
         student: stu,
         batch: b,
+        totalSessions,
+        presentSessions,
+        absentSessions,
         attendancePct: Math.round(attPct * 10) / 10,
         consecutiveAbsences,
         attendanceRisk,
@@ -363,6 +377,7 @@ export function generateRiskNotificationEmailHtml(options: {
   selectedProfiles: StudentRiskProfile[];
   includeAttendance: boolean;
   includeAcademic: boolean;
+  semester?: number | 'all';
 }): string {
   const {
     batchName,
@@ -372,7 +387,11 @@ export function generateRiskNotificationEmailHtml(options: {
     selectedProfiles,
     includeAttendance,
     includeAcademic,
+    semester,
   } = options;
+
+  const colSpanCount = 4 + (includeAttendance ? 1 : 0) + (includeAcademic ? 1 : 0);
+  const semesterLabel = semester && semester !== 'all' ? `Semester ${semester}` : 'All Semesters';
 
   const rowsHtml = selectedProfiles.map(p => {
     const photoUrl = getStudentPhotoUrl(p.student.photo_url);
@@ -384,27 +403,86 @@ export function generateRiskNotificationEmailHtml(options: {
       ? `<span style="background:#fee2e2;color:#C62828;padding:3px 8px;border-radius:12px;font-size:11px;font-weight:bold;">Critical (${p.attendancePct}%)</span>`
       : p.attendanceRisk === 'At Risk'
       ? `<span style="background:#fef3c7;color:#b45309;padding:3px 8px;border-radius:12px;font-size:11px;font-weight:bold;">At Risk (${p.attendancePct}%)</span>`
-      : `<span style="color:#94a3b8;font-size:12px;">—</span>`;
+      : `<span style="color:#64748b;font-size:11px;">${p.attendancePct}%</span>`;
 
     const acadBadge = p.academicRisk === 'Critical'
       ? `<span style="background:#fee2e2;color:#C62828;padding:3px 8px;border-radius:12px;font-size:11px;font-weight:bold;">Critical (${p.academicPct ?? 'N/A'}%)</span>`
       : p.academicRisk === 'At Risk'
       ? `<span style="background:#fef3c7;color:#b45309;padding:3px 8px;border-radius:12px;font-size:11px;font-weight:bold;">At Risk (${p.academicPct ?? 'N/A'}%)</span>`
-      : `<span style="color:#94a3b8;font-size:12px;">—</span>`;
+      : `<span style="color:#64748b;font-size:11px;">${p.academicPct !== null ? `${p.academicPct}%` : '—'}</span>`;
 
     const overallBadge = p.overallRisk === 'Critical'
       ? `<span style="background:#C62828;color:#ffffff;padding:4px 10px;border-radius:12px;font-size:11px;font-weight:bold;">Critical Risk</span>`
-      : `<span style="background:#E6A817;color:#1e293b;padding:4px 10px;border-radius:12px;font-size:11px;font-weight:bold;">At Risk</span>`;
+      : p.overallRisk === 'At Risk'
+      ? `<span style="background:#E6A817;color:#1e293b;padding:4px 10px;border-radius:12px;font-size:11px;font-weight:bold;">At Risk</span>`
+      : `<span style="color:#94a3b8;font-size:11px;">—</span>`;
+
+    // Attendance breakdown block
+    const attendanceDetailHtml = includeAttendance ? `
+      <div style="margin-bottom:${includeAcademic ? '10px' : '0'};padding:8px 12px;background:#ffffff;border:1px solid #e2e8f0;border-radius:8px;font-size:12px;color:#334155;">
+        <strong style="color:#173D32;">Attendance Summary:</strong>
+        &nbsp; Total Sessions: <strong>${p.totalSessions}</strong>
+        &nbsp;&bull;&nbsp; Present: <strong style="color:#16a34a;">${p.presentSessions}</strong>
+        &nbsp;&bull;&nbsp; Absent: <strong style="color:#dc2626;">${p.absentSessions}</strong>
+        &nbsp;&bull;&nbsp; Attendance: <strong>${p.attendancePct}%</strong>
+      </div>
+    ` : '';
+
+    // Academic assessment & marks mini-table
+    const academicDetailHtml = includeAcademic ? `
+      <div style="padding:8px 12px;background:#ffffff;border:1px solid #e2e8f0;border-radius:8px;font-size:12px;">
+        <strong style="color:#173D32;display:block;margin-bottom:6px;">Academic Assessment &amp; Marks Breakdown:</strong>
+        ${p.assessmentDetails.length === 0 ? `
+          <div style="color:#64748b;font-style:italic;font-size:11px;">No assessment marks recorded for this selection.</div>
+        ` : `
+          <table style="width:100%;border-collapse:collapse;font-size:11px;text-align:left;">
+            <thead>
+              <tr style="background:#f1f5f9;color:#475569;border-bottom:1px solid #cbd5e1;">
+                <th style="padding:5px 8px;">Tool / Course</th>
+                <th style="padding:5px 8px;">Assessment</th>
+                <th style="padding:5px 8px;">Category</th>
+                <th style="padding:5px 8px;text-align:center;">Marks</th>
+                <th style="padding:5px 8px;text-align:center;">Score %</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${p.assessmentDetails.map(a => `
+                <tr style="border-bottom:1px solid #f1f5f9;">
+                  <td style="padding:5px 8px;color:#0f172a;font-weight:600;">${a.courseCode || a.courseName || 'Course'}</td>
+                  <td style="padding:5px 8px;color:#334155;">${a.name}</td>
+                  <td style="padding:5px 8px;color:#64748b;">${a.category}</td>
+                  <td style="padding:5px 8px;text-align:center;font-family:monospace;font-weight:600;color:#0f172a;">${a.mark} / ${a.maxMark}</td>
+                  <td style="padding:5px 8px;text-align:center;font-weight:bold;color:${a.pct < 40 ? '#dc2626' : '#16a34a'};">${a.pct}%</td>
+                </tr>
+              `).join('')}
+            </tbody>
+          </table>
+        `}
+      </div>
+    ` : '';
+
+    const hasDetailsRow = includeAttendance || includeAcademic;
 
     return `
-      <tr style="border-bottom:1px solid #e2e8f0;">
+      <tr style="border-bottom:${hasDetailsRow ? 'none' : '1px solid #e2e8f0'};background:#ffffff;">
         <td style="padding:10px;text-align:center;">${photoImg}</td>
         <td style="padding:10px;font-family:monospace;font-weight:bold;color:#0f172a;">${p.student.register_no}</td>
-        <td style="padding:10px;font-weight:600;color:#0f172a;">${p.student.name}</td>
+        <td style="padding:10px;font-weight:600;color:#0f172a;">
+          ${p.student.name}
+          ${p.student.class ? `<div style="font-size:11px;font-weight:normal;color:#64748b;">${p.student.class}</div>` : ''}
+        </td>
         ${includeAttendance ? `<td style="padding:10px;text-align:center;">${attBadge}</td>` : ''}
         ${includeAcademic ? `<td style="padding:10px;text-align:center;">${acadBadge}</td>` : ''}
         <td style="padding:10px;text-align:center;">${overallBadge}</td>
       </tr>
+      ${hasDetailsRow ? `
+        <tr style="border-bottom:2px solid #cbd5e1;background:#f8fafc;">
+          <td colspan="${colSpanCount}" style="padding:10px 14px;">
+            ${attendanceDetailHtml}
+            ${academicDetailHtml}
+          </td>
+        </tr>
+      ` : ''}
     `;
   }).join('');
 
@@ -416,17 +494,17 @@ export function generateRiskNotificationEmailHtml(options: {
       <title>Student Risk Notification</title>
     </head>
     <body style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;margin:0;padding:24px;background-color:#f1f5f9;color:#334155;">
-      <div style="max-width:700px;margin:0 auto;background:#ffffff;border-radius:16px;overflow:hidden;box-shadow:0 4px 20px rgba(0,0,0,0.08);border:1px solid #e2e8f0;">
+      <div style="max-width:740px;margin:0 auto;background:#ffffff;border-radius:16px;overflow:hidden;box-shadow:0 4px 20px rgba(0,0,0,0.08);border:1px solid #e2e8f0;">
         <!-- Header -->
         <div style="background:#173D32;padding:24px;color:#ffffff;">
           <div style="display:flex;justify-content:space-between;align-items:center;">
             <div>
               <h1 style="margin:0;font-size:20px;font-weight:bold;letter-spacing:-0.5px;">EduCore by KVJ Analytics</h1>
-              <p style="margin:4px 0 0 0;font-size:13px;opacity:0.85;">Student Risk Alert & Intervention Notice</p>
+              <p style="margin:4px 0 0 0;font-size:13px;opacity:0.85;">Student Risk Alert &amp; Intervention Notice</p>
             </div>
           </div>
           <div style="margin-top:16px;padding:12px 16px;background:rgba(255,255,255,0.1);border-radius:10px;font-size:13px;">
-            <strong>Batch:</strong> ${batchName} &nbsp;|&nbsp; <strong>College:</strong> ${collegeName}
+            <strong>Batch:</strong> ${batchName} &nbsp;|&nbsp; <strong>Semester:</strong> ${semesterLabel} &nbsp;|&nbsp; <strong>College:</strong> ${collegeName}
           </div>
         </div>
 

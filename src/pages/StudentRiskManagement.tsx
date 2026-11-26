@@ -213,8 +213,9 @@ export default function StudentRiskManagement() {
       selectedProfiles,
       includeAttendance,
       includeAcademic,
+      semester: selectedSemester,
     });
-  }, [targetBatch, targetCollege, profile, trainerRemarks, selectedProfiles, includeAttendance, includeAcademic]);
+  }, [targetBatch, targetCollege, profile, trainerRemarks, selectedProfiles, includeAttendance, includeAcademic, selectedSemester]);
 
   // Send Email Handler
   const handleSendNotification = async () => {
