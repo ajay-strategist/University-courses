@@ -77,8 +77,16 @@ export interface WeeklyRiskSummaryRow {
   weekAttendancePct: number | null;
   weekSessionsAbsent: number;
   categoryStats: Record<string, { avgPct: number | null; passPct: number | null }>;
+  assessmentMarksById: Record<string, { mark: number | null; maxMark: number; pct: number | null }>;
   attendanceRisk: 'Critical' | 'At Risk' | null;
   academicRisk: 'Critical' | 'At Risk' | null;
+}
+
+export interface CourseAssessmentColumn {
+  id: string;
+  name: string;
+  category: string;
+  maxMark: number;
 }
 
 export interface WeeklyToolReport {
@@ -113,6 +121,7 @@ export interface WeeklyToolReport {
   // Section 4: Risk Summary
   riskCategories: string[];
   riskRows: WeeklyRiskSummaryRow[];
+  allCourseAssessments: CourseAssessmentColumn[];
   // Meta
   subject: string;
   html: string;
@@ -447,7 +456,18 @@ export function buildWeeklyToolReports(
         });
       }
 
-      // Section 4: Risk Summary (Current Semester + Tool)
+      // Section 4: Risk Summary (Current Semester + Course)
+      const sortedCourseAssessments = [...toolAssessmentsAll].sort((a, b) =>
+        (a.assessment_date || '').localeCompare(b.assessment_date || '') ||
+        (a.name || '').localeCompare(b.name || '')
+      );
+      const allCourseAssessments: CourseAssessmentColumn[] = sortedCourseAssessments.map((a) => ({
+        id: a.id,
+        name: a.name,
+        category: a.assignment_category || 'Assessment',
+        maxMark: a.max_mark > 0 ? a.max_mark : 100,
+      }));
+
       const riskCategories = Array.from(
         new Set(toolAssessmentsAll.map((a) => a.assignment_category || 'Assessment'))
       );
@@ -521,12 +541,30 @@ export function buildWeeklyToolReports(
         }
 
         if (attendanceRisk !== null || academicRisk !== null) {
+          const assessmentMarksById: Record<
+            string,
+            { mark: number | null; maxMark: number; pct: number | null }
+          > = {};
+          for (const asm of sortedCourseAssessments) {
+            const maxM = asm.max_mark > 0 ? asm.max_mark : 100;
+            const m = dataset.assessmentMarks.find(
+              (mk) => mk.assessment_id === asm.id && mk.student_id === stu.id
+            );
+            if (m && m.mark !== undefined && m.mark !== null) {
+              const pct = Math.round((m.mark / maxM) * 1000) / 10;
+              assessmentMarksById[asm.id] = { mark: m.mark, maxMark: maxM, pct };
+            } else {
+              assessmentMarksById[asm.id] = { mark: null, maxMark: maxM, pct: null };
+            }
+          }
+
           riskRows.push({
             student: stu,
             overallAttendancePct: stuOverallAttPct,
             weekAttendancePct: stuWeekAttPct,
             weekSessionsAbsent: weekAbsent,
             categoryStats,
+            assessmentMarksById,
             attendanceRisk,
             academicRisk,
           });
@@ -560,6 +598,7 @@ export function buildWeeklyToolReports(
         failedStudents,
         riskCategories,
         riskRows,
+        allCourseAssessments,
         subject: `Weekly Summary - ${batch.code} (${course.name}) - ${formatIsoToDDMMYYYY(weekStart)} to ${formatIsoToDDMMYYYY(weekEnd)}`,
         html: '',
       };
@@ -617,6 +656,7 @@ export function generateWeeklySummaryEmailHtml(report: WeeklyToolReport): string
     failedStudents,
     riskCategories,
     riskRows,
+    allCourseAssessments,
   } = report;
 
   const variationText =
@@ -906,6 +946,64 @@ export function generateWeeklySummaryEmailHtml(report: WeeklyToolReport): string
             </tbody>
           </table>
         </div>
+        ${
+          allCourseAssessments.length > 0
+            ? `
+          <div style="margin-top:16px;">
+            <div style="font-size:13px;font-weight:700;color:#991b1b;margin-bottom:8px;">
+              At-Risk Students &mdash; Assessment Marks Breakdown
+            </div>
+            <div style="overflow-x:auto;border:1px solid #fecaca;border-radius:12px;">
+              <table style="width:100%;border-collapse:collapse;font-size:11px;text-align:left;">
+                <thead>
+                  <tr style="background:linear-gradient(90deg,#7f1d1d,#991b1b);color:#ffffff;font-size:10px;text-transform:uppercase;letter-spacing:0.3px;">
+                    <th style="padding:9px 8px;text-align:center;width:42px;">Photo</th>
+                    <th style="padding:9px 8px;">Reg No</th>
+                    <th style="padding:9px 8px;">Name</th>
+                    ${allCourseAssessments
+                      .map(
+                        (asm) =>
+                          `<th style="padding:9px 8px;text-align:center;white-space:nowrap;">${asm.name}<br/><span style="font-weight:400;opacity:0.85;">(${asm.category} &bull; /${asm.maxMark})</span></th>`
+                      )
+                      .join('')}
+                  </tr>
+                </thead>
+                <tbody>
+                  ${riskRows
+                    .map((r, idx) => {
+                      const bg = idx % 2 === 0 ? '#ffffff' : '#fff5f5';
+                      return `
+                      <tr style="background:${bg};border-bottom:1px solid #fee2e2;">
+                        <td style="padding:8px;text-align:center;">${renderEmailAvatar(r.student.name, r.student.photo_url)}</td>
+                        <td style="padding:8px;font-family:monospace;font-weight:700;color:#0284c7;white-space:nowrap;">${r.student.register_no}</td>
+                        <td style="padding:8px;font-weight:600;color:#0f172a;white-space:nowrap;">${r.student.name}</td>
+                        ${allCourseAssessments
+                          .map((asm) => {
+                            const m = r.assessmentMarksById[asm.id];
+                            if (!m || m.mark === null || m.pct === null) {
+                              return `<td style="padding:8px;text-align:center;color:#94a3b8;font-style:italic;">Absent / —</td>`;
+                            }
+                            const isPass = m.pct >= 40;
+                            const markColor = isPass ? '#15803d' : '#dc2626';
+                            return `
+                              <td style="padding:8px;text-align:center;white-space:nowrap;line-height:1.3;">
+                                <div style="font-weight:800;color:${markColor};font-family:monospace;">${m.mark} / ${m.maxMark}</div>
+                                <div style="font-size:10px;color:${markColor};font-weight:600;">${m.pct}%</div>
+                              </td>
+                            `;
+                          })
+                          .join('')}
+                      </tr>
+                    `;
+                    })
+                    .join('')}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        `
+            : ''
+        }
       `
       }
     </div>
