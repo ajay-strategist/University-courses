@@ -197,8 +197,12 @@ export default function StudentRiskManagement() {
     return emails;
   }, [detailedTargetBatch]);
   
-  // CEO email from settings + College HOD
-  const ceoEmail = localStorage.getItem('uct_ceo_email') || 'ceo@kvjanalytics.com';
+  // CEO email from Users tab (role='ceo') / settings + College HOD
+  const ceoProfile = store.profiles.find((p) => p.role === 'ceo' && p.email);
+  const ceoEmail =
+    ceoProfile?.email ||
+    localStorage.getItem('uct_ceo_email') ||
+    'info@thestrategist.co.in';
   const hodEmail = targetCollege?.hod_email || '';
   const ccRecipients = [ceoEmail, hodEmail].filter(Boolean);
 
@@ -669,7 +673,7 @@ export default function StudentRiskManagement() {
                   CC (Leadership & HOD):
                 </span>
                 <div className="font-medium text-foreground">
-                  {ccRecipients.length > 0 ? ccRecipients.join(', ') : 'ceo@kvjanalytics.com'}
+                  {ccRecipients.length > 0 ? ccRecipients.join(', ') : 'info@thestrategist.co.in'}
                 </div>
               </div>
               <div className="col-span-full pt-1">

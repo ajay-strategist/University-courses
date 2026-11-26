@@ -97,6 +97,7 @@ export default async function handler(req: any, res: any) {
       return;
     }
 
+    const ceoProfile = (profiles || []).find((p: any) => p.role === 'ceo' && p.email);
     const ceoSetting = (notificationLogs || []).find(
       (l: any) => l.notification_type === 'ceo_email_setting'
     );
@@ -115,7 +116,7 @@ export default async function handler(req: any, res: any) {
       assessmentMarks: (assessmentMarks || []) as any[],
       trainerLogs: (trainerLogs || []) as any[],
       academicSemesters: (academicSemesters || []) as any[],
-      ceoEmail: ceoSetting?.recipient_email || 'ceo@kvjanalytics.com',
+      ceoEmail: ceoProfile?.email || ceoSetting?.recipient_email || 'info@thestrategist.co.in',
     };
 
     const reports = buildWeeklyToolReports(dataset);

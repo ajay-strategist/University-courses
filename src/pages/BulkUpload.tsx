@@ -122,7 +122,7 @@ export default function BulkUpload() {
     const instructions = [
       { Rule: 'Instructions & Ordering Guidelines', Description: 'Fill the sheets from left to right. Do not rename sheet names or headers.' },
       { Rule: 'Preserve Leading Zeros', Description: 'Make sure Student Register Numbers are formatted as text, not numbers, so leading zeros are preserved.' },
-      { Rule: 'Roles Allowed', Description: 'Users role must be one of: admin, trainer, student_coordinator, college_coordinator.' },
+      { Rule: 'Roles Allowed', Description: 'Users role must be one of: admin, ceo, trainer, student_coordinator, college_coordinator.' },
       { Rule: 'Attendance Statuses', Description: 'Attendance status must be one of: present, absent, late (or P, A, L).' },
       { Rule: 'Dates', Description: 'Enter dates in YYYY-MM-DD format.' },
       { Rule: 'Reference sheet', Description: 'Refer to the last sheet ("SystemReferences") for valid codes currently active in the system.' }
@@ -457,7 +457,7 @@ export default function BulkUpload() {
           const email = String(row.email).trim().toLowerCase();
           const exists = store.profiles.some(p => p.email.toLowerCase() === email);
           const role = String(row.role).trim().toLowerCase();
-          const validRoles = ['admin', 'trainer', 'student_coordinator', 'college_coordinator'];
+          const validRoles = ['admin', 'ceo', 'trainer', 'student_coordinator', 'college_coordinator'];
           if (!validRoles.includes(role)) {
             reasons.push(`Invalid role: ${row.role}. Allowed: ${validRoles.join(', ')}`);
           }

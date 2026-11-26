@@ -78,6 +78,9 @@ export default function Users() {
         must_change_password: true,
       };
       await store.saveProfile(newUser);
+      if (newUser.role === 'ceo' && newUser.email) {
+        localStorage.setItem('uct_ceo_email', newUser.email.trim().toLowerCase());
+      }
       setProfiles([...store.profiles]);
       closeModal();
       toast.success(`User ${newUser.full_name} created. Default password is "password".`);
@@ -93,6 +96,9 @@ export default function Users() {
         must_change_password: true,
       };
       await store.saveProfile(newUser);
+      if (newUser.role === 'ceo' && newUser.email) {
+        localStorage.setItem('uct_ceo_email', newUser.email.trim().toLowerCase());
+      }
       setProfiles([...store.profiles]);
       closeModal();
       toast.success(`User ${newUser.full_name} created locally (Demo Mode).`);
@@ -133,6 +139,9 @@ export default function Users() {
 
     // Update in store + Supabase
     await store.saveProfile(updated);
+    if (updated.role === 'ceo' && updated.email) {
+      localStorage.setItem('uct_ceo_email', updated.email);
+    }
 
     // Also update role in Supabase auth metadata via RPC if not a local demo user
     if (!editingId.startsWith('usr-')) {
@@ -156,6 +165,7 @@ export default function Users() {
 
   const roleBadges: Record<UserRole, string> = {
     admin: 'bg-accent/15 text-accent border-accent/30',
+    ceo: 'bg-indigo-500/15 text-indigo-600 dark:text-indigo-400 border-indigo-500/30',
     trainer: 'bg-primary-tint text-primary border-primary/30',
     student_coordinator: 'bg-success/15 text-success border-success/30',
     college_coordinator: 'bg-warning/15 text-warning border-warning/30',
@@ -167,7 +177,7 @@ export default function Users() {
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
           <h1 className="text-2xl font-bold font-heading text-foreground">Users &amp; Role Administration</h1>
-          <p className="text-sm text-muted-foreground">Manage user accounts and assign permissions for Admins, Trainers, Student Coordinators, and College Coordinators.</p>
+          <p className="text-sm text-muted-foreground">Manage user accounts and assign permissions for Admins, CEOs, Trainers, Student Coordinators, and College Coordinators.</p>
         </div>
         <div className="flex flex-wrap gap-3">
           <Button onClick={() => navigate('/import-center/bulk')} variant="outline" className="text-xs">
@@ -306,7 +316,7 @@ export default function Users() {
                   type="email"
                   value={form.email}
                   onChange={(e) => setForm({ ...form, email: e.target.value })}
-                  placeholder="jane.smith@university.edu"
+                  placeholder={form.role === 'ceo' ? 'info@thestrategist.co.in' : 'jane.smith@university.edu'}
                   className="mt-1 font-mono"
                 />
               </div>
@@ -329,6 +339,7 @@ export default function Users() {
                   className="w-full mt-1 bg-background border border-border rounded-xl px-3 py-2 text-sm text-foreground focus:outline-none"
                 >
                   <option value="admin">Admin</option>
+                  <option value="ceo">CEO</option>
                   <option value="trainer">Trainer</option>
                   <option value="student_coordinator">Student Coordinator</option>
                   <option value="college_coordinator">College Coordinator</option>

@@ -70,7 +70,11 @@ export function WeeklySummaryPanel({ onLogCreated }: WeeklySummaryPanelProps) {
 
   // Build active Batch + Tool reports for the selected week
   const reports = useMemo(() => {
-    const ceoEmail = localStorage.getItem('uct_ceo_email') || 'ceo@kvjanalytics.com';
+    const ceoProfile = store.profiles.find((p) => p.role === 'ceo' && p.email);
+    const ceoEmail =
+      ceoProfile?.email ||
+      localStorage.getItem('uct_ceo_email') ||
+      'info@thestrategist.co.in';
     return buildWeeklyToolReports(
       {
         batches: store.batches,
@@ -92,6 +96,7 @@ export function WeeklySummaryPanel({ onLogCreated }: WeeklySummaryPanelProps) {
     );
   }, [
     refDate,
+    store.profiles.length,
     store.batches.length,
     store.sessions.length,
     store.trainerLogs.length,

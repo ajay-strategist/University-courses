@@ -35,7 +35,7 @@ export function Sidebar({ isCollapsed = false, onToggle }: SidebarProps) {
       name: 'Dashboard', 
       path: '/', 
       icon: LayoutDashboard, 
-      roles: ['admin', 'trainer', 'student_coordinator', 'college_coordinator'] 
+      roles: ['admin', 'ceo', 'trainer', 'student_coordinator', 'college_coordinator'] 
     },
     { 
       name: 'Masters', 
@@ -47,13 +47,13 @@ export function Sidebar({ isCollapsed = false, onToggle }: SidebarProps) {
       name: 'Batches', 
       path: '/batches', 
       icon: BookOpen, 
-      roles: ['admin', 'trainer', 'student_coordinator', 'college_coordinator'] 
+      roles: ['admin', 'ceo', 'trainer', 'student_coordinator', 'college_coordinator'] 
     },
     { 
       name: 'Academic Calendar', 
       path: '/calendar', 
       icon: CalendarDays, 
-      roles: ['admin', 'trainer', 'student_coordinator', 'college_coordinator'] 
+      roles: ['admin', 'ceo', 'trainer', 'student_coordinator', 'college_coordinator'] 
     },
     { 
       name: 'Import Center', 
@@ -65,19 +65,19 @@ export function Sidebar({ isCollapsed = false, onToggle }: SidebarProps) {
       name: 'Email & Notifications', 
       path: '/notifications', 
       icon: Mail, 
-      roles: ['admin', 'trainer'] 
+      roles: ['admin', 'ceo', 'trainer'] 
     },
     { 
       name: 'Student Risk', 
       path: '/risk-management', 
       icon: ShieldAlert, 
-      roles: ['admin', 'trainer'] 
+      roles: ['admin', 'ceo', 'trainer'] 
     },
     { 
       name: 'Reports (Power BI)', 
       path: '/reports', 
       icon: BarChart3, 
-      roles: ['admin', 'trainer', 'student_coordinator', 'college_coordinator'] 
+      roles: ['admin', 'ceo', 'trainer', 'student_coordinator', 'college_coordinator'] 
     },
     { 
       name: 'Users & Admin', 
@@ -98,6 +98,7 @@ export function Sidebar({ isCollapsed = false, onToggle }: SidebarProps) {
 
   const roleLabels: Record<UserRole, string> = {
     admin: 'Admin',
+    ceo: 'CEO',
     trainer: 'Trainer',
     student_coordinator: 'Student Coordinator',
     college_coordinator: 'College Coordinator',

@@ -56,7 +56,7 @@ DROP TYPE IF EXISTS public.uct_batch_status CASCADE;
 -- -------------------------------------------------------------------------------------
 -- 1. ENUMS & TYPES
 -- -------------------------------------------------------------------------------------
-CREATE TYPE public.uct_user_role AS ENUM ('admin', 'trainer', 'student_coordinator', 'college_coordinator');
+CREATE TYPE public.uct_user_role AS ENUM ('admin', 'ceo', 'trainer', 'student_coordinator', 'college_coordinator');
 CREATE TYPE public.uct_attendance_status AS ENUM ('present', 'absent', 'late');
 CREATE TYPE public.uct_batch_status AS ENUM ('Active', 'Completed');
 

@@ -222,7 +222,13 @@ export function buildWeeklyToolReports(
     .filter((p) => p.role === 'admin' && p.email)
     .map((p) => p.email.trim());
 
-  const ceoEmail = (dataset.ceoEmail || 'ceo@kvjanalytics.com').trim();
+  const ceoProfileEmails = dataset.profiles
+    .filter((p) => p.role === 'ceo' && p.email)
+    .map((p) => p.email.trim());
+  const ceoEmails =
+    ceoProfileEmails.length > 0
+      ? ceoProfileEmails
+      : [(dataset.ceoEmail || 'info@thestrategist.co.in').trim()];
 
   for (const batch of dataset.batches) {
     if (batch.status !== 'Active') continue;
@@ -295,7 +301,7 @@ export function buildWeeklyToolReports(
         : undefined;
       const ccRecipients = Array.from(
         new Set(
-          [trainerEmail, ...adminEmails, ceoEmail].filter(
+          [trainerEmail, ...adminEmails, ...ceoEmails].filter(
             (e): e is string => !!e && !toRecipients.includes(e)
           )
         )
