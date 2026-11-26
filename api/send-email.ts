@@ -10,6 +10,7 @@ export interface SendEmailPayload {
   sender_email?: string;
   reply_to?: string;
   to?: string;
+  cc?: string;
   subject?: string;
   html?: string;
   text?: string;
@@ -56,10 +57,11 @@ export async function handleSendEmail(payload: SendEmailPayload) {
   const senderDisplayName = payload.sender_name || payload.from_name || process.env.SMTP_FROM_NAME || 'Team The Strategist';
   const replyToAddress = payload.reply_to || payload.sender_email || user;
 
-  const mailOptions = {
+  const mailOptions: any = {
     from: `"${senderDisplayName}" <${user}>`,
     replyTo: replyToAddress,
     to: payload.to,
+    ...(payload.cc ? { cc: payload.cc } : {}),
     subject: payload.subject,
     text: payload.text || (payload.html ? payload.html.replace(/<[^>]*>?/gm, '') : ''),
     html: payload.html || payload.text,

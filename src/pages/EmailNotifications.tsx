@@ -7,6 +7,7 @@ import { Input } from '@/components/ui/input';
 import { toast } from 'sonner';
 import { ShieldCheck, History, Send, Settings, Code, Loader2, AlertCircle, Info, RefreshCw, UserCheck } from 'lucide-react';
 import { sendEmail, verifySmtpConfig, DEFAULT_ABSENTEE_TEMPLATE } from '@/lib/emailService';
+import { WeeklySummaryPanel } from '@/components/notifications/WeeklySummaryPanel';
 
 export default function EmailNotifications() {
   const { profile } = useAuth();
@@ -344,6 +345,9 @@ export default function EmailNotifications() {
           </Button>
         </div>
       </div>
+
+      {/* Weekly Summary Mail (Saturday 6 PM IST — With Approval / Without Approval) */}
+      <WeeklySummaryPanel onLogCreated={() => setLogs([...store.notificationLogs])} />
 
       {/* Notification Log Table */}
       <div className="space-y-4">
