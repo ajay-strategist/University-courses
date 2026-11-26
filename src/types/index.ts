@@ -66,6 +66,7 @@ export interface CourseDefaultSyllabus {
   course_id: string;
   topic_no: number;
   topic_name: string;
+  module_name?: string;
   planned_hours: number;
 }
 

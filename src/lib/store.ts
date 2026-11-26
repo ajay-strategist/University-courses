@@ -976,6 +976,7 @@ class DataStore {
       course_id: topic.course_id!,
       topic_no: topic.topic_no!,
       topic_name: topic.topic_name!,
+      module_name: topic.module_name?.trim() || undefined,
       planned_hours: topic.planned_hours ?? 0,
     };
 
@@ -986,8 +987,18 @@ class DataStore {
     this.saveLocalCache();
 
     try {
-      const { error } = await supabase.from('uct_course_default_syllabus').upsert(item, { onConflict: 'course_id,topic_no' });
-      if (error) console.error('Supabase saveDefaultSyllabusTopic error:', error.message);
+      const payload = { ...item, module_name: item.module_name || null };
+      const { error } = await supabase.from('uct_course_default_syllabus').upsert(payload, { onConflict: 'course_id,topic_no' });
+      if (error) {
+        // Fallback if module_name column migration has not been run yet
+        if (error.message?.includes('module_name')) {
+          const { module_name: _ignored, ...legacyPayload } = payload;
+          const { error: fallbackErr } = await supabase.from('uct_course_default_syllabus').upsert(legacyPayload, { onConflict: 'course_id,topic_no' });
+          if (fallbackErr) console.error('Supabase saveDefaultSyllabusTopic error:', fallbackErr.message);
+        } else {
+          console.error('Supabase saveDefaultSyllabusTopic error:', error.message);
+        }
+      }
     } catch (e) {
       console.warn('Supabase syllabus topic sync warning:', e);
     }

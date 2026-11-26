@@ -132,6 +132,7 @@ CREATE TABLE public.uct_course_default_syllabus (
     course_id UUID NOT NULL REFERENCES public.uct_courses(id) ON DELETE CASCADE,
     topic_no INT NOT NULL,
     topic_name TEXT NOT NULL,
+    module_name TEXT,
     planned_hours NUMERIC(5,2) NOT NULL DEFAULT 1.0,
     created_at TIMESTAMPTZ DEFAULT NOW(),
     updated_at TIMESTAMPTZ DEFAULT NOW(),

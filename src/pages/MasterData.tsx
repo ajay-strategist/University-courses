@@ -5,7 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { toast } from 'sonner';
 import { 
-  Building2, BookOpen, GraduationCap, Award, Plus, Trash2, Edit2, Upload, FileText, Download 
+  Building2, BookOpen, GraduationCap, Award, Plus, Trash2, Edit2, Upload, FileText, Download, List, Layers 
 } from 'lucide-react';
 import * as XLSX from 'xlsx';
 import { CollegeLogo } from '@/components/common/CollegeLogo';
@@ -23,6 +23,9 @@ export default function MasterData() {
 
   // Selected course for syllabus editing
   const [selectedCourseId, setSelectedCourseId] = useState<string>(courses[0]?.id || '');
+  const [syllabusViewMode, setSyllabusViewMode] = useState<'list' | 'module'>('list');
+  const [selectedTopicIds, setSelectedTopicIds] = useState<string[]>([]);
+  const [bulkModuleName, setBulkModuleName] = useState<string>('Module 1');
 
   // Form Modals State
   const [showCollegeModal, setShowCollegeModal] = useState(false);
@@ -42,11 +45,12 @@ export default function MasterData() {
   });
   const [courseForm, setCourseForm] = useState<Partial<Course>>({ code: '', name: '' });
   const [programForm, setProgramForm] = useState<Partial<Program>>({ code: '', name: '' });
-  const [topicForm, setTopicForm] = useState<{ topic_no: number; topic_name: string }>({ topic_no: 1, topic_name: '' });
+  const [topicForm, setTopicForm] = useState<{ topic_no: number; topic_name: string; module_name: string }>({ topic_no: 1, topic_name: '', module_name: '' });
 
   const [editingCollegeId, setEditingCollegeId] = useState<string | null>(null);
   const [editingCourseId, setEditingCourseId] = useState<string | null>(null);
   const [editingProgramId, setEditingProgramId] = useState<string | null>(null);
+  const [editingTopicId, setEditingTopicId] = useState<string | null>(null);
 
   // Add / Edit College
   const handleSaveCollege = async () => {
@@ -112,22 +116,50 @@ export default function MasterData() {
     toast.success(`Program ${saved.code} saved successfully!`);
   };
 
-  // Add Default Syllabus Topic
+  // Add / Edit Default Syllabus Topic
   const handleSaveTopic = async () => {
     if (!topicForm.topic_name || !selectedCourseId) {
       toast.error('Topic name is required');
       return;
     }
     await store.saveDefaultSyllabusTopic({
+      id: editingTopicId || undefined,
       course_id: selectedCourseId,
       topic_no: topicForm.topic_no,
       topic_name: topicForm.topic_name,
+      module_name: topicForm.module_name.trim() || undefined,
       planned_hours: 0,
     });
     setDefaultSyllabus([...store.defaultSyllabus]);
     setShowSyllabusTopicModal(false);
-    setTopicForm({ topic_no: (store.defaultSyllabus.filter(s => s.course_id === selectedCourseId).length + 1), topic_name: '' });
-    toast.success('Topic saved to default syllabus');
+    setEditingTopicId(null);
+    setTopicForm({
+      topic_no: store.defaultSyllabus.filter(s => s.course_id === selectedCourseId).length + 1,
+      topic_name: '',
+      module_name: topicForm.module_name.trim(),
+    });
+    toast.success(editingTopicId ? 'Topic updated' : 'Topic saved to default syllabus');
+  };
+
+  const handleBulkAssignModule = async () => {
+    const mod = bulkModuleName.trim();
+    if (!mod) {
+      toast.error('Enter a module name (e.g., Module 1)');
+      return;
+    }
+    if (selectedTopicIds.length === 0) {
+      toast.error('Select at least one topic to assign');
+      return;
+    }
+    for (const id of selectedTopicIds) {
+      const existing = defaultSyllabus.find(s => s.id === id);
+      if (existing) {
+        await store.saveDefaultSyllabusTopic({ ...existing, module_name: mod });
+      }
+    }
+    setDefaultSyllabus([...store.defaultSyllabus]);
+    toast.success(`Assigned ${selectedTopicIds.length} topic(s) to ${mod}`);
+    setSelectedTopicIds([]);
   };
 
   const handleImportTopics = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -148,10 +180,12 @@ export default function MasterData() {
           if (topic_name) {
             const topic_no = Number(row.topic_no || row['Topic No'] || (idx + 1));
             const planned_hours = Number(row.planned_hours || row['Planned Hours'] || 0);
+            const module_name = String(row.module_name || row['Module'] || row['Module Name'] || row.module || '').trim() || undefined;
             await store.saveDefaultSyllabusTopic({
               course_id: selectedCourseId,
               topic_no,
               topic_name,
+              module_name,
               planned_hours
             });
             count++;
@@ -175,6 +209,7 @@ export default function MasterData() {
     }
     const data = topics.map(t => ({
       'Topic No': t.topic_no,
+      'Module': t.module_name || '',
       'Topic Name': t.topic_name,
     }));
     const ws = XLSX.utils.json_to_sheet(data);
@@ -186,6 +221,32 @@ export default function MasterData() {
 
   const selectedCourse = courses.find(c => c.id === selectedCourseId);
   const currentCourseSyllabus = defaultSyllabus.filter(s => s.course_id === selectedCourseId).sort((a, b) => a.topic_no - b.topic_no);
+  const existingModules = Array.from(
+    new Set(
+      currentCourseSyllabus
+        .map(t => t.module_name?.trim())
+        .filter((m): m is string => !!m)
+    )
+  ).sort((a, b) => a.localeCompare(b, undefined, { numeric: true }));
+
+  const groupedByModule = (() => {
+    const groups: { moduleName: string; topics: CourseDefaultSyllabus[] }[] = [];
+    const map = new Map<string, CourseDefaultSyllabus[]>();
+    for (const t of currentCourseSyllabus) {
+      const key = t.module_name?.trim() || 'Uncategorized';
+      if (!map.has(key)) map.set(key, []);
+      map.get(key)!.push(t);
+    }
+    const keys = Array.from(map.keys()).sort((a, b) => {
+      if (a === 'Uncategorized') return 1;
+      if (b === 'Uncategorized') return -1;
+      return a.localeCompare(b, undefined, { numeric: true });
+    });
+    for (const k of keys) {
+      groups.push({ moduleName: k, topics: map.get(k)! });
+    }
+    return groups;
+  })();
 
   return (
     <div className="space-y-6">
@@ -405,7 +466,33 @@ export default function MasterData() {
                 </h3>
                 <p className="text-xs text-muted-foreground">Template syllabus copied automatically when adding this course to a batch.</p>
               </div>
-              <div className="flex items-center gap-2">
+              <div className="flex flex-wrap items-center gap-2">
+                {/* 2 Display Modes: Topic List (Current) vs Module View */}
+                <div className="flex items-center gap-1 bg-sunken p-1 rounded-xl border border-border">
+                  <button
+                    type="button"
+                    onClick={() => setSyllabusViewMode('list')}
+                    className={`px-2.5 py-1 rounded-lg text-xs font-semibold transition-all cursor-pointer flex items-center gap-1 ${
+                      syllabusViewMode === 'list'
+                        ? 'bg-primary text-primary-foreground shadow-xs'
+                        : 'text-muted-foreground hover:text-foreground'
+                    }`}
+                  >
+                    <List className="h-3.5 w-3.5" /> Topic List
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setSyllabusViewMode('module')}
+                    className={`px-2.5 py-1 rounded-lg text-xs font-semibold transition-all cursor-pointer flex items-center gap-1 ${
+                      syllabusViewMode === 'module'
+                        ? 'bg-primary text-primary-foreground shadow-xs'
+                        : 'text-muted-foreground hover:text-foreground'
+                    }`}
+                  >
+                    <Layers className="h-3.5 w-3.5" /> Module View
+                  </button>
+                </div>
+
                 <Button size="sm" variant="outline" onClick={handleExportDefaultSyllabus} className="h-8 text-xs">
                   <Download className="h-3.5 w-3.5 mr-1" /> Export Syllabus (.xlsx)
                 </Button>
@@ -414,7 +501,8 @@ export default function MasterData() {
                   <input type="file" accept=".csv, .xlsx" onChange={handleImportTopics} className="hidden" />
                 </label>
                 <Button size="sm" onClick={() => {
-                  setTopicForm({ topic_no: currentCourseSyllabus.length + 1, topic_name: '' });
+                  setEditingTopicId(null);
+                  setTopicForm({ topic_no: currentCourseSyllabus.length + 1, topic_name: '', module_name: existingModules[0] || 'Module 1' });
                   setShowSyllabusTopicModal(true);
                 }} className="bg-primary text-primary-foreground">
                   <Plus className="h-3.5 w-3.5 mr-1" /> Add Topic
@@ -422,41 +510,156 @@ export default function MasterData() {
               </div>
             </div>
 
-            <div className="bg-card rounded-2xl border border-border overflow-hidden shadow-sm">
-              <table className="w-full text-left text-sm">
-                <thead className="bg-muted/50 border-b border-border text-muted-foreground font-mono text-xs uppercase">
-                  <tr>
-                    <th className="p-3 w-16 text-center">#</th>
-                    <th className="p-3">Topic Description</th>
-                    <th className="p-3 w-16 text-right">Actions</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-border">
-                  {currentCourseSyllabus.length === 0 ? (
+            {syllabusViewMode === 'list' && selectedTopicIds.length > 0 && (
+              <div className="flex flex-wrap items-center justify-between gap-3 bg-primary/5 border border-primary/25 rounded-2xl px-4 py-2.5">
+                <span className="text-xs font-mono font-semibold text-primary">
+                  {selectedTopicIds.length} topic(s) selected
+                </span>
+                <div className="flex flex-wrap items-center gap-2">
+                  <Input
+                    value={bulkModuleName}
+                    onChange={(e) => setBulkModuleName(e.target.value)}
+                    placeholder="e.g. Module 1"
+                    className="h-8 w-40 text-xs bg-background"
+                  />
+                  {['Module 1', 'Module 2', 'Module 3'].map((preset) => (
+                    <button
+                      key={preset}
+                      type="button"
+                      onClick={() => setBulkModuleName(preset)}
+                      className="text-[11px] font-mono px-2 py-1 rounded-lg bg-background border border-border hover:border-primary/40 cursor-pointer"
+                    >
+                      {preset}
+                    </button>
+                  ))}
+                  <Button size="sm" onClick={handleBulkAssignModule} className="h-8 text-xs bg-primary text-primary-foreground">
+                    Assign Module
+                  </Button>
+                  <Button size="sm" variant="ghost" onClick={() => setSelectedTopicIds([])} className="h-8 text-xs">
+                    Clear
+                  </Button>
+                </div>
+              </div>
+            )}
+
+            {syllabusViewMode === 'module' ? (
+              <div className="space-y-3">
+                {currentCourseSyllabus.length === 0 ? (
+                  <div className="bg-card rounded-2xl border border-border p-6 text-center text-muted-foreground text-xs font-mono">
+                    No default syllabus topics configured for this course yet.
+                  </div>
+                ) : (
+                  groupedByModule.map((grp) => (
+                    <div key={grp.moduleName} className="bg-card rounded-2xl border border-border p-4 shadow-sm space-y-2">
+                      <div className="flex items-center justify-between gap-2">
+                        <span className={`font-heading font-bold text-sm px-2.5 py-0.5 rounded-lg ${
+                          grp.moduleName === 'Uncategorized'
+                            ? 'bg-muted text-muted-foreground'
+                            : 'bg-primary/10 text-primary'
+                        }`}>
+                          {grp.moduleName}
+                        </span>
+                        <span className="text-[11px] font-mono text-muted-foreground">
+                          {grp.topics.length} {grp.topics.length === 1 ? 'topic' : 'topics'}
+                        </span>
+                      </div>
+                      <p className="text-sm text-foreground leading-relaxed">
+                        <strong className="text-primary">{grp.moduleName}:</strong>{' '}
+                        {grp.topics.map((t) => t.topic_name).join(', ')}
+                      </p>
+                    </div>
+                  ))
+                )}
+              </div>
+            ) : (
+              <div className="bg-card rounded-2xl border border-border overflow-hidden shadow-sm">
+                <table className="w-full text-left text-sm">
+                  <thead className="bg-muted/50 border-b border-border text-muted-foreground font-mono text-xs uppercase">
                     <tr>
-                      <td colSpan={3} className="p-6 text-center text-muted-foreground text-xs font-mono">
-                        No default syllabus topics configured for this course yet.
-                      </td>
+                      <th className="p-3 w-10 text-center">
+                        <input
+                          type="checkbox"
+                          checked={currentCourseSyllabus.length > 0 && selectedTopicIds.length === currentCourseSyllabus.length}
+                          onChange={(e) => {
+                            if (e.target.checked) setSelectedTopicIds(currentCourseSyllabus.map(t => t.id));
+                            else setSelectedTopicIds([]);
+                          }}
+                          className="rounded border-border cursor-pointer"
+                        />
+                      </th>
+                      <th className="p-3 w-14 text-center">#</th>
+                      <th className="p-3 w-36">Module</th>
+                      <th className="p-3">Topic Description</th>
+                      <th className="p-3 w-24 text-right">Actions</th>
                     </tr>
-                  ) : (
-                    currentCourseSyllabus.map((topic) => (
-                      <tr key={topic.id} className="hover:bg-muted/30">
-                        <td className="p-3 text-center font-mono font-bold text-muted-foreground">{topic.topic_no}</td>
-                        <td className="p-3 font-medium text-foreground">{topic.topic_name}</td>
-                        <td className="p-3 text-right">
-                          <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive" onClick={async () => {
-                            await store.deleteDefaultSyllabusTopic(topic.id);
-                            setDefaultSyllabus([...store.defaultSyllabus]);
-                          }}>
-                            <Trash2 className="h-3.5 w-3.5" />
-                          </Button>
+                  </thead>
+                  <tbody className="divide-y divide-border">
+                    {currentCourseSyllabus.length === 0 ? (
+                      <tr>
+                        <td colSpan={5} className="p-6 text-center text-muted-foreground text-xs font-mono">
+                          No default syllabus topics configured for this course yet.
                         </td>
                       </tr>
-                    ))
-                  )}
-                </tbody>
-              </table>
-            </div>
+                    ) : (
+                      currentCourseSyllabus.map((topic) => {
+                        const isChecked = selectedTopicIds.includes(topic.id);
+                        return (
+                          <tr key={topic.id} className="hover:bg-muted/30">
+                            <td className="p-3 text-center">
+                              <input
+                                type="checkbox"
+                                checked={isChecked}
+                                onChange={(e) => {
+                                  if (e.target.checked) setSelectedTopicIds(prev => [...prev, topic.id]);
+                                  else setSelectedTopicIds(prev => prev.filter(id => id !== topic.id));
+                                }}
+                                className="rounded border-border cursor-pointer"
+                              />
+                            </td>
+                            <td className="p-3 text-center font-mono font-bold text-muted-foreground">{topic.topic_no}</td>
+                            <td className="p-3">
+                              {topic.module_name ? (
+                                <span className="text-[11px] font-mono font-semibold px-2 py-0.5 rounded-md bg-primary/10 text-primary whitespace-nowrap">
+                                  {topic.module_name}
+                                </span>
+                              ) : (
+                                <span className="text-[11px] font-mono text-muted-foreground/60">—</span>
+                              )}
+                            </td>
+                            <td className="p-3 font-medium text-foreground">{topic.topic_name}</td>
+                            <td className="p-3 text-right space-x-1">
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                className="h-7 w-7 text-primary"
+                                title="Edit topic / module"
+                                onClick={() => {
+                                  setEditingTopicId(topic.id);
+                                  setTopicForm({
+                                    topic_no: topic.topic_no,
+                                    topic_name: topic.topic_name,
+                                    module_name: topic.module_name || '',
+                                  });
+                                  setShowSyllabusTopicModal(true);
+                                }}
+                              >
+                                <Edit2 className="h-3.5 w-3.5" />
+                              </Button>
+                              <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive" onClick={async () => {
+                                await store.deleteDefaultSyllabusTopic(topic.id);
+                                setDefaultSyllabus([...store.defaultSyllabus]);
+                              }}>
+                                <Trash2 className="h-3.5 w-3.5" />
+                              </Button>
+                            </td>
+                          </tr>
+                        );
+                      })
+                    )}
+                  </tbody>
+                </table>
+              </div>
+            )}
           </div>
         </div>
       )}
@@ -612,15 +815,42 @@ export default function MasterData() {
         </div>
       )}
 
-      {/* MODAL 5: Add Default Syllabus Topic */}
+      {/* MODAL 5: Add / Edit Default Syllabus Topic */}
       {showSyllabusTopicModal && (
         <div className="fixed inset-0 z-50 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4">
           <div className="bg-card border border-border rounded-2xl p-6 max-w-md w-full shadow-2xl space-y-4">
-            <h3 className="text-lg font-bold font-heading">Add Topic to {selectedCourse?.name} Default Syllabus</h3>
+            <h3 className="text-lg font-bold font-heading">
+              {editingTopicId ? 'Edit' : 'Add'} Topic — {selectedCourse?.name} Default Syllabus
+            </h3>
             <div className="space-y-3">
               <div>
                 <label className="text-xs font-mono font-medium text-muted-foreground">Topic Number</label>
                 <Input type="number" value={topicForm.topic_no} onChange={(e) => setTopicForm({ ...topicForm, topic_no: Number(e.target.value) })} className="mt-1 font-mono" />
+              </div>
+              <div>
+                <label className="text-xs font-mono font-medium text-muted-foreground">Module (e.g. Module 1, Module 2)</label>
+                <Input
+                  value={topicForm.module_name}
+                  onChange={(e) => setTopicForm({ ...topicForm, module_name: e.target.value })}
+                  placeholder="Module 1"
+                  className="mt-1"
+                />
+                <div className="flex flex-wrap gap-1.5 mt-1.5">
+                  {Array.from(new Set(['Module 1', 'Module 2', 'Module 3', ...existingModules])).map((mod) => (
+                    <button
+                      key={mod}
+                      type="button"
+                      onClick={() => setTopicForm({ ...topicForm, module_name: mod })}
+                      className={`text-[11px] font-mono px-2 py-0.5 rounded-md border cursor-pointer ${
+                        topicForm.module_name === mod
+                          ? 'bg-primary text-primary-foreground border-primary'
+                          : 'bg-sunken text-muted-foreground border-border hover:text-foreground'
+                      }`}
+                    >
+                      {mod}
+                    </button>
+                  ))}
+                </div>
               </div>
               <div>
                 <label className="text-xs font-mono font-medium text-muted-foreground">Topic Name / Title</label>
@@ -628,8 +858,10 @@ export default function MasterData() {
               </div>
             </div>
             <div className="flex justify-end gap-2 pt-2">
-              <Button variant="outline" onClick={() => setShowSyllabusTopicModal(false)}>Cancel</Button>
-              <Button onClick={handleSaveTopic} className="bg-primary text-primary-foreground">Save Topic</Button>
+              <Button variant="outline" onClick={() => { setShowSyllabusTopicModal(false); setEditingTopicId(null); }}>Cancel</Button>
+              <Button onClick={handleSaveTopic} className="bg-primary text-primary-foreground">
+                {editingTopicId ? 'Save Changes' : 'Save Topic'}
+              </Button>
             </div>
           </div>
         </div>
