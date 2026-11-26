@@ -927,7 +927,7 @@ export function generateWeeklySummaryEmailHtml(report: WeeklyToolReport): string
           <div style="margin-top:12px;padding:12px 16px;background:rgba(255,255,255,0.12);border:1px solid rgba(255,255,255,0.2);border-radius:10px;font-size:13px;line-height:1.6;">
             <strong>Batch:</strong> ${batch.code} &nbsp;|&nbsp;
             <strong>Semester:</strong> Semester ${semester} &nbsp;|&nbsp;
-            <strong>Tool:</strong> ${course.name} (${course.code}) &nbsp;|&nbsp;
+            <strong>Course:</strong> ${course.name} (${course.code}) &nbsp;|&nbsp;
             <strong>College:</strong> ${college?.name || 'Partner College'}
             <br/>
             <strong>Reporting Week:</strong> Mon ${formatIsoToDDMMYYYY(weekStart)} to Sat ${formatIsoToDDMMYYYY(weekEnd)}

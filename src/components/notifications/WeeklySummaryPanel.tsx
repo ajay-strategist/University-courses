@@ -362,7 +362,7 @@ export function WeeklySummaryPanel({ onLogCreated }: WeeklySummaryPanelProps) {
             Weekly Summary Mail (Saturday 6:00 PM IST)
           </h2>
           <p className="text-xs text-muted-foreground mt-0.5">
-            Per-Batch &amp; Per-Active-Tool weekly report (Current Semester, Mon–Sat). Skips tools with no weekly activity.
+            Per-Batch &amp; Per-Active-Course weekly report (Current Semester, Mon–Sat). Skips courses with no weekly activity.
           </p>
         </div>
 
@@ -613,7 +613,7 @@ export function WeeklySummaryPanel({ onLogCreated }: WeeklySummaryPanelProps) {
                   <div className="pt-2.5 border-t border-border/60 flex flex-wrap items-center justify-between gap-2.5">
                     <div className="flex flex-wrap items-center gap-2">
                       <span className="text-[10px] font-mono font-semibold text-muted-foreground uppercase">
-                        Tool Status:
+                        Course Status:
                       </span>
                       <div className="flex items-center gap-1 bg-sunken p-1 rounded-xl border border-border">
                         <button
