@@ -144,7 +144,7 @@ export function StudentProfileDrawer({ student, batch, onClose }: StudentProfile
             <h3 className="text-xs font-mono font-bold text-foreground uppercase tracking-wider">
               Student Details & Portfolio
             </h3>
-            <div className="grid grid-cols-2 gap-2 text-xs">
+            <div className="grid grid-cols-2 gap-2.5 text-xs">
               <div>
                 <span className="text-muted-foreground block">Gender:</span>
                 <span className="font-semibold text-foreground">{student.gender || 'Not Specified'}</span>
@@ -160,6 +160,18 @@ export function StudentProfileDrawer({ student, batch, onClose }: StudentProfile
               <div>
                 <span className="text-muted-foreground block">Contact Phone:</span>
                 <span className="font-mono text-foreground">{student.phone || '—'}</span>
+              </div>
+              <div>
+                <span className="text-muted-foreground block">Email Address:</span>
+                <span className="font-mono text-foreground break-all">{student.email || '—'}</span>
+              </div>
+              <div>
+                <span className="text-muted-foreground block">Laptop / Computer:</span>
+                <span className="font-semibold text-foreground">{student.laptop_availability || '—'}</span>
+              </div>
+              <div className="col-span-2">
+                <span className="text-muted-foreground block">Learned Course Before Training:</span>
+                <span className="font-semibold text-foreground">{student.prior_course_knowledge || '—'}</span>
               </div>
             </div>
 

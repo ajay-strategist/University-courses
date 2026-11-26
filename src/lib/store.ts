@@ -1168,15 +1168,26 @@ class DataStore {
   async saveStudent(student: Partial<Student>): Promise<Student> {
     const regNoUpper = student.register_no?.trim().toUpperCase();
     const existing = this.students.find(
-      s => s.batch_id === student.batch_id && s.register_no?.trim().toUpperCase() === regNoUpper
+      s => s.id === student.id || (s.batch_id === student.batch_id && regNoUpper && s.register_no?.trim().toUpperCase() === regNoUpper)
     );
     const item: Student = {
+      ...(existing || {}),
       id: student.id || existing?.id || generateUUID(),
-      batch_id: student.batch_id!,
-      register_no: student.register_no!,
-      name: student.name!,
-      class: student.class || '',
-      phone: student.phone || '',
+      batch_id: student.batch_id || existing?.batch_id || '',
+      register_no: student.register_no ?? existing?.register_no ?? '',
+      name: student.name ?? existing?.name ?? '',
+      class: student.class ?? existing?.class ?? '',
+      division: student.division ?? existing?.division,
+      email: student.email ?? existing?.email,
+      gender: student.gender ?? existing?.gender,
+      previous_qualification: student.previous_qualification ?? existing?.previous_qualification,
+      laptop_availability: student.laptop_availability ?? existing?.laptop_availability,
+      prior_course_knowledge: student.prior_course_knowledge ?? existing?.prior_course_knowledge,
+      phone: student.phone ?? existing?.phone ?? '',
+      photo_url: student.photo_url ?? existing?.photo_url,
+      registered_at: student.registered_at ?? existing?.registered_at,
+      linkedin_url: student.linkedin_url ?? existing?.linkedin_url,
+      linkedin_post_count: student.linkedin_post_count ?? existing?.linkedin_post_count,
     };
 
     const idx = this.students.findIndex(s => s.id === item.id);
@@ -1187,7 +1198,19 @@ class DataStore {
 
     try {
       const { error } = await supabase.from('uct_students').upsert(item, { onConflict: 'batch_id,register_no' });
-      if (error) console.error('Supabase saveStudent error:', error.message);
+      if (error) {
+        // Fallback to core columns if extended registration columns are not yet migrated in remote DB
+        const corePayload = {
+          id: item.id,
+          batch_id: item.batch_id,
+          register_no: item.register_no,
+          name: item.name,
+          class: item.class,
+          phone: item.phone || '',
+        };
+        const { error: retryErr } = await supabase.from('uct_students').upsert(corePayload, { onConflict: 'batch_id,register_no' });
+        if (retryErr) console.error('Supabase saveStudent error:', retryErr.message);
+      }
     } catch (e) {
       console.warn('Supabase student sync warning:', e);
     }

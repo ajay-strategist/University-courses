@@ -184,7 +184,14 @@ CREATE TABLE public.uct_students (
     register_no TEXT NOT NULL, -- Primary import key, unique within batch
     name TEXT NOT NULL,
     class TEXT NOT NULL, -- Division e.g. Division A
+    email TEXT,
+    gender TEXT,
+    previous_qualification TEXT,
+    laptop_availability TEXT,
+    prior_course_knowledge TEXT,
     phone TEXT,
+    photo_url TEXT,
+    registered_at TEXT,
     created_at TIMESTAMPTZ DEFAULT NOW(),
     updated_at TIMESTAMPTZ DEFAULT NOW(),
     UNIQUE(batch_id, register_no)

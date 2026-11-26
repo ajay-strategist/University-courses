@@ -116,10 +116,14 @@ export interface Student {
   name: string;
   class: string; // Division / Class
   division?: string;
+  email?: string;
   gender?: 'Male' | 'Female' | 'Other' | string;
   previous_qualification?: 'Plus Two' | 'Diploma' | 'Degree' | 'PG' | string;
+  laptop_availability?: string;
+  prior_course_knowledge?: string;
   phone?: string;
   photo_url?: string;
+  registered_at?: string;
   linkedin_url?: string;
   linkedin_post_count?: number;
   attendance_pct?: number;

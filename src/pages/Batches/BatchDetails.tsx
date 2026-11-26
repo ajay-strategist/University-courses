@@ -19,6 +19,8 @@ import {
 import * as XLSX from 'xlsx';
 import { CollegeLogo } from '@/components/common/CollegeLogo';
 import { CoordinatorMultiSelect } from '@/components/batches/CoordinatorMultiSelect';
+import { StudentProfileDrawer } from '@/components/reports/StudentProfileDrawer';
+import { getStudentPhotoUrl } from '@/lib/riskEngine';
 import { sendEmail, buildAbsenteeReportHtml, formatDateToDDMMYYYY } from '@/lib/emailService';
 
 export default function BatchDetails() {
@@ -342,6 +344,7 @@ export default function BatchDetails() {
   const [editingStudent, setEditingStudent] = useState<Student | null>(null);
   const [showEditStudentModal, setShowEditStudentModal] = useState(false);
   const [studentEditForm, setStudentEditForm] = useState({ register_no: '', name: '', class: '', phone: '' });
+  const [selectedStudentProfile, setSelectedStudentProfile] = useState<Student | null>(null);
 
   const handleDeleteBatch = async () => {
     if (!batch) return;
@@ -648,6 +651,119 @@ export default function BatchDetails() {
         toast.success(`Successfully imported/updated ${added} students!`);
       } catch (err) {
         toast.error('Failed to parse CSV/Excel file');
+      }
+    };
+    reader.readAsArrayBuffer(file);
+  };
+
+  // Update Registration Details (Gender, Laptop Availability, Image/Photo, Email, Qualification, Prior Knowledge)
+  // Matches existing students in this batch by Register No. only (skips unmatched rows).
+  const handleRegistrationExcelImport = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file || !batch) return;
+    e.target.value = '';
+
+    const reader = new FileReader();
+    reader.onload = async (evt) => {
+      try {
+        const data = new Uint8Array(evt.target?.result as ArrayBuffer);
+        const wb = XLSX.read(data, { type: 'array' });
+        const sheet = wb.Sheets[wb.SheetNames[0]];
+        const rows = XLSX.utils.sheet_to_json<any>(sheet, { defval: '' });
+
+        const getExactOrFuzzy = (row: any, keysToCheck: string[]): string => {
+          const rowKeys = Object.keys(row);
+          for (const target of keysToCheck) {
+            const exact = rowKeys.find(k => k.trim().toLowerCase() === target.toLowerCase());
+            if (exact && row[exact] !== undefined && row[exact] !== null && String(row[exact]).trim() !== '') {
+              return String(row[exact]).trim();
+            }
+          }
+          for (const target of keysToCheck) {
+            const fuzzy = rowKeys.find(k => k.trim().toLowerCase().includes(target.toLowerCase()));
+            if (fuzzy && row[fuzzy] !== undefined && row[fuzzy] !== null && String(row[fuzzy]).trim() !== '') {
+              return String(row[fuzzy]).trim();
+            }
+          }
+          return '';
+        };
+
+        const extractImageUrl = (raw: string): string => {
+          if (!raw) return '';
+          // Handle Excel/Sheets =IMAGE("https://...") formula if present
+          const formulaMatch = raw.match(/=\s*IMAGE\s*\(\s*"([^"]+)"/i);
+          if (formulaMatch && formulaMatch[1]) return formulaMatch[1].trim();
+          return raw.trim();
+        };
+
+        const batchStudents = store.students.filter(s => s.batch_id === batch.id);
+        let updatedCount = 0;
+        let skippedCount = 0;
+
+        for (const r of rows) {
+          const rawRegNo = getExactOrFuzzy(r, [
+            'Register No. (Current college, if you have)',
+            'Register No.',
+            'Register No',
+            'Register Number',
+            'Reg No',
+          ]);
+
+          if (!rawRegNo) {
+            skippedCount++;
+            continue;
+          }
+
+          const regNoUpper = rawRegNo.trim().toUpperCase();
+          const existing = batchStudents.find(
+            s => s.register_no?.trim().toUpperCase() === regNoUpper
+          );
+
+          if (!existing) {
+            skippedCount++;
+            continue;
+          }
+
+          const email = getExactOrFuzzy(r, ['Email address']);
+          const phone = getExactOrFuzzy(r, ['Phone No.', 'Phone No', 'Phone']);
+          const fullName = getExactOrFuzzy(r, ['Full Name']);
+          const gender = getExactOrFuzzy(r, ['Gender']);
+          const prevQual = getExactOrFuzzy(r, ['Previous Qualification']);
+          const laptop = getExactOrFuzzy(r, ['Do you have a computer or Laptop', 'Laptop']);
+          const priorKnowledge = getExactOrFuzzy(r, ['Have you learned this course before this training']);
+          const rawImage = getExactOrFuzzy(r, ['Image']);
+          const photoUrl = extractImageUrl(rawImage);
+          const timestamp = getExactOrFuzzy(r, ['Timestamp']);
+
+          await store.saveStudent({
+            ...existing,
+            name: fullName || existing.name,
+            email: email || existing.email,
+            phone: phone || existing.phone,
+            gender: gender || existing.gender,
+            previous_qualification: prevQual || existing.previous_qualification,
+            laptop_availability: laptop || existing.laptop_availability,
+            prior_course_knowledge: priorKnowledge || existing.prior_course_knowledge,
+            photo_url: photoUrl || existing.photo_url,
+            registered_at: timestamp || existing.registered_at,
+          });
+          updatedCount++;
+        }
+
+        setStudents(store.students.filter(s => s.batch_id === batch.id));
+        if (updatedCount > 0) {
+          toast.success(
+            `Updated registration details for ${updatedCount} student${updatedCount === 1 ? '' : 's'}` +
+              (skippedCount > 0 ? ` (${skippedCount} skipped: Register No. not in batch)` : '')
+          );
+        } else {
+          toast.warning(
+            `No matching students updated (${skippedCount} rows skipped). Verify Register No. values match this batch.`
+          );
+        }
+      } catch (err) {
+        console.error('Registration Excel parse error:', err);
+        toast.error('Failed to parse Registration Excel file');
       }
     };
     reader.readAsArrayBuffer(file);
@@ -1631,6 +1747,10 @@ export default function BatchDetails() {
               <Button size="sm" variant="outline" onClick={handleExportStudents} className="h-8 text-xs">
                 <Download className="h-3.5 w-3.5 mr-1" /> Export Roster (.xlsx)
               </Button>
+              <label className="cursor-pointer inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-accent/15 text-accent border border-accent/25 text-xs font-semibold hover:bg-accent/25 transition-colors" title="Upload Registration Excel to update Gender, Laptop, Photo (Image), Email & Qualification for existing students">
+                <Upload className="h-3.5 w-3.5" /> Update Registration (.xlsx)
+                <input type="file" accept=".csv, .xlsx, .xls" onChange={handleRegistrationExcelImport} className="hidden" />
+              </label>
               <label className="cursor-pointer inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-secondary text-secondary-foreground text-xs font-medium hover:bg-secondary/80">
                 <Upload className="h-3.5 w-3.5" /> CSV Import
                 <input type="file" accept=".csv, .xlsx" onChange={handleStudentCSVImport} className="hidden" />
@@ -1662,7 +1782,8 @@ export default function BatchDetails() {
                   <th className="p-4">Register No</th>
                   <th className="p-4">Student Name</th>
                   <th className="p-4">Class (Division)</th>
-                  <th className="p-4">Phone</th>
+                  <th className="p-4">Details</th>
+                  <th className="p-4">Contact</th>
                   <th className="p-4 text-center">
                     Derived Attendance % {selectedSemesterFilter !== 'all' ? `(Sem ${selectedSemesterFilter})` : ''}
                   </th>
@@ -1675,6 +1796,7 @@ export default function BatchDetails() {
                     batchId: batch?.id,
                     semester: selectedSemesterFilter,
                   });
+                  const photoUrl = getStudentPhotoUrl(stu.photo_url);
                   return (
                     <tr key={stu.id} className="hover:bg-muted/30 transition-colors">
                       <td className="p-4 pl-6">
@@ -1692,9 +1814,62 @@ export default function BatchDetails() {
                         />
                       </td>
                       <td className="p-4 font-mono font-bold text-accent">{stu.register_no}</td>
-                      <td className="p-4 font-medium text-foreground">{stu.name}</td>
+                      <td className="p-4">
+                        <button
+                          type="button"
+                          onClick={() => setSelectedStudentProfile(stu)}
+                          className="flex items-center gap-2.5 text-left group cursor-pointer"
+                        >
+                          {photoUrl ? (
+                            <img
+                              src={photoUrl}
+                              alt={stu.name}
+                              className="h-8 w-8 rounded-full object-cover border border-border shrink-0"
+                              onError={(e) => {
+                                (e.target as HTMLElement).style.display = 'none';
+                              }}
+                            />
+                          ) : (
+                            <div className="h-8 w-8 rounded-full bg-primary/10 border border-primary/20 text-primary font-bold font-mono text-[11px] flex items-center justify-center shrink-0">
+                              {(stu.name || 'S').substring(0, 2).toUpperCase()}
+                            </div>
+                          )}
+                          <span className="font-medium text-foreground group-hover:text-primary group-hover:underline transition-colors">
+                            {stu.name}
+                          </span>
+                        </button>
+                      </td>
                       <td className="p-4 text-muted-foreground font-mono text-xs">{stu.class}</td>
-                      <td className="p-4 text-muted-foreground font-mono text-xs">{stu.phone || '—'}</td>
+                      <td className="p-4">
+                        <div className="flex flex-wrap items-center gap-1">
+                          {stu.gender && (
+                            <span className="text-[10px] font-mono px-2 py-0.5 rounded-full bg-primary/10 text-primary border border-primary/20">
+                              {stu.gender}
+                            </span>
+                          )}
+                          {stu.laptop_availability && (
+                            <span className={`text-[10px] font-mono px-2 py-0.5 rounded-full border ${
+                              stu.laptop_availability.toLowerCase().startsWith('y')
+                                ? 'bg-success/10 text-success border-success/25'
+                                : 'bg-warning/10 text-warning border-warning/25'
+                            }`}>
+                              Laptop: {stu.laptop_availability}
+                            </span>
+                          )}
+                          {stu.previous_qualification && (
+                            <span className="text-[10px] font-mono px-2 py-0.5 rounded-full bg-muted text-muted-foreground">
+                              {stu.previous_qualification}
+                            </span>
+                          )}
+                          {!stu.gender && !stu.laptop_availability && !stu.previous_qualification && (
+                            <span className="text-xs text-muted-foreground/50">—</span>
+                          )}
+                        </div>
+                      </td>
+                      <td className="p-4 text-muted-foreground font-mono text-xs">
+                        <div>{stu.phone || '—'}</div>
+                        {stu.email && <div className="text-[11px] text-muted-foreground/80 truncate max-w-[180px]" title={stu.email}>{stu.email}</div>}
+                      </td>
                       <td className="p-4 text-center">
                         {attPct !== null ? (
                           <span className={`font-mono text-xs font-bold px-2.5 py-1 rounded-full ${attPct >= 85 ? 'bg-success/15 text-success' : attPct >= 75 ? 'bg-warning/15 text-warning' : 'bg-destructive/15 text-destructive'
@@ -4686,6 +4861,13 @@ export default function BatchDetails() {
           </div>
         </div>
       )}
+
+      {/* STUDENT PROFILE DRAWER */}
+      <StudentProfileDrawer
+        student={selectedStudentProfile}
+        batch={batch || null}
+        onClose={() => setSelectedStudentProfile(null)}
+      />
     </div>
   );
 }
