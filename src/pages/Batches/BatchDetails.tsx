@@ -18,9 +18,9 @@ import {
 } from 'lucide-react';
 import * as XLSX from 'xlsx';
 import { CollegeLogo } from '@/components/common/CollegeLogo';
+import { StudentAvatar } from '@/components/common/StudentAvatar';
 import { CoordinatorMultiSelect } from '@/components/batches/CoordinatorMultiSelect';
 import { StudentProfileDrawer } from '@/components/reports/StudentProfileDrawer';
-import { getStudentPhotoUrl } from '@/lib/riskEngine';
 import { sendEmail, buildAbsenteeReportHtml, formatDateToDDMMYYYY } from '@/lib/emailService';
 
 export default function BatchDetails() {
@@ -33,8 +33,12 @@ export default function BatchDetails() {
   const isStudentCoordinator = profile?.role === 'student_coordinator';
 
   const [activeTab, setActiveTab] = useState<
-    'students' | 'attendance' | 'marks' | 'trainer_log' | 'task_list' | 'syllabus' | 'coverage' | 'courses'
+    'students' | 'student_details' | 'attendance' | 'marks' | 'trainer_log' | 'task_list' | 'syllabus' | 'coverage' | 'courses'
   >(isStudentCoordinator ? 'attendance' : 'students');
+
+  const [studentDetailsSearch, setStudentDetailsSearch] = useState('');
+  const [studentDetailsLaptopFilter, setStudentDetailsLaptopFilter] = useState<'all' | 'yes' | 'no'>('all');
+  const [studentDetailsGenderFilter, setStudentDetailsGenderFilter] = useState<'all' | 'male' | 'female'>('all');
 
   // Local reactive states for this batch
   const [students, setStudents] = useState<Student[]>(
@@ -981,6 +985,7 @@ export default function BatchDetails() {
             register_no: stu.register_no,
             name: stu.name,
             class: stu.class || 'Div A',
+            photo_url: stu.photo_url,
             hours_absent: [0],
           });
         }
@@ -1043,6 +1048,7 @@ export default function BatchDetails() {
           register_no: stu.register_no,
           name: stu.name,
           class: stu.class || 'Div A',
+          photo_url: stu.photo_url,
           hours_absent: absentIndices,
         });
       }
@@ -1664,13 +1670,22 @@ export default function BatchDetails() {
       {/* Workspace Tabs */}
       <div className="flex border-b border-border bg-card rounded-2xl p-1 gap-1 overflow-x-auto">
         {!isStudentCoordinator && (
-          <button
-            onClick={() => setActiveTab('students')}
-            className={`flex items-center gap-2 px-4 py-2 text-xs font-semibold rounded-xl transition-all whitespace-nowrap ${activeTab === 'students' ? 'bg-primary text-primary-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground'
-              }`}
-          >
-            <Users className="h-3.5 w-3.5" /> Students
-          </button>
+          <>
+            <button
+              onClick={() => setActiveTab('students')}
+              className={`flex items-center gap-2 px-4 py-2 text-xs font-semibold rounded-xl transition-all whitespace-nowrap ${activeTab === 'students' ? 'bg-primary text-primary-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground'
+                }`}
+            >
+              <Users className="h-3.5 w-3.5" /> Students
+            </button>
+            <button
+              onClick={() => setActiveTab('student_details')}
+              className={`flex items-center gap-2 px-4 py-2 text-xs font-semibold rounded-xl transition-all whitespace-nowrap ${activeTab === 'student_details' ? 'bg-primary text-primary-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground'
+                }`}
+            >
+              <UserCheck className="h-3.5 w-3.5" /> Student Details
+            </button>
+          </>
         )}
         <button
           onClick={() => setActiveTab('attendance')}
@@ -1747,10 +1762,6 @@ export default function BatchDetails() {
               <Button size="sm" variant="outline" onClick={handleExportStudents} className="h-8 text-xs">
                 <Download className="h-3.5 w-3.5 mr-1" /> Export Roster (.xlsx)
               </Button>
-              <label className="cursor-pointer inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-accent/15 text-accent border border-accent/25 text-xs font-semibold hover:bg-accent/25 transition-colors" title="Upload Registration Excel to update Gender, Laptop, Photo (Image), Email & Qualification for existing students">
-                <Upload className="h-3.5 w-3.5" /> Update Registration (.xlsx)
-                <input type="file" accept=".csv, .xlsx, .xls" onChange={handleRegistrationExcelImport} className="hidden" />
-              </label>
               <label className="cursor-pointer inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-secondary text-secondary-foreground text-xs font-medium hover:bg-secondary/80">
                 <Upload className="h-3.5 w-3.5" /> CSV Import
                 <input type="file" accept=".csv, .xlsx" onChange={handleStudentCSVImport} className="hidden" />
@@ -1782,8 +1793,7 @@ export default function BatchDetails() {
                   <th className="p-4">Register No</th>
                   <th className="p-4">Student Name</th>
                   <th className="p-4">Class (Division)</th>
-                  <th className="p-4">Details</th>
-                  <th className="p-4">Contact</th>
+                  <th className="p-4">Phone</th>
                   <th className="p-4 text-center">
                     Derived Attendance % {selectedSemesterFilter !== 'all' ? `(Sem ${selectedSemesterFilter})` : ''}
                   </th>
@@ -1796,7 +1806,6 @@ export default function BatchDetails() {
                     batchId: batch?.id,
                     semester: selectedSemesterFilter,
                   });
-                  const photoUrl = getStudentPhotoUrl(stu.photo_url);
                   return (
                     <tr key={stu.id} className="hover:bg-muted/30 transition-colors">
                       <td className="p-4 pl-6">
@@ -1820,56 +1829,14 @@ export default function BatchDetails() {
                           onClick={() => setSelectedStudentProfile(stu)}
                           className="flex items-center gap-2.5 text-left group cursor-pointer"
                         >
-                          {photoUrl ? (
-                            <img
-                              src={photoUrl}
-                              alt={stu.name}
-                              className="h-8 w-8 rounded-full object-cover border border-border shrink-0"
-                              onError={(e) => {
-                                (e.target as HTMLElement).style.display = 'none';
-                              }}
-                            />
-                          ) : (
-                            <div className="h-8 w-8 rounded-full bg-primary/10 border border-primary/20 text-primary font-bold font-mono text-[11px] flex items-center justify-center shrink-0">
-                              {(stu.name || 'S').substring(0, 2).toUpperCase()}
-                            </div>
-                          )}
+                          <StudentAvatar name={stu.name} photoUrl={stu.photo_url} size="sm" />
                           <span className="font-medium text-foreground group-hover:text-primary group-hover:underline transition-colors">
                             {stu.name}
                           </span>
                         </button>
                       </td>
                       <td className="p-4 text-muted-foreground font-mono text-xs">{stu.class}</td>
-                      <td className="p-4">
-                        <div className="flex flex-wrap items-center gap-1">
-                          {stu.gender && (
-                            <span className="text-[10px] font-mono px-2 py-0.5 rounded-full bg-primary/10 text-primary border border-primary/20">
-                              {stu.gender}
-                            </span>
-                          )}
-                          {stu.laptop_availability && (
-                            <span className={`text-[10px] font-mono px-2 py-0.5 rounded-full border ${
-                              stu.laptop_availability.toLowerCase().startsWith('y')
-                                ? 'bg-success/10 text-success border-success/25'
-                                : 'bg-warning/10 text-warning border-warning/25'
-                            }`}>
-                              Laptop: {stu.laptop_availability}
-                            </span>
-                          )}
-                          {stu.previous_qualification && (
-                            <span className="text-[10px] font-mono px-2 py-0.5 rounded-full bg-muted text-muted-foreground">
-                              {stu.previous_qualification}
-                            </span>
-                          )}
-                          {!stu.gender && !stu.laptop_availability && !stu.previous_qualification && (
-                            <span className="text-xs text-muted-foreground/50">—</span>
-                          )}
-                        </div>
-                      </td>
-                      <td className="p-4 text-muted-foreground font-mono text-xs">
-                        <div>{stu.phone || '—'}</div>
-                        {stu.email && <div className="text-[11px] text-muted-foreground/80 truncate max-w-[180px]" title={stu.email}>{stu.email}</div>}
-                      </td>
+                      <td className="p-4 text-muted-foreground font-mono text-xs">{stu.phone || '—'}</td>
                       <td className="p-4 text-center">
                         {attPct !== null ? (
                           <span className={`font-mono text-xs font-bold px-2.5 py-1 rounded-full ${attPct >= 85 ? 'bg-success/15 text-success' : attPct >= 75 ? 'bg-warning/15 text-warning' : 'bg-destructive/15 text-destructive'
@@ -1898,6 +1865,171 @@ export default function BatchDetails() {
           </div>
         </div>
       )}
+
+      {/* TAB 7.1B: STUDENT DETAILS (Registration Metadata) */}
+      {activeTab === 'student_details' && (() => {
+        const filteredDetails = students.filter((stu) => {
+          if (studentDetailsSearch.trim()) {
+            const q = studentDetailsSearch.toLowerCase().trim();
+            const match =
+              stu.name.toLowerCase().includes(q) ||
+              stu.register_no.toLowerCase().includes(q) ||
+              (stu.email && stu.email.toLowerCase().includes(q)) ||
+              (stu.class && stu.class.toLowerCase().includes(q));
+            if (!match) return false;
+          }
+          if (studentDetailsLaptopFilter !== 'all') {
+            const hasLap = (stu.laptop_availability || '').toLowerCase().startsWith('y');
+            if (studentDetailsLaptopFilter === 'yes' && !hasLap) return false;
+            if (studentDetailsLaptopFilter === 'no' && (hasLap || !stu.laptop_availability)) return false;
+          }
+          if (studentDetailsGenderFilter !== 'all') {
+            const g = (stu.gender || '').toLowerCase();
+            if (studentDetailsGenderFilter === 'male' && g !== 'male') return false;
+            if (studentDetailsGenderFilter === 'female' && g !== 'female') return false;
+          }
+          return true;
+        });
+
+        const withPhotoCount = students.filter(s => !!s.photo_url).length;
+        const withLaptopCount = students.filter(s => (s.laptop_availability || '').toLowerCase().startsWith('y')).length;
+
+        return (
+          <div className="space-y-4">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+              <div>
+                <h2 className="text-lg font-semibold font-heading">Student Registration Details</h2>
+                <p className="text-xs text-muted-foreground">
+                  {students.length} students &bull; {withPhotoCount} with photo &bull; {withLaptopCount} with laptop/computer
+                </p>
+              </div>
+              <label
+                className="cursor-pointer inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-primary text-primary-foreground text-xs font-semibold hover:bg-primary/90 shadow-xs transition-colors self-start sm:self-auto"
+                title="Upload Registration Excel to update Email, Gender, Qualification, Laptop Availability, Prior Knowledge & Photo (Image)"
+              >
+                <Upload className="h-3.5 w-3.5" /> Update Registration (.xlsx)
+                <input type="file" accept=".csv, .xlsx, .xls" onChange={handleRegistrationExcelImport} className="hidden" />
+              </label>
+            </div>
+
+            {/* Search & Filters */}
+            <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2.5 bg-card border border-border rounded-2xl p-3">
+              <div className="relative flex-1">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
+                <Input
+                  type="text"
+                  placeholder="Search by name, register no, email, or class..."
+                  value={studentDetailsSearch}
+                  onChange={(e) => setStudentDetailsSearch(e.target.value)}
+                  className="pl-8.5 pr-8 h-8 text-xs rounded-xl bg-background"
+                />
+                {studentDetailsSearch && (
+                  <button
+                    type="button"
+                    onClick={() => setStudentDetailsSearch('')}
+                    className="absolute right-2.5 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                  >
+                    <X className="h-3 w-3" />
+                  </button>
+                )}
+              </div>
+              <select
+                value={studentDetailsGenderFilter}
+                onChange={(e) => setStudentDetailsGenderFilter(e.target.value as any)}
+                className="h-8 px-2.5 rounded-xl border border-border bg-background text-xs font-medium text-foreground focus:outline-none"
+              >
+                <option value="all">All Genders</option>
+                <option value="male">Male</option>
+                <option value="female">Female</option>
+              </select>
+              <select
+                value={studentDetailsLaptopFilter}
+                onChange={(e) => setStudentDetailsLaptopFilter(e.target.value as any)}
+                className="h-8 px-2.5 rounded-xl border border-border bg-background text-xs font-medium text-foreground focus:outline-none"
+              >
+                <option value="all">Laptop: All</option>
+                <option value="yes">Has Laptop / PC</option>
+                <option value="no">No Laptop / PC</option>
+              </select>
+            </div>
+
+            <div className="bg-card rounded-2xl border border-border overflow-x-auto shadow-sm">
+              <table className="w-full text-left text-sm">
+                <thead className="bg-muted/50 border-b border-border text-muted-foreground font-mono text-xs uppercase">
+                  <tr>
+                    <th className="p-3.5 pl-5">Register No</th>
+                    <th className="p-3.5">Student</th>
+                    <th className="p-3.5">Email Address</th>
+                    <th className="p-3.5">Phone</th>
+                    <th className="p-3.5">Gender</th>
+                    <th className="p-3.5">Qualification</th>
+                    <th className="p-3.5">Laptop / PC</th>
+                    <th className="p-3.5 pr-5">Learned Before</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-border">
+                  {filteredDetails.length === 0 ? (
+                    <tr>
+                      <td colSpan={8} className="p-8 text-center text-xs text-muted-foreground">
+                        No students match the current filter criteria.
+                      </td>
+                    </tr>
+                  ) : (
+                    filteredDetails.map((stu) => (
+                      <tr key={stu.id} className="hover:bg-muted/30 transition-colors">
+                        <td className="p-3.5 pl-5 font-mono font-bold text-accent text-xs">{stu.register_no}</td>
+                        <td className="p-3.5">
+                          <button
+                            type="button"
+                            onClick={() => setSelectedStudentProfile(stu)}
+                            className="flex items-center gap-2.5 text-left group cursor-pointer"
+                          >
+                            <StudentAvatar name={stu.name} photoUrl={stu.photo_url} size="sm" />
+                            <div>
+                              <div className="font-medium text-foreground group-hover:text-primary group-hover:underline text-xs sm:text-sm">
+                                {stu.name}
+                              </div>
+                              <div className="text-[11px] text-muted-foreground font-mono">{stu.class}</div>
+                            </div>
+                          </button>
+                        </td>
+                        <td className="p-3.5 font-mono text-xs text-muted-foreground">{stu.email || '—'}</td>
+                        <td className="p-3.5 font-mono text-xs text-muted-foreground">{stu.phone || '—'}</td>
+                        <td className="p-3.5 text-xs">
+                          {stu.gender ? (
+                            <span className="px-2 py-0.5 rounded-full bg-primary/10 text-primary border border-primary/20 font-mono text-[11px]">
+                              {stu.gender}
+                            </span>
+                          ) : (
+                            <span className="text-muted-foreground/40">—</span>
+                          )}
+                        </td>
+                        <td className="p-3.5 text-xs text-foreground">{stu.previous_qualification || '—'}</td>
+                        <td className="p-3.5 text-xs">
+                          {stu.laptop_availability ? (
+                            <span
+                              className={`px-2 py-0.5 rounded-full font-mono text-[11px] border ${
+                                stu.laptop_availability.toLowerCase().startsWith('y')
+                                  ? 'bg-success/15 text-success border-success/25'
+                                  : 'bg-warning/15 text-warning border-warning/25'
+                              }`}
+                            >
+                              {stu.laptop_availability}
+                            </span>
+                          ) : (
+                            <span className="text-muted-foreground/40">—</span>
+                          )}
+                        </td>
+                        <td className="p-3.5 pr-5 text-xs text-muted-foreground">{stu.prior_course_knowledge || '—'}</td>
+                      </tr>
+                    ))
+                  )}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        );
+      })()}
 
       {/* TAB 7.8: COURSES */}
       {activeTab === 'courses' && (
@@ -2149,7 +2281,12 @@ export default function BatchDetails() {
                       return (
                         <tr key={stu.id} className="hover:bg-muted/30">
                           <td className="p-3 font-mono font-bold text-accent">{stu.register_no}</td>
-                          <td className="p-3 font-medium text-foreground">{stu.name}</td>
+                          <td className="p-3 font-medium text-foreground">
+                            <div className="flex items-center gap-2.5">
+                              <StudentAvatar name={stu.name} photoUrl={stu.photo_url} size="sm" />
+                              <span>{stu.name}</span>
+                            </div>
+                          </td>
                           <td className="p-3 text-muted-foreground font-mono text-xs">{stu.class}</td>
                           <td className="p-3 text-center">
                             <div className="inline-flex rounded-xl bg-sunken p-1 border border-border gap-1">
@@ -2229,7 +2366,12 @@ export default function BatchDetails() {
                   {students.map(stu => (
                     <tr key={stu.id}>
                       <td className="p-2 font-bold text-accent">{stu.register_no}</td>
-                      <td className="p-2 font-sans font-medium text-foreground">{stu.name}</td>
+                      <td className="p-2 font-sans font-medium text-foreground">
+                        <div className="flex items-center gap-2 whitespace-nowrap">
+                          <StudentAvatar name={stu.name} photoUrl={stu.photo_url} size="xs" />
+                          <span>{stu.name}</span>
+                        </div>
+                      </td>
                       {store.sessions
                         .filter(s => s.batch_course_id === selectedBatchCourseId)
                         .sort((a, b) => a.session_date.localeCompare(b.session_date) || Number(a.hour_no) - Number(b.hour_no))
@@ -2570,7 +2712,12 @@ export default function BatchDetails() {
                   return (
                     <tr key={stu.id} className="hover:bg-muted/30">
                       <td className="p-3 font-mono font-bold text-accent">{stu.register_no}</td>
-                      <td className="p-3 font-medium text-foreground">{stu.name}</td>
+                      <td className="p-3 font-medium text-foreground">
+                        <div className="flex items-center gap-2.5">
+                          <StudentAvatar name={stu.name} photoUrl={stu.photo_url} size="sm" />
+                          <span>{stu.name}</span>
+                        </div>
+                      </td>
                       <td className="p-3 text-xs font-mono">{activeCourse?.name}</td>
                       <td className="p-3 text-xs font-mono font-semibold text-primary">
                         {selectedAssessmentId === 'new' ? (assessmentName || 'New Assessment') : (currentAssessment?.name || '—')}
@@ -4189,7 +4336,12 @@ export default function BatchDetails() {
                           return (
                             <tr key={idx} className="hover:bg-muted/30">
                               <td className="p-2.5 font-mono font-bold text-accent">{a.register_no}</td>
-                              <td className="p-2.5 font-medium text-foreground">{a.name}</td>
+                              <td className="p-2.5 font-medium text-foreground">
+                                <div className="flex items-center gap-2">
+                                  <StudentAvatar name={a.name} photoUrl={a.photo_url} size="xs" />
+                                  <span>{a.name}</span>
+                                </div>
+                              </td>
                               <td className="p-2.5 text-muted-foreground font-mono">{a.class}</td>
                               {sessionHeaders.map((_, hIdx) => {
                                 const isAbsent = a.hours_absent.includes(hIdx);

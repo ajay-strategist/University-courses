@@ -220,6 +220,7 @@ export interface AbsenteePreview {
     register_no: string;
     name: string;
     class: string;
+    photo_url?: string;
     hours_absent: number[];
   }[];
 }

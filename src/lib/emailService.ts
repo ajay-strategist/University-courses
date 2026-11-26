@@ -1,5 +1,6 @@
 import type { UserEmailConfig, AbsenteePreview } from '@/types';
 import { supabase } from '@/lib/supabase';
+import { getStudentPhotoUrl } from '@/lib/riskEngine';
 
 export interface SendEmailOptions {
   to: string | string[];
@@ -187,6 +188,12 @@ export function buildAbsenteeReportHtml(params: {
 
   const tableRowsHtml = preview.absentees.map((stu, idx) => {
     const bg = idx % 2 === 0 ? '#ffffff' : '#f8fafc';
+    const resolvedPhoto = getStudentPhotoUrl(stu.photo_url);
+    const initials = (stu.name || 'S').substring(0, 2).toUpperCase();
+    const avatarHtml = resolvedPhoto
+      ? `<img src="${resolvedPhoto}" alt="${stu.name}" style="width:28px;height:28px;border-radius:50%;object-fit:cover;border:1px solid #cbd5e1;vertical-align:middle;margin-right:8px;" />`
+      : `<span style="display:inline-block;width:28px;height:28px;line-height:28px;border-radius:50%;background-color:#e2e8f0;color:#173D32;font-weight:bold;font-size:10px;text-align:center;vertical-align:middle;margin-right:8px;">${initials}</span>`;
+
     const hourCells = sessionHeaders.map((_, hIdx) => {
       const isAbsent = stu.hours_absent.includes(hIdx);
       if (isAbsent) {
@@ -202,7 +209,7 @@ export function buildAbsenteeReportHtml(params: {
     return `
       <tr style="background-color: ${bg}; font-size: 13px; color: #1e293b;">
         <td style="padding: 10px 12px; font-family: monospace; font-weight: bold; color: #0284c7; border-bottom: 1px solid #e2e8f0;">${stu.register_no}</td>
-        <td style="padding: 10px 12px; font-weight: 500; border-bottom: 1px solid #e2e8f0;">${stu.name}</td>
+        <td style="padding: 10px 12px; font-weight: 500; border-bottom: 1px solid #e2e8f0; white-space: nowrap;">${avatarHtml}<span style="vertical-align:middle;">${stu.name}</span></td>
         <td style="padding: 10px 12px; color: #64748b; border-bottom: 1px solid #e2e8f0;">${stu.class}</td>
         ${hourCells}
       </tr>

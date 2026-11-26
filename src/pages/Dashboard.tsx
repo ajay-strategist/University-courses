@@ -2,6 +2,7 @@ import { useState, useMemo } from 'react';
 import { store } from '@/lib/store';
 import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
+import { StudentAvatar } from '@/components/common/StudentAvatar';
 import type { Student } from '@/types';
 import {
   Building2,
@@ -826,7 +827,10 @@ export default function Dashboard() {
                             {st.register_no || '—'}
                           </td>
                           <td className="py-2.5 font-medium text-foreground">
-                            {st.name}
+                            <div className="flex items-center gap-2">
+                              <StudentAvatar name={st.name} photoUrl={st.photo_url} size="xs" />
+                              <span>{st.name}</span>
+                            </div>
                           </td>
                           <td className="py-2.5 text-muted-foreground font-mono">
                             {st.class || '—'}
