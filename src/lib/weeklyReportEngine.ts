@@ -655,13 +655,12 @@ export function generateWeeklySummaryEmailHtml(report: WeeklyToolReport): string
                           return `<td style="padding:8px;text-align:center;color:#94a3b8;">—</td>`;
                         }
                         return `
-                          <td style="padding:8px;text-align:center;line-height:1.35;">
-                            <div style="font-weight:800;font-size:12px;color:${pctColor(cell.pct)};">${cell.pct}%</div>
-                            <div style="font-size:10px;font-family:monospace;margin-top:2px;">
-                              <span style="color:#15803d;font-weight:700;">${cell.present} P</span>
-                              <span style="color:#94a3b8;"> &middot; </span>
-                              <span style="color:#dc2626;font-weight:700;">${cell.absent} A</span>
-                            </div>
+                          <td style="padding:9px 8px;text-align:center;white-space:nowrap;font-size:11px;">
+                            <span style="font-weight:800;color:${pctColor(cell.pct)};">${cell.pct}%</span>
+                            <span style="color:#cbd5e1;margin:0 3px;">|</span>
+                            <span style="color:#15803d;font-weight:700;font-family:monospace;">${cell.present} P</span>
+                            <span style="color:#cbd5e1;margin:0 3px;">|</span>
+                            <span style="color:#dc2626;font-weight:700;font-family:monospace;">${cell.absent} A</span>
                           </td>
                         `;
                       })
