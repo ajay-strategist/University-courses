@@ -42,6 +42,7 @@ import { sendEmail } from '@/lib/emailService';
 export default function StudentRiskManagement() {
   const { profile } = useAuth();
   const [selectedBatchId, setSelectedBatchId] = useState<string>('all');
+  const [selectedSemester, setSelectedSemester] = useState<number | 'all'>('all');
   const [selectedRiskCategory, setSelectedRiskCategory] = useState<'all' | 'attendance' | 'academic' | 'both'>('all');
   const [selectedRiskType, setSelectedRiskType] = useState<'all' | 'Critical' | 'At Risk'>('all');
   const [searchTerm, setSearchTerm] = useState('');
@@ -99,10 +100,22 @@ export default function StudentRiskManagement() {
     setRefreshTrigger(prev => prev + 1);
   };
 
+  // Available semesters for selected batch (or all batches)
+  const availableSemesters = useMemo(() => {
+    const relevantCourses = selectedBatchId === 'all'
+      ? store.batchCourses
+      : store.batchCourses.filter(bc => bc.batch_id === selectedBatchId);
+    const sems = new Set<number>();
+    relevantCourses.forEach(bc => {
+      if (bc.semester) sems.add(Number(bc.semester));
+    });
+    return Array.from(sems).sort((a, b) => a - b);
+  }, [selectedBatchId, store.batchCourses.length, refreshTrigger]);
+
   // Compute Risk Students
   const riskStudents = useMemo(() => {
     const rawBatchId = selectedBatchId === 'all' ? undefined : selectedBatchId;
-    let list = getActiveRiskStudents(rawBatchId, selectedRiskCategory, selectedRiskType);
+    let list = getActiveRiskStudents(rawBatchId, selectedRiskCategory, selectedRiskType, selectedSemester);
 
     if (searchTerm.trim()) {
       const q = searchTerm.toLowerCase();
@@ -113,12 +126,12 @@ export default function StudentRiskManagement() {
       );
     }
     return list;
-  }, [selectedBatchId, selectedRiskCategory, selectedRiskType, searchTerm, refreshTrigger]);
+  }, [selectedBatchId, selectedSemester, selectedRiskCategory, selectedRiskType, searchTerm, refreshTrigger]);
 
   // Overall counts
   const allProfiles = useMemo(() => {
-    return calculateStudentRisks(selectedBatchId === 'all' ? undefined : selectedBatchId);
-  }, [selectedBatchId, refreshTrigger]);
+    return calculateStudentRisks(selectedBatchId === 'all' ? undefined : selectedBatchId, undefined, selectedSemester);
+  }, [selectedBatchId, selectedSemester, refreshTrigger]);
 
   const criticalCount = allProfiles.filter(p => p.overallRisk === 'Critical' || p.attendanceRisk === 'Critical' || p.academicRisk === 'Critical').length;
   const atRiskCount = allProfiles.filter(p => (p.overallRisk === 'At Risk' || p.attendanceRisk === 'At Risk' || p.academicRisk === 'At Risk') && !allProfiles.some(c => c.student.id === p.student.id && (c.overallRisk === 'Critical' || c.attendanceRisk === 'Critical' || c.academicRisk === 'Critical'))).length;
@@ -375,7 +388,10 @@ export default function StudentRiskManagement() {
           {/* Batch Selector */}
           <select
             value={selectedBatchId}
-            onChange={(e) => setSelectedBatchId(e.target.value)}
+            onChange={(e) => {
+              setSelectedBatchId(e.target.value);
+              setSelectedSemester('all');
+            }}
             className="bg-background border border-border rounded-xl px-3 py-1.5 text-xs font-semibold text-foreground focus:outline-none"
           >
             <option value="all">All Batches ({store.batches.length})</option>
@@ -383,6 +399,18 @@ export default function StudentRiskManagement() {
               <option key={b.id} value={b.id}>
                 {b.code} {batchOverrides[b.id] ? '⚡ (Custom Rules)' : ''}
               </option>
+            ))}
+          </select>
+
+          {/* Semester Selector */}
+          <select
+            value={selectedSemester === 'all' ? 'all' : String(selectedSemester)}
+            onChange={(e) => setSelectedSemester(e.target.value === 'all' ? 'all' : Number(e.target.value))}
+            className="bg-background border border-border rounded-xl px-3 py-1.5 text-xs font-semibold text-foreground focus:outline-none"
+          >
+            <option value="all">All Semesters</option>
+            {availableSemesters.map(sem => (
+              <option key={sem} value={sem}>Semester {sem}</option>
             ))}
           </select>
 

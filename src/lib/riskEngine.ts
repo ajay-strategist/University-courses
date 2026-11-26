@@ -141,7 +141,8 @@ export interface StudentRiskProfile {
  */
 export function calculateStudentRisks(
   batchId?: string,
-  customConfig?: RiskCriteriaConfig
+  customConfig?: RiskCriteriaConfig,
+  semester?: number | 'all'
 ): StudentRiskProfile[] {
   const batches = batchId 
     ? store.batches.filter(b => b.id === batchId)
@@ -152,7 +153,13 @@ export function calculateStudentRisks(
   for (const b of batches) {
     const config = customConfig || getEffectiveRiskConfig(b.id);
     const batchStudents = store.students.filter(s => s.batch_id === b.id);
-    const batchCourses = store.batchCourses.filter(bc => bc.batch_id === b.id);
+    const batchCourses = store.batchCourses.filter(bc => {
+      if (bc.batch_id !== b.id) return false;
+      if (semester !== undefined && semester !== 'all') {
+        return Number(bc.semester) === Number(semester);
+      }
+      return true;
+    });
     const bcIds = new Set(batchCourses.map(bc => bc.id));
 
     // Sessions and attendance for this batch
@@ -319,9 +326,10 @@ export function calculateStudentRisks(
 export function getActiveRiskStudents(
   batchId?: string,
   riskCategory?: 'all' | 'attendance' | 'academic' | 'both',
-  riskType?: 'all' | 'Critical' | 'At Risk'
+  riskType?: 'all' | 'Critical' | 'At Risk',
+  semester?: number | 'all'
 ): StudentRiskProfile[] {
-  const allProfiles = calculateStudentRisks(batchId);
+  const allProfiles = calculateStudentRisks(batchId, undefined, semester);
 
   return allProfiles.filter(p => {
     // Must have at least one valid risk
