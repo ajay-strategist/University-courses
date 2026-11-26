@@ -941,7 +941,8 @@ export default function BatchDetails() {
     });
 
     return rangeSessions.map(s => {
-      const dateStr = s.session_date.substring(5).replace('-', '/');
+      const parts = s.session_date.split('-');
+      const dateStr = parts.length === 3 ? `${parts[2]}/${parts[1]}` : s.session_date.substring(5).replace('-', '/');
       return `${dateStr} H${s.hour_no}`;
     });
   };
@@ -956,6 +957,10 @@ export default function BatchDetails() {
       );
       titleDate = attendanceDate;
     } else {
+      if (attendanceStartDate > attendanceEndDate) {
+        toast.error('Start Date cannot be after End Date');
+        return;
+      }
       daySessions = store.sessions.filter(
         s => s.batch_course_id === selectedBatchCourseId &&
           s.session_date >= attendanceStartDate &&
@@ -1670,22 +1675,13 @@ export default function BatchDetails() {
       {/* Workspace Tabs */}
       <div className="flex border-b border-border bg-card rounded-2xl p-1 gap-1 overflow-x-auto">
         {!isStudentCoordinator && (
-          <>
-            <button
-              onClick={() => setActiveTab('students')}
-              className={`flex items-center gap-2 px-4 py-2 text-xs font-semibold rounded-xl transition-all whitespace-nowrap ${activeTab === 'students' ? 'bg-primary text-primary-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground'
-                }`}
-            >
-              <Users className="h-3.5 w-3.5" /> Students
-            </button>
-            <button
-              onClick={() => setActiveTab('student_details')}
-              className={`flex items-center gap-2 px-4 py-2 text-xs font-semibold rounded-xl transition-all whitespace-nowrap ${activeTab === 'student_details' ? 'bg-primary text-primary-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground'
-                }`}
-            >
-              <UserCheck className="h-3.5 w-3.5" /> Student Details
-            </button>
-          </>
+          <button
+            onClick={() => setActiveTab('students')}
+            className={`flex items-center gap-2 px-4 py-2 text-xs font-semibold rounded-xl transition-all whitespace-nowrap ${activeTab === 'students' ? 'bg-primary text-primary-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground'
+              }`}
+          >
+            <Users className="h-3.5 w-3.5" /> Students
+          </button>
         )}
         <button
           onClick={() => setActiveTab('attendance')}
@@ -1737,6 +1733,13 @@ export default function BatchDetails() {
                 }`}
             >
               <BookOpen className="h-3.5 w-3.5" /> Courses
+            </button>
+            <button
+              onClick={() => setActiveTab('student_details')}
+              className={`flex items-center gap-2 px-4 py-2 text-xs font-semibold rounded-xl transition-all whitespace-nowrap ${activeTab === 'student_details' ? 'bg-primary text-primary-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground'
+                }`}
+            >
+              <UserCheck className="h-3.5 w-3.5" /> Student Details
             </button>
           </>
         )}
@@ -2103,10 +2106,10 @@ export default function BatchDetails() {
               <select
                 value={attendanceReportMode}
                 onChange={(e) => setAttendanceReportMode(e.target.value as 'single' | 'range')}
-                className="bg-background border border-border rounded-xl px-2 py-1 text-xs text-foreground focus:outline-none focus:ring-1 focus:ring-primary h-9"
+                className="bg-background border border-border rounded-xl px-2.5 py-1 text-xs font-medium text-foreground focus:outline-none focus:ring-1 focus:ring-primary h-9 cursor-pointer"
               >
                 <option value="single">Single Date</option>
-                <option value="range">Custom Range</option>
+                <option value="range">Multi-Day Range</option>
               </select>
 
               {attendanceReportMode === 'single' ? (
@@ -2118,7 +2121,24 @@ export default function BatchDetails() {
                     onChange={(e) => setAttendanceDate(e.target.value)}
                     className="w-40 h-9 text-xs font-mono bg-background"
                   />
-                  <label className="text-xs font-mono font-medium text-muted-foreground ml-2">Hour No:</label>
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant="outline"
+                    onClick={() => {
+                      const d = new Date();
+                      d.setDate(d.getDate() - 1);
+                      const y = d.getFullYear();
+                      const m = String(d.getMonth() + 1).padStart(2, '0');
+                      const day = String(d.getDate()).padStart(2, '0');
+                      setAttendanceDate(`${y}-${m}-${day}`);
+                    }}
+                    className="h-8 text-[11px] font-mono rounded-xl"
+                    title="Jump to previous day attendance"
+                  >
+                    Yesterday
+                  </Button>
+                  <label className="text-xs font-mono font-medium text-muted-foreground ml-1">Hour No:</label>
                   <Input
                     type="number"
                     min="1"
@@ -2144,6 +2164,40 @@ export default function BatchDetails() {
                     onChange={(e) => setAttendanceEndDate(e.target.value)}
                     className="w-40 h-9 text-xs font-mono bg-background"
                   />
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant="outline"
+                    onClick={() => {
+                      const now = new Date();
+                      const prev = new Date();
+                      prev.setDate(now.getDate() - 1);
+                      const fmt = (dt: Date) =>
+                        `${dt.getFullYear()}-${String(dt.getMonth() + 1).padStart(2, '0')}-${String(dt.getDate()).padStart(2, '0')}`;
+                      setAttendanceStartDate(fmt(prev));
+                      setAttendanceEndDate(fmt(now));
+                    }}
+                    className="h-8 text-[11px] font-mono rounded-xl"
+                  >
+                    Yesterday–Today
+                  </Button>
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant="outline"
+                    onClick={() => {
+                      const now = new Date();
+                      const prev = new Date();
+                      prev.setDate(now.getDate() - 6);
+                      const fmt = (dt: Date) =>
+                        `${dt.getFullYear()}-${String(dt.getMonth() + 1).padStart(2, '0')}-${String(dt.getDate()).padStart(2, '0')}`;
+                      setAttendanceStartDate(fmt(prev));
+                      setAttendanceEndDate(fmt(now));
+                    }}
+                    className="h-8 text-[11px] font-mono rounded-xl"
+                  >
+                    Last 7 Days
+                  </Button>
                 </>
               )}
             </div>
