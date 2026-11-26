@@ -24,7 +24,13 @@ export default function Dashboard() {
   // -------------------------------------------------------------
   // 1. DATE SELECTION (Defaults to Today, supports quick pick)
   // -------------------------------------------------------------
-  const todayStr = useMemo(() => new Date().toISOString().split('T')[0], []);
+  const todayStr = useMemo(() => {
+    const now = new Date();
+    const y = now.getFullYear();
+    const m = String(now.getMonth() + 1).padStart(2, '0');
+    const d = String(now.getDate()).padStart(2, '0');
+    return `${y}-${m}-${d}`;
+  }, []);
   const [selectedDate, setSelectedDate] = useState<string>(todayStr);
 
   const formatDateDDMMYYYY = (isoDate: string): string => {
@@ -269,9 +275,32 @@ export default function Dashboard() {
     absentees: Student[];
   } | null>(null);
 
+  // Dynamically compute the most recent date with recorded class sessions or trainer logs
+  const latestActiveDate = useMemo(() => {
+    const validBatchIds = new Set(store.batches.map((b) => b.id));
+    const validBcIds = new Set(
+      store.batchCourses.filter((bc) => validBatchIds.has(bc.batch_id)).map((bc) => bc.id)
+    );
+
+    let maxDate: string | null = null;
+    store.sessions.forEach((s) => {
+      if (s.session_date && s.session_date <= todayStr && validBcIds.has(s.batch_course_id)) {
+        if (!maxDate || s.session_date > maxDate) maxDate = s.session_date;
+      }
+    });
+    store.trainerLogs.forEach((t) => {
+      if (t.log_date && t.log_date <= todayStr && validBcIds.has(t.batch_course_id)) {
+        if (!maxDate || t.log_date > maxDate) maxDate = t.log_date;
+      }
+    });
+    return maxDate;
+  }, [store.sessions, store.trainerLogs, store.batches, store.batchCourses, todayStr]);
+
   // Quick helper to jump to latest active date
   const handleJumpToLatestActiveDate = () => {
-    setSelectedDate('2026-11-06');
+    if (latestActiveDate) {
+      setSelectedDate(latestActiveDate);
+    }
   };
 
   return (
@@ -397,14 +426,14 @@ export default function Dashboard() {
               title="Select date"
             />
 
-            {selectedDate !== '2026-11-06' && (
+            {latestActiveDate && selectedDate !== latestActiveDate && (
               <Button
                 variant="outline"
                 size="sm"
                 onClick={handleJumpToLatestActiveDate}
                 className="text-xs h-8 text-[#103C35] dark:text-emerald-400 hover:text-[#103C35] dark:hover:text-emerald-300 hover:bg-[#103C35]/10 dark:hover:bg-emerald-500/15 border-[#103C35]/30 dark:border-emerald-500/30"
               >
-                View Latest Activity (06-11-2026)
+                View Latest Activity ({formatDateDDMMYYYY(latestActiveDate)})
               </Button>
             )}
 
@@ -435,12 +464,14 @@ export default function Dashboard() {
                 No session attendance or trainer logs are scheduled or marked for this date. You can select another date using the date selector above.
               </p>
             </div>
-            <Button
-              onClick={handleJumpToLatestActiveDate}
-              className="bg-[#103C35] hover:bg-[#21483D] dark:bg-emerald-600 dark:hover:bg-emerald-500 text-white text-xs mt-2"
-            >
-              Inspect Latest Active Class Day (06-11-2026)
-            </Button>
+            {latestActiveDate && (
+              <Button
+                onClick={handleJumpToLatestActiveDate}
+                className="bg-[#103C35] hover:bg-[#21483D] dark:bg-emerald-600 dark:hover:bg-emerald-500 text-white text-xs mt-2"
+              >
+                Inspect Latest Active Class Day ({formatDateDDMMYYYY(latestActiveDate)})
+              </Button>
+            )}
           </div>
         ) : (
           <div className="grid grid-cols-1 lg:grid-cols-12 gap-5 items-start">
