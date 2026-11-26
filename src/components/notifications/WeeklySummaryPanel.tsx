@@ -34,30 +34,6 @@ export function WeeklySummaryPanel({ onLogCreated }: WeeklySummaryPanelProps) {
   const { profile } = useAuth();
   const isAdmin = profile?.role === 'admin';
 
-  // Active / Deactivated toggle persisted locally + synced to Supabase for Saturday 6 PM Cron
-  const [isWeeklyActive, setIsWeeklyActive] = useState<boolean>(() => {
-    const remoteActive = store.notificationLogs.find(
-      (l: any) => (l as any).notification_type === 'weekly_summary_active'
-    ) as any;
-    if (remoteActive?.subject === 'inactive') return false;
-    if (remoteActive?.subject === 'active') return true;
-    const saved = localStorage.getItem('uct_weekly_summary_active');
-    return saved === 'inactive' ? false : true;
-  });
-  const [isSavingActive, setIsSavingActive] = useState(false);
-
-  // Approval mode persisted locally + synced to Supabase uct_notification_log for Saturday 6 PM Cron
-  const [approvalMode, setApprovalMode] = useState<WeeklyApprovalMode>(() => {
-    const remoteSetting = store.notificationLogs.find(
-      (l: any) => (l as any).notification_type === 'weekly_summary_mode'
-    ) as any;
-    if (remoteSetting?.subject === 'without_approval') return 'without_approval';
-    if (remoteSetting?.subject === 'with_approval') return 'with_approval';
-    const saved = localStorage.getItem('uct_weekly_approval_mode');
-    return saved === 'without_approval' ? 'without_approval' : 'with_approval';
-  });
-  const [isSavingMode, setIsSavingMode] = useState(false);
-
   // Reporting week reference date
   const [refDate, setRefDate] = useState<string>(() => {
     const now = new Date();
@@ -136,7 +112,7 @@ export function WeeklySummaryPanel({ onLogCreated }: WeeklySummaryPanelProps) {
   const [savingToolKey, setSavingToolKey] = useState<string | null>(null);
 
   const getToolConfig = (key: string): ToolControlConfig => {
-    return toolConfigs[key] || { active: isWeeklyActive, mode: approvalMode };
+    return toolConfigs[key] || { active: true, mode: 'with_approval' };
   };
 
   const handleToolConfigChange = async (
@@ -181,58 +157,6 @@ export function WeeklySummaryPanel({ onLogCreated }: WeeklySummaryPanelProps) {
   const [previewReport, setPreviewReport] = useState<WeeklyToolReport | null>(null);
   const [editTo, setEditTo] = useState('');
   const [editCc, setEditCc] = useState('');
-
-  const handleToggleActive = async (nextActive: boolean) => {
-    setIsWeeklyActive(nextActive);
-    localStorage.setItem('uct_weekly_summary_active', nextActive ? 'active' : 'inactive');
-    setIsSavingActive(true);
-    try {
-      await supabase.from('uct_notification_log').insert({
-        id: generateUUID(),
-        sender_id: profile?.id || null,
-        recipient_email: 'system@educore',
-        subject: nextActive ? 'active' : 'inactive',
-        notification_type: 'weekly_summary_active',
-        status: 'sent',
-        sent_at: new Date().toISOString(),
-      });
-      toast.success(
-        nextActive
-          ? 'Weekly Summary Mail Activated'
-          : 'Weekly Summary Mail Deactivated (Saturday 6 PM Cron paused)'
-      );
-    } catch (err) {
-      console.warn('Could not sync weekly active state to DB:', err);
-    } finally {
-      setIsSavingActive(false);
-    }
-  };
-
-  const handleModeChange = async (mode: WeeklyApprovalMode) => {
-    setApprovalMode(mode);
-    localStorage.setItem('uct_weekly_approval_mode', mode);
-    setIsSavingMode(true);
-    try {
-      await supabase.from('uct_notification_log').insert({
-        id: generateUUID(),
-        sender_id: profile?.id || null,
-        recipient_email: 'system@educore',
-        subject: mode,
-        notification_type: 'weekly_summary_mode',
-        status: 'sent',
-        sent_at: new Date().toISOString(),
-      });
-      toast.success(
-        mode === 'with_approval'
-          ? 'Weekly Mail set to With Approval (Saturday 6:00 PM IST)'
-          : 'Weekly Mail set to Without Approval (Auto-Send Saturday 6:00 PM IST)'
-      );
-    } catch (err) {
-      console.warn('Could not sync weekly mode to DB:', err);
-    } finally {
-      setIsSavingMode(false);
-    }
-  };
 
   const getReportStatus = (report: WeeklyToolReport): 'sent' | 'pending_approval' | 'ready' => {
     if (sentKeys[report.key]) return 'sent';
@@ -354,7 +278,7 @@ export function WeeklySummaryPanel({ onLogCreated }: WeeklySummaryPanelProps) {
 
   return (
     <div className="card-meridian p-6 space-y-5">
-      {/* Header & Schedule Mode Toggle */}
+      {/* Header */}
       <div className="flex flex-col lg:flex-row lg:items-center justify-between border-b border-border pb-4 gap-4">
         <div>
           <h2 className="font-heading font-bold text-lg text-foreground flex items-center gap-2">
@@ -365,94 +289,12 @@ export function WeeklySummaryPanel({ onLogCreated }: WeeklySummaryPanelProps) {
             Per-Batch &amp; Per-Active-Course weekly report (Current Semester, Mon–Sat). Skips courses with no weekly activity.
           </p>
         </div>
-
-        {/* Active/Deactivate + 2-Type Approval Mode Controls */}
-        {isAdmin && (
-          <div className="flex flex-wrap items-center gap-2.5">
-            {/* Activate / Deactivate Toggle */}
-            <div className="flex items-center gap-1 bg-sunken p-1.5 rounded-2xl border border-border">
-              <button
-                type="button"
-                disabled={isSavingActive}
-                onClick={() => handleToggleActive(true)}
-                className={`px-3 py-1.5 rounded-xl text-xs font-semibold transition-all cursor-pointer ${
-                  isWeeklyActive
-                    ? 'bg-success text-white shadow-xs'
-                    : 'text-muted-foreground hover:text-foreground'
-                }`}
-              >
-                Active
-              </button>
-              <button
-                type="button"
-                disabled={isSavingActive}
-                onClick={() => handleToggleActive(false)}
-                className={`px-3 py-1.5 rounded-xl text-xs font-semibold transition-all cursor-pointer ${
-                  !isWeeklyActive
-                    ? 'bg-destructive text-white shadow-xs'
-                    : 'text-muted-foreground hover:text-foreground'
-                }`}
-              >
-                Deactivated
-              </button>
-            </div>
-
-            {/* 2-Type Approval Mode Selector */}
-            <div className="flex flex-col sm:flex-row sm:items-center gap-2 bg-sunken p-1.5 rounded-2xl border border-border">
-              <span className="text-[11px] font-mono font-semibold text-muted-foreground px-2 uppercase">
-                Sat 6 PM Mode:
-              </span>
-              <div className="flex items-center gap-1">
-                <button
-                  type="button"
-                  disabled={isSavingMode || !isWeeklyActive}
-                  onClick={() => handleModeChange('with_approval')}
-                  className={`px-3 py-1.5 rounded-xl text-xs font-semibold transition-all cursor-pointer flex items-center gap-1.5 disabled:opacity-50 ${
-                    approvalMode === 'with_approval'
-                      ? 'bg-primary text-primary-foreground shadow-xs'
-                      : 'text-muted-foreground hover:text-foreground'
-                  }`}
-                >
-                  <ShieldCheck className="h-3.5 w-3.5" /> With Approval
-                </button>
-                <button
-                  type="button"
-                  disabled={isSavingMode || !isWeeklyActive}
-                  onClick={() => handleModeChange('without_approval')}
-                  className={`px-3 py-1.5 rounded-xl text-xs font-semibold transition-all cursor-pointer flex items-center gap-1.5 disabled:opacity-50 ${
-                    approvalMode === 'without_approval'
-                      ? 'bg-accent text-accent-foreground shadow-xs'
-                      : 'text-muted-foreground hover:text-foreground'
-                  }`}
-                >
-                  <Send className="h-3.5 w-3.5" /> Without Approval (Auto)
-                </button>
-              </div>
-            </div>
-          </div>
-        )}
       </div>
 
       {/* Mode Explanation Banner */}
-      <div className={`text-xs rounded-xl px-4 py-2.5 flex flex-col sm:flex-row sm:items-center justify-between gap-2 border ${
-        !isWeeklyActive
-          ? 'bg-destructive/10 border-destructive/30 text-destructive'
-          : 'bg-muted/40 border-border/80 text-muted-foreground'
-      }`}>
+      <div className="text-xs rounded-xl px-4 py-2.5 flex flex-col sm:flex-row sm:items-center justify-between gap-2 border bg-muted/40 border-border/80 text-muted-foreground">
         <span>
-          {!isWeeklyActive ? (
-            <>
-              <strong>Weekly Summary Mail is Deactivated:</strong> Automated Saturday 6:00 PM IST scheduling and sending are paused. Click <strong>Active</strong> above to re-enable.
-            </>
-          ) : approvalMode === 'with_approval' ? (
-            <>
-              <strong className="text-foreground">With Approval:</strong> Every Saturday at 6:00 PM IST, active reports are queued for Admin review and you receive an approval alert before they are sent.
-            </>
-          ) : (
-            <>
-              <strong className="text-foreground">Without Approval (Auto-Send):</strong> Every Saturday at 6:00 PM IST, active reports are automatically emailed to College Coordinators (CC: Trainer, Admin, CEO).
-            </>
-          )}
+          Configure <strong className="text-foreground">Active / Deactivated</strong> and <strong className="text-foreground">With Approval / Without Approval (Auto)</strong> individually for each Batch &amp; Course below.
         </span>
       </div>
 
@@ -494,7 +336,7 @@ export function WeeklySummaryPanel({ onLogCreated }: WeeklySummaryPanelProps) {
           <Button
             size="sm"
             onClick={handleApproveAndSendAll}
-            disabled={isSendingAll || !isWeeklyActive}
+            disabled={isSendingAll}
             className="bg-primary text-primary-foreground text-xs font-semibold shadow-xs"
           >
             {isSendingAll ? (
@@ -527,7 +369,7 @@ export function WeeklySummaryPanel({ onLogCreated }: WeeklySummaryPanelProps) {
           {reports.map((r) => {
             const status = getReportStatus(r);
             const toolCfg = getToolConfig(r.key);
-            const isToolActive = isWeeklyActive && toolCfg.active;
+            const isToolActive = toolCfg.active;
             const isSavingThisTool = savingToolKey === r.key;
             return (
               <div
@@ -618,7 +460,7 @@ export function WeeklySummaryPanel({ onLogCreated }: WeeklySummaryPanelProps) {
                       <div className="flex items-center gap-1 bg-sunken p-1 rounded-xl border border-border">
                         <button
                           type="button"
-                          disabled={isSavingThisTool || !isWeeklyActive}
+                          disabled={isSavingThisTool}
                           onClick={() => handleToolConfigChange(r, { active: true })}
                           className={`px-2.5 py-1 rounded-lg text-[11px] font-semibold transition-all cursor-pointer disabled:opacity-50 ${
                             toolCfg.active
@@ -630,7 +472,7 @@ export function WeeklySummaryPanel({ onLogCreated }: WeeklySummaryPanelProps) {
                         </button>
                         <button
                           type="button"
-                          disabled={isSavingThisTool || !isWeeklyActive}
+                          disabled={isSavingThisTool}
                           onClick={() => handleToolConfigChange(r, { active: false })}
                           className={`px-2.5 py-1 rounded-lg text-[11px] font-semibold transition-all cursor-pointer disabled:opacity-50 ${
                             !toolCfg.active
