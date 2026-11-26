@@ -986,9 +986,10 @@ export function generateWeeklySummaryEmailHtml(report: WeeklyToolReport): string
                             const isPass = m.pct >= 40;
                             const markColor = isPass ? '#15803d' : '#dc2626';
                             return `
-                              <td style="padding:8px;text-align:center;white-space:nowrap;line-height:1.3;">
-                                <div style="font-weight:800;color:${markColor};font-family:monospace;">${m.mark} / ${m.maxMark}</div>
-                                <div style="font-size:10px;color:${markColor};font-weight:600;">${m.pct}%</div>
+                              <td style="padding:9px 8px;text-align:center;white-space:nowrap;font-size:11px;">
+                                <span style="font-weight:800;color:${markColor};font-family:monospace;">${m.mark} / ${m.maxMark}</span>
+                                <span style="color:#cbd5e1;margin:0 4px;">|</span>
+                                <span style="font-weight:700;color:${markColor};">${m.pct}%</span>
                               </td>
                             `;
                           })
