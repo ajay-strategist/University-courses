@@ -703,6 +703,7 @@ export default function BatchDetails() {
         const batchStudents = store.students.filter(s => s.batch_id === batch.id);
         let updatedCount = 0;
         let skippedCount = 0;
+        let dbSyncWarning = '';
 
         for (const r of rows) {
           const rawRegNo = getExactOrFuzzy(r, [
@@ -739,23 +740,32 @@ export default function BatchDetails() {
           const photoUrl = extractImageUrl(rawImage);
           const timestamp = getExactOrFuzzy(r, ['Timestamp']);
 
-          await store.saveStudent({
-            ...existing,
-            name: fullName || existing.name,
-            email: email || existing.email,
-            phone: phone || existing.phone,
-            gender: gender || existing.gender,
-            previous_qualification: prevQual || existing.previous_qualification,
-            laptop_availability: laptop || existing.laptop_availability,
-            prior_course_knowledge: priorKnowledge || existing.prior_course_knowledge,
-            photo_url: photoUrl || existing.photo_url,
-            registered_at: timestamp || existing.registered_at,
-          });
+          try {
+            await store.saveStudent({
+              ...existing,
+              name: fullName || existing.name,
+              email: email || existing.email,
+              phone: phone || existing.phone,
+              gender: gender || existing.gender,
+              previous_qualification: prevQual || existing.previous_qualification,
+              laptop_availability: laptop || existing.laptop_availability,
+              prior_course_knowledge: priorKnowledge || existing.prior_course_knowledge,
+              photo_url: photoUrl || existing.photo_url,
+              registered_at: timestamp || existing.registered_at,
+            });
+          } catch (saveErr: any) {
+            dbSyncWarning = saveErr?.message || 'Database sync failed';
+          }
           updatedCount++;
         }
 
         setStudents(store.students.filter(s => s.batch_id === batch.id));
-        if (updatedCount > 0) {
+        if (dbSyncWarning) {
+          toast.error(`Saved ${updatedCount} students locally, but DB sync failed`, {
+            description: dbSyncWarning,
+            duration: 8000,
+          });
+        } else if (updatedCount > 0) {
           toast.success(
             `Updated registration details for ${updatedCount} student${updatedCount === 1 ? '' : 's'}` +
               (skippedCount > 0 ? ` (${skippedCount} skipped: Register No. not in batch)` : '')
@@ -942,8 +952,8 @@ export default function BatchDetails() {
 
     return rangeSessions.map(s => {
       const parts = s.session_date.split('-');
-      const dateStr = parts.length === 3 ? `${parts[2]}/${parts[1]}` : s.session_date.substring(5).replace('-', '/');
-      return `${dateStr} H${s.hour_no}`;
+      const dateStr = parts.length === 3 ? `${parts[2]}-${parts[1]}-${parts[0].slice(-2)}` : s.session_date;
+      return `${dateStr}\n(H${s.hour_no})`;
     });
   };
 
@@ -4380,7 +4390,7 @@ export default function BatchDetails() {
                           <th className="p-2.5">Name</th>
                           <th className="p-2.5">Class (Division)</th>
                           {getSessionHeaders().map((header, idx) => (
-                            <th key={idx} className="p-2.5 text-center whitespace-nowrap">{header}</th>
+                            <th key={idx} className="p-2.5 text-center whitespace-pre-line leading-tight">{header}</th>
                           ))}
                         </tr>
                       </thead>

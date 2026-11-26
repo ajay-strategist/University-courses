@@ -1197,8 +1197,25 @@ class DataStore {
     this.saveLocalCache();
 
     try {
-      const { error } = await supabase.from('uct_students').upsert(item, { onConflict: 'batch_id,register_no' });
+      const dbPayload = {
+        id: item.id,
+        batch_id: item.batch_id,
+        register_no: item.register_no,
+        name: item.name,
+        class: item.class,
+        phone: item.phone || '',
+        email: item.email || null,
+        gender: item.gender || null,
+        previous_qualification: item.previous_qualification || null,
+        laptop_availability: item.laptop_availability || null,
+        prior_course_knowledge: item.prior_course_knowledge || null,
+        photo_url: item.photo_url || null,
+        registered_at: item.registered_at || null,
+        updated_at: new Date().toISOString(),
+      };
+      const { error } = await supabase.from('uct_students').upsert(dbPayload, { onConflict: 'batch_id,register_no' });
       if (error) {
+        console.error('Supabase saveStudent extended error:', error.message);
         // Fallback to core columns if extended registration columns are not yet migrated in remote DB
         const corePayload = {
           id: item.id,
@@ -1207,12 +1224,17 @@ class DataStore {
           name: item.name,
           class: item.class,
           phone: item.phone || '',
+          updated_at: new Date().toISOString(),
         };
         const { error: retryErr } = await supabase.from('uct_students').upsert(corePayload, { onConflict: 'batch_id,register_no' });
         if (retryErr) console.error('Supabase saveStudent error:', retryErr.message);
+        throw new Error(`Database columns missing or rejected (${error.message}). Saved locally — run database_schema/add_student_registration_details.sql in Supabase SQL Editor.`);
       }
-    } catch (e) {
+    } catch (e: any) {
       console.warn('Supabase student sync warning:', e);
+      if (e?.message?.includes('Database columns missing')) {
+        throw e;
+      }
     }
     return item;
   }

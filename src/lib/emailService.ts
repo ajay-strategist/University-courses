@@ -182,7 +182,7 @@ export function buildAbsenteeReportHtml(params: {
       <th style="padding: 10px 12px; text-align: left; border-bottom: 2px solid #cbd5e1;">Register No</th>
       <th style="padding: 10px 12px; text-align: left; border-bottom: 2px solid #cbd5e1;">Student Name</th>
       <th style="padding: 10px 12px; text-align: left; border-bottom: 2px solid #cbd5e1;">Class</th>
-      ${sessionHeaders.map(h => `<th style="padding: 10px 8px; text-align: center; border-bottom: 2px solid #cbd5e1;">${h}</th>`).join('')}
+      ${sessionHeaders.map(h => `<th style="padding: 10px 8px; text-align: center; border-bottom: 2px solid #cbd5e1; line-height: 1.3;">${h.replace(/\n/g, '<br/>')}</th>`).join('')}
     </tr>
   `;
 
