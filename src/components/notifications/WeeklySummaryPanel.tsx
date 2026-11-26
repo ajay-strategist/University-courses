@@ -109,6 +109,74 @@ export function WeeklySummaryPanel({ onLogCreated }: WeeklySummaryPanelProps) {
   const [sendingKey, setSendingKey] = useState<string | null>(null);
   const [isSendingAll, setIsSendingAll] = useState(false);
 
+  // Per-Batch & Per-Tool controls persisted in localStorage + Supabase uct_notification_log
+  type ToolControlConfig = { active: boolean; mode: WeeklyApprovalMode };
+  const [toolConfigs, setToolConfigs] = useState<Record<string, ToolControlConfig>>(() => {
+    const map: Record<string, ToolControlConfig> = {};
+    try {
+      const saved = localStorage.getItem('uct_weekly_tool_configs');
+      if (saved) Object.assign(map, JSON.parse(saved));
+    } catch {
+      // ignore invalid JSON
+    }
+    // Hydrate from remote logs (newest first, so first match per key wins)
+    const seen = new Set<string>();
+    for (const l of store.notificationLogs as any[]) {
+      if (l.notification_type === 'weekly_summary_tool_config' && l.recipient_email && !seen.has(l.recipient_email)) {
+        seen.add(l.recipient_email);
+        const [activePart, modePart] = String(l.subject || '').split('|');
+        map[l.recipient_email] = {
+          active: activePart === 'inactive' ? false : true,
+          mode: modePart === 'without_approval' ? 'without_approval' : 'with_approval',
+        };
+      }
+    }
+    return map;
+  });
+  const [savingToolKey, setSavingToolKey] = useState<string | null>(null);
+
+  const getToolConfig = (key: string): ToolControlConfig => {
+    return toolConfigs[key] || { active: isWeeklyActive, mode: approvalMode };
+  };
+
+  const handleToolConfigChange = async (
+    report: WeeklyToolReport,
+    patch: Partial<ToolControlConfig>
+  ) => {
+    const current = getToolConfig(report.key);
+    const next: ToolControlConfig = { ...current, ...patch };
+    const nextMap = { ...toolConfigs, [report.key]: next };
+    setToolConfigs(nextMap);
+    try {
+      localStorage.setItem('uct_weekly_tool_configs', JSON.stringify(nextMap));
+    } catch {
+      // ignore quota errors
+    }
+
+    setSavingToolKey(report.key);
+    try {
+      await supabase.from('uct_notification_log').insert({
+        id: generateUUID(),
+        batch_id: report.batch.id,
+        sender_id: profile?.id || null,
+        recipient_email: report.key,
+        subject: `${next.active ? 'active' : 'inactive'}|${next.mode}`,
+        notification_type: 'weekly_summary_tool_config',
+        status: 'sent',
+        sent_at: new Date().toISOString(),
+      });
+      toast.success(
+        `${report.batch.code} • ${report.course.code}: ${
+          next.active ? 'Active' : 'Deactivated'
+        } (${next.mode === 'with_approval' ? 'With Approval' : 'Without Approval'})`
+      );
+    } catch (err) {
+      console.warn('Could not sync per-tool weekly config to DB:', err);
+    } finally {
+      setSavingToolKey(null);
+    }
+  };
+
   // Preview Modal state
   const [previewReport, setPreviewReport] = useState<WeeklyToolReport | null>(null);
   const [editTo, setEditTo] = useState('');
@@ -255,7 +323,9 @@ export function WeeklySummaryPanel({ onLogCreated }: WeeklySummaryPanelProps) {
   };
 
   const handleApproveAndSendAll = async () => {
-    const unsent = reports.filter((r) => getReportStatus(r) !== 'sent');
+    const unsent = reports.filter(
+      (r) => getToolConfig(r.key).active && getReportStatus(r) !== 'sent'
+    );
     if (unsent.length === 0) {
       toast.info('All active weekly reports for this week have already been sent.');
       return;
@@ -433,7 +503,8 @@ export function WeeklySummaryPanel({ onLogCreated }: WeeklySummaryPanelProps) {
               </>
             ) : (
               <>
-                <Check className="h-3.5 w-3.5 mr-1.5" /> Approve &amp; Send All ({reports.filter((r) => getReportStatus(r) !== 'sent').length})
+                <Check className="h-3.5 w-3.5 mr-1.5" /> Approve &amp; Send All (
+                {reports.filter((r) => getToolConfig(r.key).active && getReportStatus(r) !== 'sent').length})
               </>
             )}
           </Button>
@@ -452,77 +523,159 @@ export function WeeklySummaryPanel({ onLogCreated }: WeeklySummaryPanelProps) {
           </p>
         </div>
       ) : (
-        <div className="space-y-2.5">
+        <div className="space-y-3">
           {reports.map((r) => {
             const status = getReportStatus(r);
+            const toolCfg = getToolConfig(r.key);
+            const isToolActive = isWeeklyActive && toolCfg.active;
+            const isSavingThisTool = savingToolKey === r.key;
             return (
               <div
                 key={r.key}
-                className="flex flex-col md:flex-row md:items-center justify-between gap-3 p-4 rounded-2xl border border-border bg-card hover:border-primary/30 transition-all"
+                className={`rounded-2xl border p-4 space-y-3 transition-all ${
+                  isToolActive
+                    ? 'border-border bg-card hover:border-primary/30'
+                    : 'border-border/60 bg-muted/20 opacity-80'
+                }`}
               >
-                <div className="space-y-1 min-w-0">
-                  <div className="flex flex-wrap items-center gap-2">
-                    <span className="font-heading font-bold text-sm text-foreground">{r.batch.code}</span>
-                    <span className="text-[11px] font-mono px-2 py-0.5 rounded-md bg-primary/10 text-primary font-semibold">
-                      Sem {r.semester}
-                    </span>
-                    <span className="text-[11px] font-mono px-2 py-0.5 rounded-md bg-accent/15 text-accent font-semibold">
-                      {r.course.name} ({r.course.code})
-                    </span>
-                    {status === 'sent' ? (
-                      <span className="text-[10px] font-mono px-2 py-0.5 rounded-full bg-success/15 text-success border border-success/25 font-bold flex items-center gap-1">
-                        <CheckCircle2 className="h-3 w-3" /> Sent
+                <div className="flex flex-col md:flex-row md:items-center justify-between gap-3">
+                  <div className="space-y-1 min-w-0">
+                    <div className="flex flex-wrap items-center gap-2">
+                      <span className="font-heading font-bold text-sm text-foreground">{r.batch.code}</span>
+                      <span className="text-[11px] font-mono px-2 py-0.5 rounded-md bg-primary/10 text-primary font-semibold">
+                        Sem {r.semester}
                       </span>
-                    ) : status === 'pending_approval' ? (
-                      <span className="text-[10px] font-mono px-2 py-0.5 rounded-full bg-warning/15 text-warning border border-warning/25 font-bold flex items-center gap-1">
-                        <Clock className="h-3 w-3" /> Pending Approval
+                      <span className="text-[11px] font-mono px-2 py-0.5 rounded-md bg-accent/15 text-accent font-semibold">
+                        {r.course.name} ({r.course.code})
                       </span>
-                    ) : (
-                      <span className="text-[10px] font-mono px-2 py-0.5 rounded-full bg-muted text-muted-foreground font-semibold">
-                        Ready to Review
-                      </span>
-                    )}
+                      {!isToolActive ? (
+                        <span className="text-[10px] font-mono px-2 py-0.5 rounded-full bg-destructive/15 text-destructive border border-destructive/25 font-bold">
+                          Deactivated
+                        </span>
+                      ) : status === 'sent' ? (
+                        <span className="text-[10px] font-mono px-2 py-0.5 rounded-full bg-success/15 text-success border border-success/25 font-bold flex items-center gap-1">
+                          <CheckCircle2 className="h-3 w-3" /> Sent
+                        </span>
+                      ) : status === 'pending_approval' ? (
+                        <span className="text-[10px] font-mono px-2 py-0.5 rounded-full bg-warning/15 text-warning border border-warning/25 font-bold flex items-center gap-1">
+                          <Clock className="h-3 w-3" /> Pending Approval
+                        </span>
+                      ) : (
+                        <span className="text-[10px] font-mono px-2 py-0.5 rounded-full bg-muted text-muted-foreground font-semibold">
+                          Ready to Review
+                        </span>
+                      )}
+                    </div>
+                    <div className="text-xs text-muted-foreground font-mono flex flex-wrap gap-x-3 gap-y-0.5">
+                      <span>Students: <strong className="text-foreground">{r.totalStudents}</strong></span>
+                      <span>Week Att: <strong className="text-foreground">{r.currWeekAttendancePct !== null ? `${r.currWeekAttendancePct}%` : '—'}</strong></span>
+                      <span>Week Hrs: <strong className="text-foreground">{r.currWeekHoursDelivered} hrs</strong></span>
+                      <span>Risk Flagged: <strong className={r.riskRows.length > 0 ? 'text-destructive' : 'text-success'}>{r.riskRows.length}</strong></span>
+                    </div>
+                    <div className="text-[11px] text-muted-foreground truncate">
+                      <strong>TO:</strong> {r.toRecipients.join(', ') || 'No College Coordinator email'}
+                      {r.ccRecipients.length > 0 && (
+                        <> &bull; <strong>CC:</strong> {r.ccRecipients.join(', ')}</>
+                      )}
+                    </div>
                   </div>
-                  <div className="text-xs text-muted-foreground font-mono flex flex-wrap gap-x-3 gap-y-0.5">
-                    <span>Students: <strong className="text-foreground">{r.totalStudents}</strong></span>
-                    <span>Week Att: <strong className="text-foreground">{r.currWeekAttendancePct !== null ? `${r.currWeekAttendancePct}%` : '—'}</strong></span>
-                    <span>Week Hrs: <strong className="text-foreground">{r.currWeekHoursDelivered} hrs</strong></span>
-                    <span>Risk Flagged: <strong className={r.riskRows.length > 0 ? 'text-destructive' : 'text-success'}>{r.riskRows.length}</strong></span>
-                  </div>
-                  <div className="text-[11px] text-muted-foreground truncate">
-                    <strong>TO:</strong> {r.toRecipients.join(', ') || 'No College Coordinator email'}
-                    {r.ccRecipients.length > 0 && (
-                      <> &bull; <strong>CC:</strong> {r.ccRecipients.join(', ')}</>
-                    )}
+
+                  <div className="flex items-center gap-2 shrink-0">
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={() => handleOpenPreview(r)}
+                      className="h-8 text-xs rounded-xl"
+                    >
+                      <Eye className="h-3.5 w-3.5 mr-1" /> Preview
+                    </Button>
+                    <Button
+                      size="sm"
+                      onClick={() => handleSendSingle(r)}
+                      disabled={sendingKey === r.key || isSendingAll || !isToolActive}
+                      className="h-8 text-xs rounded-xl bg-primary text-primary-foreground"
+                    >
+                      {sendingKey === r.key ? (
+                        <>
+                          <Loader2 className="h-3.5 w-3.5 mr-1 animate-spin" /> Sending...
+                        </>
+                      ) : (
+                        <>
+                          <Send className="h-3.5 w-3.5 mr-1" /> {status === 'sent' ? 'Resend' : 'Approve & Send'}
+                        </>
+                      )}
+                    </Button>
                   </div>
                 </div>
 
-                <div className="flex items-center gap-2 shrink-0">
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    onClick={() => handleOpenPreview(r)}
-                    className="h-8 text-xs rounded-xl"
-                  >
-                    <Eye className="h-3.5 w-3.5 mr-1" /> Preview
-                  </Button>
-                  <Button
-                    size="sm"
-                    onClick={() => handleSendSingle(r)}
-                    disabled={sendingKey === r.key || isSendingAll || !isWeeklyActive}
-                    className="h-8 text-xs rounded-xl bg-primary text-primary-foreground"
-                  >
-                    {sendingKey === r.key ? (
-                      <>
-                        <Loader2 className="h-3.5 w-3.5 mr-1 animate-spin" /> Sending...
-                      </>
-                    ) : (
-                      <>
-                        <Send className="h-3.5 w-3.5 mr-1" /> {status === 'sent' ? 'Resend' : 'Approve & Send'}
-                      </>
-                    )}
-                  </Button>
-                </div>
+                {/* Per-Batch & Per-Tool Controls */}
+                {isAdmin && (
+                  <div className="pt-2.5 border-t border-border/60 flex flex-wrap items-center justify-between gap-2.5">
+                    <div className="flex flex-wrap items-center gap-2">
+                      <span className="text-[10px] font-mono font-semibold text-muted-foreground uppercase">
+                        Tool Status:
+                      </span>
+                      <div className="flex items-center gap-1 bg-sunken p-1 rounded-xl border border-border">
+                        <button
+                          type="button"
+                          disabled={isSavingThisTool || !isWeeklyActive}
+                          onClick={() => handleToolConfigChange(r, { active: true })}
+                          className={`px-2.5 py-1 rounded-lg text-[11px] font-semibold transition-all cursor-pointer disabled:opacity-50 ${
+                            toolCfg.active
+                              ? 'bg-success text-white shadow-xs'
+                              : 'text-muted-foreground hover:text-foreground'
+                          }`}
+                        >
+                          Active
+                        </button>
+                        <button
+                          type="button"
+                          disabled={isSavingThisTool || !isWeeklyActive}
+                          onClick={() => handleToolConfigChange(r, { active: false })}
+                          className={`px-2.5 py-1 rounded-lg text-[11px] font-semibold transition-all cursor-pointer disabled:opacity-50 ${
+                            !toolCfg.active
+                              ? 'bg-destructive text-white shadow-xs'
+                              : 'text-muted-foreground hover:text-foreground'
+                          }`}
+                        >
+                          Deactivated
+                        </button>
+                      </div>
+                    </div>
+
+                    <div className="flex flex-wrap items-center gap-2">
+                      <span className="text-[10px] font-mono font-semibold text-muted-foreground uppercase">
+                        Sat 6 PM Mode:
+                      </span>
+                      <div className="flex items-center gap-1 bg-sunken p-1 rounded-xl border border-border">
+                        <button
+                          type="button"
+                          disabled={isSavingThisTool || !isToolActive}
+                          onClick={() => handleToolConfigChange(r, { mode: 'with_approval' })}
+                          className={`px-2.5 py-1 rounded-lg text-[11px] font-semibold transition-all cursor-pointer flex items-center gap-1 disabled:opacity-50 ${
+                            toolCfg.mode === 'with_approval'
+                              ? 'bg-primary text-primary-foreground shadow-xs'
+                              : 'text-muted-foreground hover:text-foreground'
+                          }`}
+                        >
+                          <ShieldCheck className="h-3 w-3" /> With Approval
+                        </button>
+                        <button
+                          type="button"
+                          disabled={isSavingThisTool || !isToolActive}
+                          onClick={() => handleToolConfigChange(r, { mode: 'without_approval' })}
+                          className={`px-2.5 py-1 rounded-lg text-[11px] font-semibold transition-all cursor-pointer flex items-center gap-1 disabled:opacity-50 ${
+                            toolCfg.mode === 'without_approval'
+                              ? 'bg-accent text-accent-foreground shadow-xs'
+                              : 'text-muted-foreground hover:text-foreground'
+                          }`}
+                        >
+                          <Send className="h-3 w-3" /> Without Approval (Auto)
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                )}
               </div>
             );
           })}

@@ -152,44 +152,66 @@ export default async function handler(req: any, res: any) {
       return;
     }
 
-    if (approvalMode === 'without_approval') {
-      let sentCount = 0;
-      for (const r of pendingReports) {
-        if (r.toRecipients.length === 0) continue;
-        await handleSendEmail({
-          smtp_host: smtpCfg.smtp_host,
-          smtp_port: smtpCfg.smtp_port,
-          smtp_user: smtpCfg.smtp_user,
-          smtp_pass: smtpCfg.smtp_app_password,
-          from_name: smtpCfg.from_name || 'Team The Strategist',
-          to: r.toRecipients.join(', '),
-          cc: r.ccRecipients.join(', '),
-          subject: r.subject,
-          html: r.html,
+    // Resolve per-Batch & per-Tool controls (falling back to global defaults)
+    const perToolConfigMap = new Map<string, { active: boolean; mode: WeeklyApprovalMode }>();
+    for (const l of notificationLogs || []) {
+      if (
+        (l as any).notification_type === 'weekly_summary_tool_config' &&
+        (l as any).recipient_email &&
+        !perToolConfigMap.has((l as any).recipient_email)
+      ) {
+        const [activePart, modePart] = String((l as any).subject || '').split('|');
+        perToolConfigMap.set((l as any).recipient_email, {
+          active: activePart === 'inactive' ? false : true,
+          mode: modePart === 'without_approval' ? 'without_approval' : 'with_approval',
         });
-
-        await supabase.from('uct_notification_log').insert({
-          batch_id: r.batch.id,
-          sender_id: smtpCfg.user_id,
-          recipient_email: r.toRecipients.join(', '),
-          subject: r.subject,
-          notification_type: 'weekly_summary',
-          status: 'sent',
-          sent_at: new Date().toISOString(),
-        });
-        sentCount++;
       }
-
-      res.status(200).json({
-        success: true,
-        mode: approvalMode,
-        sentCount,
-      });
-      return;
     }
 
-    // WITH APPROVAL MODE: Queue in uct_notification_log & notify Admin(s)
-    for (const r of pendingReports) {
+    const activePendingReports = pendingReports.filter((r) => {
+      const cfg = perToolConfigMap.get(r.key);
+      return cfg ? cfg.active : true;
+    });
+
+    const autoSendReports = activePendingReports.filter((r) => {
+      const cfg = perToolConfigMap.get(r.key);
+      return (cfg ? cfg.mode : approvalMode) === 'without_approval';
+    });
+
+    const approvalReports = activePendingReports.filter((r) => {
+      const cfg = perToolConfigMap.get(r.key);
+      return (cfg ? cfg.mode : approvalMode) === 'with_approval';
+    });
+
+    let sentCount = 0;
+    for (const r of autoSendReports) {
+      if (r.toRecipients.length === 0) continue;
+      await handleSendEmail({
+        smtp_host: smtpCfg.smtp_host,
+        smtp_port: smtpCfg.smtp_port,
+        smtp_user: smtpCfg.smtp_user,
+        smtp_pass: smtpCfg.smtp_app_password,
+        from_name: smtpCfg.from_name || 'Team The Strategist',
+        to: r.toRecipients.join(', '),
+        cc: r.ccRecipients.join(', '),
+        subject: r.subject,
+        html: r.html,
+      });
+
+      await supabase.from('uct_notification_log').insert({
+        batch_id: r.batch.id,
+        sender_id: smtpCfg.user_id,
+        recipient_email: r.toRecipients.join(', '),
+        subject: r.subject,
+        notification_type: 'weekly_summary',
+        status: 'sent',
+        sent_at: new Date().toISOString(),
+      });
+      sentCount++;
+    }
+
+    // WITH APPROVAL REPORTS: Queue in uct_notification_log & notify Admin(s)
+    for (const r of approvalReports) {
       await supabase.from('uct_notification_log').insert({
         batch_id: r.batch.id,
         sender_id: smtpCfg.user_id,
@@ -204,9 +226,9 @@ export default async function handler(req: any, res: any) {
       .filter((p) => p.role === 'admin' && p.email)
       .map((p) => p.email);
 
-    if (adminEmails.length > 0) {
-      const sample = pendingReports[0];
-      const listHtml = pendingReports
+    if (approvalReports.length > 0 && adminEmails.length > 0) {
+      const sample = approvalReports[0];
+      const listHtml = approvalReports
         .map(
           (r) =>
             `<li style="margin-bottom:6px;"><strong>${r.batch.code}</strong> &bull; ${r.course.name} (${r.course.code}) &mdash; <em>${r.currWeekHoursDelivered} hrs, ${r.currWeekAttendancePct ?? '—'}% att</em></li>`
@@ -220,12 +242,12 @@ export default async function handler(req: any, res: any) {
         smtp_pass: smtpCfg.smtp_app_password,
         from_name: smtpCfg.from_name || 'Team The Strategist',
         to: adminEmails.join(', '),
-        subject: `[Action Required] ${pendingReports.length} Weekly Summary Report(s) Pending Approval (${formatIsoToDDMMYYYY(sample.weekStart)} to ${formatIsoToDDMMYYYY(sample.weekEnd)})`,
+        subject: `[Action Required] ${approvalReports.length} Weekly Summary Report(s) Pending Approval (${formatIsoToDDMMYYYY(sample.weekStart)} to ${formatIsoToDDMMYYYY(sample.weekEnd)})`,
         html: `
           <div style="font-family:sans-serif;max-width:600px;margin:0 auto;padding:24px;background:#ffffff;border:1px solid #e2e8f0;border-radius:12px;">
             <h2 style="margin-top:0;color:#103C35;">Weekly Summary Reports Ready for Approval</h2>
             <p style="font-size:14px;color:#334155;line-height:1.5;">
-              The following <strong>${pendingReports.length} Weekly Summary report(s)</strong> for
+              The following <strong>${approvalReports.length} Weekly Summary report(s)</strong> for
               <strong>${formatIsoToDDMMYYYY(sample.weekStart)} to ${formatIsoToDDMMYYYY(sample.weekEnd)}</strong>
               are ready for your review:
             </p>
@@ -240,8 +262,10 @@ export default async function handler(req: any, res: any) {
 
     res.status(200).json({
       success: true,
-      mode: approvalMode,
-      queuedForApproval: pendingReports.length,
+      defaultMode: approvalMode,
+      sentCount,
+      queuedForApproval: approvalReports.length,
+      skippedDeactivated: pendingReports.length - activePendingReports.length,
     });
   } catch (err: any) {
     console.error('Weekly summary cron error:', err);
