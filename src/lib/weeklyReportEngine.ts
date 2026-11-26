@@ -636,7 +636,7 @@ export function generateWeeklySummaryEmailHtml(report: WeeklyToolReport): string
             <thead>
               <tr style="background:linear-gradient(90deg,#0f172a,#1e3a5f);color:#ffffff;font-size:11px;text-transform:uppercase;letter-spacing:0.4px;">
                 <th style="padding:10px 12px;">Date</th>
-                ${hourColumns.map((h) => `<th style="padding:10px 8px;text-align:center;">H${h} (Attendance %)</th>`).join('')}
+                ${hourColumns.map((h) => `<th style="padding:10px 8px;text-align:center;">Hour ${h}</th>`).join('')}
                 <th style="padding:10px 10px;text-align:center;">Attendance %</th>
                 <th style="padding:10px 12px;text-align:center;">Total Hours</th>
               </tr>
