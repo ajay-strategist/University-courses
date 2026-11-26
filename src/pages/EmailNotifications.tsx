@@ -186,15 +186,10 @@ export default function EmailNotifications() {
   return (
     <div className="space-y-6">
       {/* Header & Subtabs */}
-      <div className="flex flex-col md:flex-row md:items-end justify-between gap-4 border-b border-border pb-4">
-        <div>
-          <h1 className="text-2xl font-bold font-heading text-foreground">Email & Notifications Hub</h1>
-          <p className="text-sm text-muted-foreground">
-            Configure individual email accounts for Admins & Trainers, manage Weekly Summary mails, and view live delivery audit logs.
-          </p>
-        </div>
+      <div className="space-y-3 border-b border-border pb-4">
+        <h1 className="text-2xl font-bold font-heading text-foreground">Email &amp; Notifications Hub</h1>
 
-        <div className="flex flex-wrap items-center gap-1.5 bg-sunken p-1.5 rounded-2xl border border-border self-start md:self-auto">
+        <div className="inline-flex flex-wrap items-center gap-1.5 bg-sunken p-1.5 rounded-2xl border border-border">
           <button
             type="button"
             onClick={() => setActiveSubtab('settings')}
