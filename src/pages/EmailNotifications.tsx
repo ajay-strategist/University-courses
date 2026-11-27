@@ -5,9 +5,10 @@ import type { UserEmailConfig, NotificationLog } from '@/types';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { toast } from 'sonner';
-import { ShieldCheck, History, Send, Settings, Code, Loader2, AlertCircle, Info, RefreshCw, UserCheck, Sparkles } from 'lucide-react';
+import { ShieldCheck, History, Send, Settings, Code, Loader2, AlertCircle, Info, RefreshCw, UserCheck, Sparkles, CalendarDays } from 'lucide-react';
 import { sendEmail, verifySmtpConfig, DEFAULT_ABSENTEE_TEMPLATE } from '@/lib/emailService';
 import { WeeklySummaryPanel } from '@/components/notifications/WeeklySummaryPanel';
+import { MonthlySummaryPanel } from '@/components/notifications/MonthlySummaryPanel';
 
 export default function EmailNotifications() {
   const { profile } = useAuth();
@@ -53,7 +54,7 @@ export default function EmailNotifications() {
     return saved;
   });
 
-  const [activeSubtab, setActiveSubtab] = useState<'settings' | 'weekly_summary' | 'audit_log'>('settings');
+  const [activeSubtab, setActiveSubtab] = useState<'settings' | 'weekly_summary' | 'monthly_summary' | 'audit_log'>('settings');
   const [logs, setLogs] = useState<NotificationLog[]>([...store.notificationLogs]);
   const [isVerifying, setIsVerifying] = useState(false);
   const [isSendingTest, setIsSendingTest] = useState(false);
@@ -174,6 +175,9 @@ export default function EmailNotifications() {
           'weekly_summary_active',
           'weekly_summary_mode',
           'weekly_summary_tool_config',
+          'monthly_summary_active',
+          'monthly_summary_mode',
+          'monthly_summary_tool_config',
           'ceo_email_setting',
         ].includes(l.notification_type)
     )
@@ -211,6 +215,17 @@ export default function EmailNotifications() {
             }`}
           >
             <Sparkles className="h-3.5 w-3.5" /> Weekly Summary
+          </button>
+          <button
+            type="button"
+            onClick={() => setActiveSubtab('monthly_summary')}
+            className={`px-3.5 py-2 rounded-xl text-xs font-semibold transition-all cursor-pointer flex items-center gap-1.5 ${
+              activeSubtab === 'monthly_summary'
+                ? 'bg-primary text-primary-foreground shadow-xs'
+                : 'text-muted-foreground hover:text-foreground'
+            }`}
+          >
+            <CalendarDays className="h-3.5 w-3.5" /> Monthly Summary
           </button>
           <button
             type="button"
@@ -401,6 +416,11 @@ export default function EmailNotifications() {
       {/* Weekly Summary Mail (Saturday 6 PM IST — With Approval / Without Approval) */}
       {activeSubtab === 'weekly_summary' && (
         <WeeklySummaryPanel onLogCreated={() => setLogs([...store.notificationLogs])} />
+      )}
+
+      {/* Monthly Summary Mail (End of Month — With Approval / Without Approval) */}
+      {activeSubtab === 'monthly_summary' && (
+        <MonthlySummaryPanel onLogCreated={() => setLogs([...store.notificationLogs])} />
       )}
 
       {/* Notification Log Table (Latest to Oldest) */}
