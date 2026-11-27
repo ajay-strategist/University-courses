@@ -1170,8 +1170,25 @@ export default function BatchDetails() {
 
       const subject = `Absentees Report - ${absenteePreview.batch_code} (${absenteePreview.course_name}) - ${formatDateToDDMMYYYY(absenteePreview.session_date)}`;
 
+      const assignedTrainer = store.profiles.find(p => p.id === trainerCourse?.trainer_id);
+      const toEmailSet = new Set(
+        absenteePreview.recipient_email
+          .split(',')
+          .map(e => e.trim().toLowerCase())
+          .filter(Boolean)
+      );
+      const trainerCcList = Array.from(
+        new Set(
+          [
+            assignedTrainer?.email?.trim(),
+            activeSender?.role === 'trainer' ? activeSender?.email?.trim() : undefined,
+          ].filter((e): e is string => !!e && !toEmailSet.has(e.toLowerCase()))
+        )
+      );
+
       const sendResult = await sendEmail({
         to: absenteePreview.recipient_email,
+        cc: trainerCcList.length > 0 ? trainerCcList.join(', ') : undefined,
         subject,
         html,
         text,
@@ -4278,6 +4295,33 @@ export default function BatchDetails() {
                   <span className="text-muted-foreground font-medium">Recipient Coordinator:</span>
                   <span className="font-bold text-foreground">{absenteePreview.recipient_name} <span className="text-muted-foreground font-normal">({absenteePreview.recipient_email})</span></span>
                 </div>
+
+                {(() => {
+                  const tc = store.batchCourses.find(bc => bc.id === selectedBatchCourseId);
+                  const assignedTr = store.profiles.find(p => p.id === tc?.trainer_id);
+                  const selSender = store.profiles.find(p => p.id === absenteeSenderId);
+                  const toSet = new Set(
+                    absenteePreview.recipient_email
+                      .split(',')
+                      .map(e => e.trim().toLowerCase())
+                      .filter(Boolean)
+                  );
+                  const ccEmails = Array.from(
+                    new Set(
+                      [
+                        assignedTr?.email?.trim(),
+                        selSender?.role === 'trainer' ? selSender?.email?.trim() : undefined,
+                      ].filter((e): e is string => !!e && !toSet.has(e.toLowerCase()))
+                    )
+                  );
+                  if (ccEmails.length === 0) return null;
+                  return (
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-1 text-xs pt-1 border-t border-border/60">
+                      <span className="text-muted-foreground font-medium">CC (Trainer):</span>
+                      <span className="font-semibold text-foreground">{ccEmails.join(', ')}</span>
+                    </div>
+                  );
+                })()}
 
                 {(() => {
                   const directCfg = store.emailConfigs.find(c => c.user_id === absenteeSenderId && c.is_verified);
