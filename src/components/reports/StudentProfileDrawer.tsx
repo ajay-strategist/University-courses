@@ -79,7 +79,7 @@ export function StudentProfileDrawer({ student, batch, onClose }: StudentProfile
       onClick={onClose}
     >
       <div
-        className="bg-card w-full max-w-2xl max-h-[90vh] rounded-2xl shadow-2xl border border-border flex flex-col my-auto overflow-hidden animate-in fade-in zoom-in-95 duration-200"
+        className="bg-card w-[94vw] sm:w-[85vw] h-[88vh] sm:h-[85vh] max-w-none rounded-2xl shadow-2xl border border-border flex flex-col my-auto overflow-hidden animate-in fade-in zoom-in-95 duration-200"
         onClick={(e) => e.stopPropagation()}
       >
         {/* Modal Header */}
@@ -150,7 +150,7 @@ export function StudentProfileDrawer({ student, batch, onClose }: StudentProfile
             <h3 className="text-xs font-mono font-bold text-foreground uppercase tracking-wider">
               Student Details & Portfolio
             </h3>
-            <div className="grid grid-cols-2 gap-2.5 text-xs">
+            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4 text-xs">
               <div>
                 <span className="text-muted-foreground block">Gender:</span>
                 <span className="font-semibold text-foreground">{student.gender || 'Not Specified'}</span>
