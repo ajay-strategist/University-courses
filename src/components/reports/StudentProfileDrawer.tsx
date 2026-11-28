@@ -74,10 +74,16 @@ export function StudentProfileDrawer({ student, batch, onClose }: StudentProfile
   }, [studentMarks]);
 
   return (
-    <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-xs flex justify-end">
-      <div className="bg-card w-full max-w-xl h-full shadow-2xl border-l border-border flex flex-col overflow-hidden animate-in slide-in-from-right duration-200">
-        {/* Drawer Header */}
-        <div className="p-5 border-b border-border flex items-center justify-between bg-muted/20">
+    <div
+      className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center p-3 sm:p-4 overflow-y-auto"
+      onClick={onClose}
+    >
+      <div
+        className="bg-card w-full max-w-2xl max-h-[90vh] rounded-2xl shadow-2xl border border-border flex flex-col my-auto overflow-hidden animate-in fade-in zoom-in-95 duration-200"
+        onClick={(e) => e.stopPropagation()}
+      >
+        {/* Modal Header */}
+        <div className="p-5 border-b border-border flex items-center justify-between bg-muted/20 shrink-0">
           <div className="flex items-center gap-3">
             {photoUrl ? (
               <img
@@ -257,10 +263,10 @@ export function StudentProfileDrawer({ student, batch, onClose }: StudentProfile
           </div>
         </div>
 
-        {/* Drawer Footer */}
-        <div className="p-4 border-t border-border flex justify-end bg-muted/20">
+        {/* Modal Footer */}
+        <div className="p-4 border-t border-border flex justify-end bg-muted/20 shrink-0">
           <Button variant="outline" size="sm" onClick={onClose}>
-            Close Drawer
+            Close
           </Button>
         </div>
       </div>
